@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* BlackRock AI Neon Theme */
+    --background: 240 4% 6%;      /* #0D0D0F */
+    --foreground: 240 5% 91%;    /* #EAEAEA */
+    
+    --card: 240 4% 11%;          /* #1A1A1D */
+    --card-foreground: 240 5% 91%;
+    
+    --popover: 240 4% 6%;
+    --popover-foreground: 240 5% 91%;
+    
+    --primary: 141 100% 50%;     /* #00FF41 */
+    --primary-foreground: 240 4% 6%;
+    
+    --secondary: 240 3% 15%;     /* #242629 */
+    --secondary-foreground: 240 5% 91%;
+    
+    --muted: 240 3% 15%;
+    --muted-foreground: 240 4% 53%; /* #888888 */
+    
+    --accent: 141 100% 50%;
+    --accent-foreground: 240 4% 6%;
+    
+    --destructive: 347 100% 55%;  /* #FF1744 */
+    --destructive-foreground: 240 5% 91%;
+    
+    --border: 240 3% 15%;
+    --input: 240 3% 15%;
+    --ring: 141 100% 50%;
+    
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-display;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .glowing-icon {
+    text-shadow: 0 0 8px hsl(var(--primary));
+  }
+  .glowing-border-green {
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 5px hsl(var(--primary));
+  }
+  .glowing-border-red {
+      border-color: hsl(var(--destructive));
+      box-shadow: 0 0 5px hsl(var(--destructive));
+  }
+  .neon-grid-bg {
+      background-image:
+          linear-gradient(hsla(var(--primary) / 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, hsla(var(--primary) / 0.05) 1px, transparent 1px);
+      background-size: 2rem 2rem;
+      animation: pulse 10s infinite linear;
+  }
+  @keyframes pulse {
+      0% { background-position: 0 0; }
+      100% { background-position: 2rem 2rem; }
+  }
+}
