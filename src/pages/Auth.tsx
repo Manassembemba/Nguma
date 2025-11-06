@@ -10,17 +10,26 @@ import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
 import { TrendingUp, Shield } from "lucide-react";
 
-const authSchema = z.object({
+const signInSchema = z.object({
   email: z.string().email("Email invalide").max(255),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères").max(100),
-  fullName: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100).optional(),
+});
+
+const signUpSchema = z.object({
+  email: z.string().email("Email invalide").max(255),
+  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères").max(100),
+  firstName: z.string().min(2, "Le prénom est requis.").max(100),
+  lastName: z.string().min(2, "Le nom est requis.").max(100),
+  postNom: z.string().optional(),
 });
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [postNom, setPostNom] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -28,7 +37,7 @@ const Auth = () => {
     e.preventDefault();
     
     try {
-      const validated = authSchema.parse({ email, password, fullName });
+      const validated = signUpSchema.parse({ email, password, firstName, lastName, postNom });
       setIsLoading(true);
 
       const { error } = await supabase.auth.signUp({
@@ -37,7 +46,9 @@ const Auth = () => {
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            full_name: validated.fullName || "",
+            first_name: validated.firstName,
+            last_name: validated.lastName,
+            post_nom: validated.postNom || "",
           },
         },
       });
@@ -71,7 +82,7 @@ const Auth = () => {
     e.preventDefault();
 
     try {
-      const validated = authSchema.parse({ email, password });
+      const validated = signInSchema.parse({ email, password });
       setIsLoading(true);
 
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -176,14 +187,38 @@ const Auth = () => {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-first-name">Prénom</Label>
+                      <Input
+                        id="signup-first-name"
+                        type="text"
+                        placeholder="Jean"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-last-name">Nom</Label>
+                      <Input
+                        id="signup-last-name"
+                        type="text"
+                        placeholder="Dupont"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nom complet</Label>
+                    <Label htmlFor="signup-post-nom">Post-nom (Optionnel)</Label>
                     <Input
-                      id="signup-name"
+                      id="signup-post-nom"
                       type="text"
-                      placeholder="Jean Dupont"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="" 
+                      value={postNom}
+                      onChange={(e) => setPostNom(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">

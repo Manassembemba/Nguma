@@ -20,7 +20,9 @@ type Wallet = {
 };
 type Investor = {
   id: string;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  post_nom: string | null;
   email: string;
   wallet: Wallet | null;
   contracts: Contract[];
@@ -106,7 +108,7 @@ export const InvestorListTable = () => {
               investors.map((investor) => (
                 <TableRow key={investor.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
                   <TableCell className="p-3">
-                    <div className="font-medium text-text-primary">{investor.full_name || "N/A"}</div>
+                    <div className="font-medium text-text-primary">{`${investor.first_name || ''} ${investor.last_name || ''}`.trim() || "N/A"}</div>
                     <div className="text-text-secondary text-xs">{investor.email}</div>
                   </TableCell>
                   <TableCell className="p-3">
@@ -125,8 +127,7 @@ export const InvestorListTable = () => {
       {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button
-          variant="outline"
-          size="sm"
+          variant="outline"n          size="sm"
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page <= 1}
         >

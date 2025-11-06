@@ -21,18 +21,23 @@ import UsersPage from "./pages/admin/UsersPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import PendingDepositsPage from "./pages/admin/PendingDepositsPage";
 import PendingWithdrawalsPage from "./pages/admin/PendingWithdrawalsPage";
+import HowItWorksPage from "./pages/HowItWorks";
+import ProfilePage from "./pages/Profile";
+import { ProfileCompletionGuard } from "./components/ProfileCompletionGuard";
 
 const queryClient = new QueryClient();
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <SidebarProvider>
-    <div className="min-h-screen flex w-full">
-      <AppSidebar />
-      <div className="flex flex-col flex-1">
-        <AppHeader />
-        <main className="flex-1">{children}</main>
+    <ProfileCompletionGuard>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1">
+          <AppHeader />
+          <main className="flex-1">{children}</main>
+        </div>
       </div>
-    </div>
+    </ProfileCompletionGuard>
   </SidebarProvider>
 );
 
@@ -46,6 +51,7 @@ const App = () => (
           <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route
             path="/dashboard"
             element={
@@ -82,6 +88,16 @@ const App = () => (
               <ProtectedRoute>
                 <AppLayout>
                   <TransactionsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ProfilePage />
                 </AppLayout>
               </ProtectedRoute>
             }

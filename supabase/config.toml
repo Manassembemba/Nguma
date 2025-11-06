@@ -1,1 +1,22 @@
 project_id = "fcxegeffqmhpleaipvov"
+[functions.create-binance-payment]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-binance-payment/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-binance-payment/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-binance-payment/*.html" ]
+
+[functions.handle-binance-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/handle-binance-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/handle-binance-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/handle-binance-webhook/*.html" ]

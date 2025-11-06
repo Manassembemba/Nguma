@@ -54,10 +54,10 @@ export const getUserDetails = async (userId: string) => {
 export const getInvestorsList = async (searchQuery?: string, page: number = 1, pageSize: number = 10) => {
   let profilesQuery = supabase
     .from("profiles")
-    .select("*", { count: 'exact' });
+    .select("id, email, first_name, last_name, post_nom", { count: 'exact' });
 
   if (searchQuery) {
-    profilesQuery = profilesQuery.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+    profilesQuery = profilesQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,post_nom.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
   }
 
   const from = (page - 1) * pageSize;

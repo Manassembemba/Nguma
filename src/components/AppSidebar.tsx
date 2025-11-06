@@ -1,5 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users, LogOut } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -9,15 +9,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { getWallet } from "@/services/walletService";
-import { formatCurrency } from "@/lib/utils";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 const investorItems = [
@@ -38,8 +33,6 @@ const adminItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const { notifications } = useNotifications();
 
   const { data: userRole } = useQuery({
@@ -52,22 +45,10 @@ export function AppSidebar() {
     },
   });
 
-  const { data: wallet } = useQuery({
-    queryKey: ["wallet"],
-    queryFn: getWallet,
-    enabled: !!userRole,
-  });
-
   const isAdmin = userRole === "admin";
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50";
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({ title: "Déconnexion réussie" });
-    navigate("/auth");
-  };
 
   const hasUnreadForLink = (url: string) => {
     return notifications.some(n => !n.is_read && n.link_to === url);
@@ -123,10 +104,6 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
-        <SidebarGroup className="mt-auto">
-          {/* Logout */}
-        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );

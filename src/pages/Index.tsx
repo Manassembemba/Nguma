@@ -3,6 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Shield, Zap, BarChart3 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+const faqData = [
+  {
+    question: "Comment la plateforme Nguma sécurise-t-elle mon investissement ?",
+    answer: "Votre investissement est sécurisé par plusieurs couches de protection. Nous utilisons l'authentification sécurisée de Supabase, et toutes les transactions financières critiques, comme les dépôts et les retraits, nécessitent une validation manuelle par un administrateur pour prévenir toute fraude.",
+  },
+  {
+    question: "Comment sont calculés et distribués les profits ?",
+    answer: "Les profits sont calculés chaque mois en fonction du taux de rendement global fixé par l'administrateur. Notre système automatisé distribue vos gains sur votre solde de profits à la date anniversaire de votre contrat, garantissant un paiement juste et ponctuel.",
+  },
+  {
+    question: "Puis-je retirer mon argent à tout moment ?",
+    answer: "Vous pouvez demander un retrait de votre solde de profits à tout moment. Les demandes sont traitées par nos administrateurs. Un remboursement anticipé de votre capital investi est également possible sous certaines conditions définies dans votre contrat.",
+  },
+  {
+    question: "Y a-t-il des frais cachés ?",
+    answer: "La transparence est au cœur de nos valeurs. Il n'y a aucun frais caché. Tous les frais ou commissions éventuels sont clairement indiqués avant que vous ne preniez une décision d'investissement.",
+  },
+];
 
 const Index = () => {
   const navigate = useNavigate();
@@ -29,7 +54,7 @@ const Index = () => {
             </div>
             
             <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-              Black Rock
+              Nguma
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -47,7 +72,7 @@ const Index = () => {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/how-it-works")}
                 className="text-lg px-8"
               >
                 En savoir plus
@@ -90,6 +115,24 @@ const Index = () => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold">Questions Fréquemment Posées</h2>
+          <p className="text-lg text-muted-foreground mt-2">Trouvez les réponses à vos questions les plus courantes.</p>
+        </div>
+        <Accordion type="single" collapsible className="w-full">
+          {faqData.map((faq, index) => (
+            <AccordionItem value={`item-${index}`} key={index}>
+              <AccordionTrigger className="text-lg text-left">{faq.question}</AccordionTrigger>
+              <AccordionContent className="text-base text-muted-foreground">
+                {faq.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </div>
 
       {/* CTA Section */}
