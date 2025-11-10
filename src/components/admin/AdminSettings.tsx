@@ -1,6 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSettings, updateSetting } from "@/services/settingsService";
+import { getSettings, updateSetting, uploadGenericContractPdf } from "@/services/settingsService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
+import { Upload } from "lucide-react";
 
 type Setting = {
   key: string;
@@ -18,6 +19,8 @@ export const AdminSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [settingsState, setSettingsState] = useState<Setting[]>([]);
+  const [selectedGenericPdfFile, setSelectedGenericPdfFile] = useState<File | null>(null);
+  const [genericPdfFileInputKey, setGenericPdfFileInputKey] = useState(Date.now());
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
@@ -41,6 +44,19 @@ export const AdminSettings = () => {
     },
   });
 
+  const uploadGenericPdfMutation = useMutation({
+    mutationFn: uploadGenericContractPdf,
+    onSuccess: () => {
+      toast({ title: "Succès", description: "PDF de contrat générique téléversé et mis à jour." });
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      setSelectedGenericPdfFile(null);
+      setGenericPdfFileInputKey(Date.now()); // Reset file input
+    },
+    onError: (error) => {
+      toast({ variant: "destructive", title: "Erreur de téléversement", description: error.message });
+    },
+  });
+
   const handleInputChange = (key: string, value: string) => {
     setSettingsState(currentSettings => 
       currentSettings.map(s => s.key === key ? { ...s, value } : s)
@@ -53,6 +69,24 @@ export const AdminSettings = () => {
       mutation.mutate(settingToSave);
     }
   };
+
+  const handleGenericPdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedGenericPdfFile(event.target.files[0]);
+    } else {
+      setSelectedGenericPdfFile(null);
+    }
+  };
+
+  const handleUploadGenericPdf = () => {
+    if (!selectedGenericPdfFile) {
+      toast({ variant: "destructive", title: "Erreur", description: "Veuillez sélectionner un fichier PDF." });
+      return;
+    }
+    uploadGenericPdfMutation.mutate(selectedGenericPdfFile);
+  };
+
+  const genericContractPdfUrl = settingsState.find(s => s.key === 'generic_contract_pdf_url')?.value || "";
 
   if (isLoading) {
     return (
@@ -92,6 +126,41 @@ export const AdminSettings = () => {
             </div>
           </div>
         ))}
+
+        <div className="border-t pt-6 mt-6">
+          <h3 className="text-lg font-semibold mb-4">Contrat PDF Générique</h3>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="generic_contract_pdf" className="font-medium">Fichier PDF du Contrat Modèle</Label>
+              <p className="text-sm text-muted-foreground">Téléversez le fichier PDF qui servira de modèle pour tous les nouveaux contrats.</p>
+              {genericContractPdfUrl && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Actuel: <a href={genericContractPdfUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Voir le PDF</a>
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 w-1/3">
+              <Input 
+                key={genericPdfFileInputKey}
+                id="generic_contract_pdf"
+                type="file" 
+                accept="application/pdf" 
+                className="hidden"
+                onChange={handleGenericPdfFileChange}
+              />
+              <label htmlFor="generic_contract_pdf" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-3 cursor-pointer">
+                <Upload className="mr-2 h-4 w-4" /> Choisir un fichier
+              </label>
+              <Button 
+                size="sm" 
+                onClick={handleUploadGenericPdf}
+                disabled={!selectedGenericPdfFile || uploadGenericPdfMutation.isPending}
+              >
+                {uploadGenericPdfMutation.isPending ? "Téléversement..." : "Téléverser"}
+              </Button>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

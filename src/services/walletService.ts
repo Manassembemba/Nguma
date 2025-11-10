@@ -28,10 +28,12 @@ export const getWallet = async (): Promise<Wallet | null> => {
  * @param method The payment method used.
  * @returns {Promise<any>} The result of the RPC call.
  */
-export const requestDeposit = async (amount: number, method: string) => {
+export const requestDeposit = async (amount: number, method: string, reference?: string, phone?: string) => {
   const { data, error } = await supabase.rpc('request_deposit', { 
     deposit_amount: amount,
-    deposit_method: method
+    deposit_method: method,
+    p_payment_reference: reference,
+    p_payment_phone_number: phone
   });
   if (error) throw new Error(error.message);
   if (data && !data.success) throw new Error(data.error);
@@ -43,10 +45,19 @@ export const requestDeposit = async (amount: number, method: string) => {
  * @param amount The amount to withdraw.
  * @returns {Promise<any>} The result of the RPC call.
  */
-export const requestWithdrawal = async (amount: number) => {
-  const { data, error } = await supabase.rpc('user_withdraw', { 
-    withdraw_amount: amount 
-  });
+export const requestWithdrawal = async ({ amount, method, details }: { amount: number; method: "crypto" | "mobile_money"; details: string }) => {
+  const rpcArgs: { withdraw_amount: number; withdraw_method: string; p_payment_reference?: string; p_payment_phone_number?: string } = {
+    withdraw_amount: amount,
+    withdraw_method: method,
+  };
+
+  if (method === "crypto") {
+    rpcArgs.p_payment_reference = details;
+  } else if (method === "mobile_money") {
+    rpcArgs.p_payment_phone_number = details;
+  }
+
+  const { data, error } = await supabase.rpc('user_withdraw', rpcArgs);
   if (error) throw new Error(error.message);
   if (data && !data.success) throw new Error(data.error);
   return data;

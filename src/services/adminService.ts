@@ -1,33 +1,43 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 // --- Deposit Management ---
 export const getPendingDeposits = async () => {
-  const { data: transactions, error } = await supabase
-    .from("transactions")
-    .select(`*`)
-    .eq("type", "deposit")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc('get_pending_deposits_with_profiles');
 
   if (error) {
     console.error("Error fetching pending deposits:", error);
     throw new Error("Could not fetch pending deposits.");
   }
-
-  const transactionsWithProfiles = await Promise.all(
-    (transactions || []).map(async (tx) => {
-      const { data: profile } = await supabase.from('profiles').select('email, full_name').eq('id', tx.user_id).single();
-      return { ...tx, profile };
-    })
-  );
-  return transactionsWithProfiles;
+  return data || [];
 };
 
 export const approveDeposit = async (transactionId: string) => {
   const { data, error } = await supabase.rpc('approve_deposit', { transaction_id_to_approve: transactionId });
   if (error) throw new Error(error.message);
   if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
+  return data;
+};
+
+export const rejectDeposit = async (transactionId: string, reason: string) => {
+  const { data, error } = await supabase.rpc('reject_deposit', { transaction_id_to_reject: transactionId, reason: reason });
+  if (error) throw new Error(error.message);
+  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
+  return data;
+};
+
+export const approveDepositsInBulk = async (transactionIds: string[]) => {
+  const { data, error } = await supabase.rpc('approve_deposits_in_bulk', { transaction_ids: transactionIds });
+  if (error) throw new Error(error.message);
+  if (data && !data.success) throw new Error(data.error || "An unknown error occurred during bulk approval.");
+  return data;
+};
+
+export const rejectDepositsInBulk = async (transactionIds: string[], reason: string) => {
+  const { data, error } = await supabase.rpc('reject_deposits_in_bulk', { transaction_ids: transactionIds, reason: reason });
+  if (error) throw new Error(error.message);
+  if (data && !data.success) throw new Error(data.error || "An unknown error occurred during bulk rejection.");
   return data;
 };
 
@@ -49,6 +59,46 @@ export const getUserDetails = async (userId: string) => {
     throw new Error("Could not fetch complete user details.");
   }
   return { profile: profile.data, wallet: wallet.data, contracts: contracts.data, transactions: transactions.data };
+};
+
+export const getUserContracts = async (userId: string) => {
+  const { data, error } = await supabase.rpc('get_contracts_for_user', { p_user_id: userId });
+
+  if (error) {
+    console.error("Error fetching contracts for user:", error);
+    throw new Error("Could not fetch user contracts.");
+  }
+  return data || [];
+};
+
+export const uploadContractPdf = async (contractId: string, userId: string, file: File) => {
+  const filePath = `${userId}/${contractId}.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from('contracts')
+    .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+  if (uploadError) {
+    console.error("Error uploading contract PDF:", uploadError);
+    throw new Error("Could not upload contract PDF.");
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('contracts')
+    .getPublicUrl(filePath);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+  const { error: updateError } = await supabase
+    .from('contracts')
+    .update({ contract_pdf_url: publicUrl })
+    .eq('id', contractId);
+
+  if (updateError) {
+    console.error("Error updating contract PDF URL:", updateError);
+    throw new Error("Could not update contract PDF URL in database.");
+  }
+
+  return publicUrl;
 };
 
 export const getInvestorsList = async (searchQuery?: string, page: number = 1, pageSize: number = 10) => {
@@ -105,27 +155,24 @@ export const getAggregateProfitsByMonth = async () => {
   return data || [];
 };
 
+export const getCashFlowSummary = async () => {
+  const { data, error } = await supabase.rpc('get_cash_flow_summary');
+  if (error) {
+    console.error("Error fetching cash flow summary:", error);
+    throw new Error("Could not fetch cash flow summary.");
+  }
+  return data || [];
+};
+
 // --- Withdrawal Management ---
 export const getPendingWithdrawals = async () => {
-  const { data: transactions, error } = await supabase
-    .from("transactions")
-    .select(`*`)
-    .eq("type", "withdrawal")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc('get_pending_withdrawals_with_profiles');
 
   if (error) {
     console.error("Error fetching pending withdrawals:", error);
     throw new Error("Could not fetch pending withdrawals.");
   }
-
-  const transactionsWithProfiles = await Promise.all(
-    (transactions || []).map(async (tx) => {
-      const { data: profile } = await supabase.from('profiles').select('email, full_name').eq('id', tx.user_id).single();
-      return { ...tx, profile };
-    })
-  );
-  return transactionsWithProfiles;
+  return data || [];
 };
 
 export const approveWithdrawal = async (transactionId: string) => {

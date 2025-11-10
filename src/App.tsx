@@ -21,6 +21,7 @@ import UsersPage from "./pages/admin/UsersPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import PendingDepositsPage from "./pages/admin/PendingDepositsPage";
 import PendingWithdrawalsPage from "./pages/admin/PendingWithdrawalsPage";
+import AdminUserContractsPage from "./pages/admin/AdminUserContractsPage";
 import HowItWorksPage from "./pages/HowItWorks";
 import ProfilePage from "./pages/Profile";
 import { ProfileCompletionGuard } from "./components/ProfileCompletionGuard";
@@ -148,6 +149,16 @@ const App = () => (
               <AdminRoute>
                 <AppLayout>
                   <PendingWithdrawalsPage />
+                </AppLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/contracts"
+            element={
+              <AdminRoute>
+                <AppLayout>
+                  <AdminUserContractsPage />
                 </AppLayout>
               </AdminRoute>
             }

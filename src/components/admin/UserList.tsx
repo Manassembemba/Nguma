@@ -6,10 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { UserDetailDialog } from "./UserDetailDialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { FileText } from "lucide-react";
+import { ManageContractsDialog } from "./ManageContractsDialog";
 
 export const UserList = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUserDetailDialogOpen, setIsUserDetailDialogOpen] = useState(false);
+  const [isManageContractsDialogOpen, setIsManageContractsDialogOpen] = useState(false);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["allUsers"],
@@ -18,7 +22,12 @@ export const UserList = () => {
 
   const handleViewDetails = (userId: string) => {
     setSelectedUserId(userId);
-    setIsDialogOpen(true);
+    setIsUserDetailDialogOpen(true);
+  };
+
+  const handleManageContracts = (userId: string) => {
+    setSelectedUserId(userId);
+    setIsManageContractsDialogOpen(true);
   };
 
   return (
@@ -48,10 +57,22 @@ export const UserList = () => {
                       <TableCell>{user.full_name || "N/A"}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{format(new Date(user.created_at), "dd/MM/yyyy")}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center flex justify-center items-center space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(user.id)}>
                           Voir les détails
                         </Button>
+                        <Dialog open={isManageContractsDialogOpen && selectedUserId === user.id} onOpenChange={setIsManageContractsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => handleManageContracts(user.id)}>
+                              <FileText className="mr-2 h-4 w-4" /> Gérer les contrats
+                            </Button>
+                          </DialogTrigger>
+                          <ManageContractsDialog 
+                            userId={user.id} 
+                            open={isManageContractsDialogOpen && selectedUserId === user.id} 
+                            onOpenChange={setIsManageContractsDialogOpen} 
+                          />
+                        </Dialog>
                       </TableCell>
                     </TableRow>
                   ))
@@ -68,8 +89,8 @@ export const UserList = () => {
 
       <UserDetailDialog 
         userId={selectedUserId} 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
+        open={isUserDetailDialogOpen} 
+        onOpenChange={setIsUserDetailDialogOpen} 
       />
     </>
   );

@@ -15,10 +15,11 @@ import {
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { refundContract } from "@/services/contractService";
+import { getSettings } from "@/services/settingsService";
 import { useToast } from "@/components/ui/use-toast";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Download } from "lucide-react";
 
 type ContractData = Database['public']['Tables']['contracts']['Row'];
 
@@ -31,6 +32,14 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+  });
+
+  const genericContractPdfUrl = settings?.find(s => s.key === 'generic_contract_pdf_url')?.value;
+  const pdfToDownload = contract.contract_pdf_url || genericContractPdfUrl;
 
   const mutation = useMutation({
     mutationFn: refundContract,
@@ -91,7 +100,20 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
           <p>Fin: {format(new Date(contract.end_date), "d MMMM yyyy", { locale: fr })}</p>
         </div>
       </CardContent>
-      <CardFooter className="absolute bottom-2 right-2 p-0 border-none bg-transparent">
+      <CardFooter className="absolute bottom-2 right-2 p-0 border-none bg-transparent flex gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-blue-500 hover:bg-blue-500/20"
+          disabled={!pdfToDownload}
+          onClick={() => {
+            if (pdfToDownload) {
+              window.open(pdfToDownload, "_blank");
+            }
+          }}
+        >
+          <Download className="h-5 w-5" />
+        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="ghost" size="icon" className="text-yellow-500 hover:bg-yellow-500/20" disabled={contract.status !== 'active' || contract.months_paid >= 5}>

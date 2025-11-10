@@ -21,7 +21,7 @@ export const AdminProfitChart = () => {
 
   if (isLoading) {
     return (
-      <div className="lg:col-span-1 flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6 min-h-[300px]">
+      <div className="flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6 min-h-[300px]">
         <p className="text-text-secondary text-base font-medium leading-normal">Chargement du graphique...</p>
       </div>
     );
@@ -29,7 +29,7 @@ export const AdminProfitChart = () => {
 
   if (!profits || profits.length === 0) {
     return (
-      <div className="lg:col-span-1 flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6 min-h-[300px]">
+      <div className="flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6 min-h-[300px]">
         <p className="text-text-secondary text-base font-medium leading-normal">Aucune donnée de profit agrégée.</p>
       </div>
     );
@@ -43,11 +43,11 @@ export const AdminProfitChart = () => {
   }));
 
   return (
-    <div className="lg:col-span-1 flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6">
-      <p className="text-text-secondary text-base font-medium leading-normal">Aggregate Profit Evolution</p>
+    <div className="flex flex-col gap-4 rounded-lg bg-background-card border border-white/10 p-6 h-full">
+      <p className="text-text-secondary text-base font-medium leading-normal">Évolution des Profits</p>
       <p className="text-primary tracking-light text-[32px] font-bold leading-tight truncate">{formatCurrency(chartData[chartData.length - 1]["Total Profit"])}</p>
       <div className="flex gap-1">
-        <p className="text-text-secondary text-base font-normal leading-normal">Last 6 Months</p>
+        <p className="text-text-secondary text-base font-normal leading-normal">6 derniers mois</p>
         {/* PNL % calculation for last 6 months would go here if needed */}
       </div>
       <div className="flex min-h-[180px] flex-1 flex-col gap-8 py-4">

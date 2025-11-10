@@ -29,13 +29,26 @@ export const NotificationBell = () => {
   });
 
   const handleNotificationClick = (notification: any) => {
+    console.log("Notification clicked, link_to:", notification.link_to);
     // Mark as read first
     if (!notification.is_read) {
       markOneReadMutation.mutate(notification.id);
     }
     // Then navigate
     if (notification.link_to) {
-      navigate(notification.link_to);
+      let targetPath = notification.link_to;
+      // Check if it's an absolute URL and convert to relative path if necessary
+      try {
+        const url = new URL(notification.link_to);
+        // If the host matches the current host, it's an internal absolute URL
+        // We only want the pathname for react-router-dom
+        if (url.origin === window.location.origin) {
+          targetPath = url.pathname;
+        }
+      } catch (e) {
+        // Not a valid URL, assume it's already a relative path
+      }
+      navigate(targetPath);
     }
   };
 

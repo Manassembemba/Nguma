@@ -40,3 +40,38 @@ export const updateSetting = async ({ key, value }: { key: string; value: string
 
   return data;
 };
+
+/**
+ * Uploads a generic contract PDF to Supabase Storage and updates the setting.
+ * @param file The PDF file to upload.
+ * @returns {Promise<string>} The public URL of the uploaded PDF.
+ */
+export const uploadGenericContractPdf = async (file: File): Promise<string> => {
+  const filePath = `template/generic_contract.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from('contracts') // Using the existing 'contracts' bucket
+    .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+  if (uploadError) {
+    console.error("Error uploading generic contract PDF:", uploadError);
+    throw new Error("Could not upload generic contract PDF.");
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('contracts')
+    .getPublicUrl(filePath);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+  // Update the settings table with the new URL
+  const { error: updateError } = await supabase
+    .from('settings')
+    .upsert({ key: 'generic_contract_pdf_url', value: publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+  if (updateError) {
+    console.error("Error updating generic contract PDF URL in settings:", updateError);
+    throw new Error("Could not update generic contract PDF URL in settings.");
+  }
+
+  return publicUrl;
+};

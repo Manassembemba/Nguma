@@ -18,6 +18,7 @@ import { PlusCircle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContract } from "@/services/contractService";
 import { getWallet } from "@/services/walletService";
+import { getSettings } from "@/services/settingsService"; // Import getSettings
 import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
 
@@ -32,6 +33,13 @@ export const NewContractDialog = () => {
     queryKey: ["wallet"],
     queryFn: getWallet,
   });
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+  });
+
+  const genericContractPdfUrl = settings?.find(s => s.key === 'generic_contract_pdf_url')?.value;
 
   useEffect(() => {
     if (wallet) {
@@ -73,6 +81,10 @@ export const NewContractDialog = () => {
       toast({ variant: "destructive", title: "Erreur", description: "Vous devez accepter les termes du contrat." });
       return;
     }
+    if (!genericContractPdfUrl) {
+      toast({ variant: "destructive", title: "Erreur", description: "Le PDF du contrat générique n'est pas disponible. Veuillez contacter l'administrateur." });
+      return;
+    }
     try {
       const validatedData = contractSchema.parse({ amount });
       mutation.mutate(validatedData.amount);
@@ -91,7 +103,7 @@ export const NewContractDialog = () => {
           Nouveau Contrat
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Créer un nouveau contrat</DialogTitle>
@@ -100,32 +112,19 @@ export const NewContractDialog = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="h-72 w-full rounded-md border p-4 my-4">
-            <h3 className="font-bold mb-2">📄 Contrat d’Investissement Black Rock</h3>
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <p><strong>Société :</strong> Botes Academy – Plateforme Black Rock</p>
-              
-              <p><strong>1️⃣ Objet du contrat :</strong> Le présent contrat lie l’investisseur à la société Botes Academy pour la gestion automatisée d’un placement financier basé sur des opérations de trading de l’indice Step Index.</p>
-              
-              <p><strong>2️⃣ Durée du contrat :</strong> Chaque contrat a une durée fixe de 10 mois. À l’expiration, le capital investi et les profits sont libérés sur le wallet NGUMA</p>
-              
-              <p><strong>3️⃣ Taux de rendement :</strong> Le taux de profit mensuel est fixé par l’administrateur. Les profits sont calculés chaque mois (Montant Investi × Taux Mensuel) et ajoutés au wallet.</p>
-              
-              <p><strong>4️⃣ Dépôt et capital investi :</strong> Le dépôt peut être effectué par crypto-monnaie ou crédit admin. Le montant minimal est déterminé par la plateforme.</p>
-              
-              <p><strong>5️⃣ Retraits et remboursement anticipé :</strong> Les profits générés sont retirables à tout moment. Un remboursement anticipé est possible selon la formule : Montant remboursé = Montant investi - Profits déjà reçus.</p>
-              
-              <p><strong>6️⃣ Multiplicité des contrats :</strong> L’investisseur peut souscrire à plusieurs contrats simultanément.</p>
-              
-              <p><strong>7️⃣ Sécurité et audit :</strong> Toutes les opérations sont enregistrées et auditables.</p>
-              
-              <p><strong>8️⃣ Responsabilités :</strong> La société ne garantit pas un profit au-delà du taux fixé. L’investisseur reconnaît les risques liés aux conditions de marché.</p>
-              
-              <p><strong>9️⃣ Clôture du contrat :</strong> À la fin des 10 mois, le contrat est clôturé. L’investisseur peut retirer ses fonds ou renouveler le contrat.</p>
-              
-              <p><strong>🔟 Acceptation :</strong> En cliquant sur “Créer le contrat”, l’investisseur déclare avoir lu, compris et accepté les termes du présent contrat.</p>
-            </div>
-          </ScrollArea>
+          <div className="w-full rounded-md border my-4" style={{ height: 'calc(100% - 200px)' }}>
+            {genericContractPdfUrl ? (
+              <iframe 
+                src={`${genericContractPdfUrl}#toolbar=0`} 
+                width="100%" 
+                height="100%" 
+                style={{ border: "none" }}
+                title="Termes du Contrat"
+              ></iframe>
+            ) : (
+              <p className="text-muted-foreground text-center p-4">Les termes du contrat ne sont pas disponibles pour le moment.</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">

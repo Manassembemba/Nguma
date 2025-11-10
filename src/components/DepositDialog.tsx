@@ -19,6 +19,8 @@ import { CreditCard, Smartphone, Bitcoin, ArrowLeft } from "lucide-react";
 
 const depositSchema = z.object({
   amount: z.coerce.number().positive("Le montant doit être positif."),
+  reference: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 type Step = "select_method" | "enter_details";
@@ -29,11 +31,14 @@ export const DepositDialog = () => {
   const [step, setStep] = useState<Step>("select_method");
   const [method, setMethod] = useState<Method | null>(null);
   const [amount, setAmount] = useState("");
+  const [reference, setReference] = useState("");
+  const [phone, setPhone] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: { amount: number; method: string }) => requestDeposit(data.amount, data.method),
+    mutationFn: (data: { amount: number; method: string; reference?: string; phone?: string }) => 
+      requestDeposit(data.amount, data.method, data.reference, data.phone),
     onSuccess: () => {
       toast({
         title: "Demande de dépôt reçue",
@@ -52,14 +57,21 @@ export const DepositDialog = () => {
     setStep("select_method");
     setMethod(null);
     setAmount("");
+    setReference("");
+    setPhone("");
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!method) return;
     try {
-      const validatedData = depositSchema.parse({ amount });
-      mutation.mutate({ amount: validatedData.amount, method });
+      const validatedData = depositSchema.parse({ amount, reference, phone });
+      mutation.mutate({ 
+        amount: validatedData.amount, 
+        method, 
+        reference: validatedData.reference, 
+        phone: validatedData.phone 
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ variant: "destructive", title: "Erreur de validation", description: error.errors[0].message });
@@ -74,15 +86,18 @@ export const DepositDialog = () => {
           <div className="text-center space-y-4 p-4 rounded-lg bg-muted/50">
             <p className="font-semibold">Envoyez vos USDT (TRC20) à l'adresse suivante :</p>
             <div className="p-2 rounded-md bg-background font-mono text-sm break-all">TFakeAddressForUSDTtrc20simulation12345</div>
-            <p className="text-xs text-muted-foreground">Votre solde sera mis à jour après confirmation de la transaction.</p>
+            <div className="space-y-2 text-left pt-4">
+              <Label htmlFor="reference">ID de Transaction (TxID)</Label>
+              <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Collez l'ID de la transaction ici" required />
+            </div>
           </div>
         );
       case "mobile_money":
         return (
           <div className="space-y-2">
-            <Label htmlFor="phone">Numéro de téléphone</Label>
-            <Input id="phone" type="tel" placeholder="Ex: 0812345678" />
-            <p className="text-xs text-muted-foreground pt-2">Vous recevrez une demande de paiement sur ce numéro.</p>
+            <Label htmlFor="phone">Votre numéro de téléphone</Label>
+            <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex: 0812345678" required />
+            <p className="text-xs text-muted-foreground pt-2">Ce numéro sera utilisé pour vérifier votre paiement.</p>
           </div>
         );
       case "card":
@@ -130,7 +145,7 @@ export const DepositDialog = () => {
           ) : (
             <div className="space-y-4 py-4">
               {renderMethodDetails()}
-              <div className="space-y-2">
+              <div className="space-y-2 pt-4">
                 <Label htmlFor="amount">Montant du dépôt (USD)</Label>
                 <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required disabled={mutation.isPending} />
               </div>

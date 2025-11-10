@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPendingWithdrawals, approveWithdrawal, rejectWithdrawal } from "@/services/adminService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +8,23 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Copy } from "lucide-react";
+
+type ActionType = "approve" | "reject";
+interface DialogState {
+  isOpen: boolean;
+  action?: ActionType;
+  transactionId?: string;
+}
 
 export const PendingWithdrawals = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false });
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: withdrawals, isLoading } = useQuery({
     queryKey: ["pendingWithdrawals"],
@@ -23,14 +37,17 @@ export const PendingWithdrawals = () => {
       toast({ title: "Succès", description: "Retrait approuvé." });
       queryClient.invalidateQueries({ queryKey: ['pendingWithdrawals'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
     },
     onError: (error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
+    onSettled: () => closeDialog(),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ transactionId, reason }: { transactionId: string, reason: string }) => rejectWithdrawal(transactionId, reason),
+    mutationFn: ({ transactionId, reason }: { transactionId: string; reason: string }) => rejectWithdrawal(transactionId, reason),
     onSuccess: () => {
       toast({ title: "Succès", description: "Retrait rejeté." });
       queryClient.invalidateQueries({ queryKey: ['pendingWithdrawals'] });
@@ -39,57 +56,143 @@ export const PendingWithdrawals = () => {
     onError: (error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
+    onSettled: () => closeDialog(),
   });
 
-  const handleApprove = (transactionId: string) => approveMutation.mutate(transactionId);
-  const handleReject = (transactionId: string) => {
-    const reason = prompt("Raison du rejet ?");
-    if (reason) {
-      rejectMutation.mutate({ transactionId, reason });
+  const openDialog = (action: ActionType, transactionId: string) => {
+    setDialogState({ isOpen: true, action, transactionId });
+  };
+
+  const closeDialog = () => {
+    setDialogState({ isOpen: false });
+    setRejectionReason("");
+  };
+
+  const handleConfirm = () => {
+    if (!dialogState.transactionId || !dialogState.action) return;
+
+    if (dialogState.action === "approve") {
+      approveMutation.mutate(dialogState.transactionId);
+    } else if (dialogState.action === "reject") {
+      if (!rejectionReason.trim()) {
+        toast({ variant: "destructive", title: "Erreur", description: "La raison du rejet est obligatoire." });
+        return;
+      }
+      rejectMutation.mutate({ transactionId: dialogState.transactionId, reason: rejectionReason });
     }
   };
 
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Copié!", description: "Le numéro de téléphone a été copié dans le presse-papiers." });
+    });
+  };
+
+  const isActionPending = approveMutation.isPending || rejectMutation.isPending;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Retraits en Attente</CardTitle>
-        <CardDescription>Approuvez ou rejetez les demandes de retrait des utilisateurs.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Utilisateur</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center">Chargement...</TableCell></TableRow>
-              ) : withdrawals && withdrawals.length > 0 ? (
-                withdrawals.map((w) => (
-                  <TableRow key={w.id}>
-                    <TableCell>{format(new Date(w.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
-                    <TableCell>{w.profile?.email || w.user_id}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(w.amount), w.currency)}</TableCell>
-                    <TableCell className="text-center space-x-2">
-                      <Button size="sm" variant="outline" onClick={() => handleReject(w.id)} disabled={rejectMutation.isPending || approveMutation.isPending}>Rejeter</Button>
-                      <Button size="sm" onClick={() => handleApprove(w.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>Approuver</Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Retraits en Attente</CardTitle>
+          <CardDescription>Approuvez ou rejetez les demandes de retrait des utilisateurs.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center h-24">Aucun retrait en attente.</TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Utilisateur</TableHead>
+                  <TableHead>Numéro de Téléphone</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={5} className="text-center">Chargement...</TableCell></TableRow>
+                ) : withdrawals && withdrawals.length > 0 ? (
+                  withdrawals.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell>{format(new Date(w.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{w.profile?.full_name || "Nom non défini"}</div>
+                        <div className="text-sm text-muted-foreground">{w.profile?.email}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs">{w.profile?.phone || "N/A"}</span>
+                          {w.profile?.phone && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(w.profile?.phone || "")}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(w.amount), w.currency)}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex gap-2 justify-center">
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDialog("approve", w.id)}
+                            disabled={isActionPending}
+                          >
+                            Approuver
+                          </Button>
+                          <Button 
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => openDialog("reject", w.id)}
+                            disabled={isActionPending}
+                          >
+                            Rejeter
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center h-24">Aucun retrait en attente.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={dialogState.isOpen} onOpenChange={closeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialogState.action === "approve" 
+                ? "Cette action approuvera la demande de retrait. L'utilisateur en sera notifié et son solde sera ajusté."
+                : "Cette action rejettera la demande de retrait. L'utilisateur en sera notifié."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {dialogState.action === "reject" && (
+            <div className="grid gap-2 py-4">
+              <Label htmlFor="reason">Raison du rejet</Label>
+              <Input 
+                id="reason" 
+                value={rejectionReason} 
+                onChange={(e) => setRejectionReason(e.target.value)} 
+                placeholder="Ex: Informations de paiement invalides"
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDialog} disabled={isActionPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm} disabled={isActionPending}>
+              {isActionPending ? "En cours..." : "Confirmer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

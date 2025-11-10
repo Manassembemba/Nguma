@@ -14,7 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, set } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
   first_name: z.string().min(2, { message: "Le prénom est requis." }),
@@ -40,6 +42,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const ProfilePage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -69,6 +72,19 @@ const ProfilePage = () => {
         address: profile.address || '',
         birth_date: profile.birth_date ? new Date(profile.birth_date) : undefined,
       });
+
+      const isProfileIncomplete = (
+        !profile.first_name || profile.first_name.trim() === '' ||
+        !profile.last_name || profile.last_name.trim() === '' ||
+        !profile.post_nom || profile.post_nom.trim() === '' ||
+        !profile.phone || profile.phone.trim() === '' ||
+        !profile.country || profile.country.trim() === '' ||
+        !profile.address || profile.address.trim() === '' ||
+        !profile.birth_date
+      );
+      if (isProfileIncomplete) {
+        setIsAlertOpen(true);
+      }
     }
   }, [profile, form]);
 
@@ -93,17 +109,6 @@ const ProfilePage = () => {
     mutation.mutate(values);
   };
 
-  // Check if any required field is empty in the current profile data
-  const isProfileIncompleteInitial = (
-    !profile?.first_name || profile.first_name.trim() === '' ||
-    !profile?.last_name || profile.last_name.trim() === '' ||
-    !profile?.post_nom || profile.post_nom.trim() === '' ||
-    !profile?.phone || profile.phone.trim() === '' ||
-    !profile?.country || profile.country.trim() === '' ||
-    !profile?.address || profile.address.trim() === '' ||
-    !profile?.birth_date
-  );
-
   return (
     <div className="p-8 space-y-8">
       <div>
@@ -111,21 +116,19 @@ const ProfilePage = () => {
         <p className="text-muted-foreground">Mettez à jour vos informations personnelles.</p>
       </div>
 
-      {profile && (
-        <AlertDialog open={isProfileIncompleteInitial} onOpenChange={() => { /* Prevent closing */ }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Action requise : Profil incomplet !</AlertDialogTitle>
-              <AlertDialogDescription>
-                Pour des raisons de sécurité et pour accéder à toutes les fonctionnalités, veuillez compléter toutes les informations de votre profil ci-dessous.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction>Compris</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Action requise : Profil incomplet !</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pour des raisons de sécurité et pour accéder à toutes les fonctionnalités, veuillez compléter toutes les informations de votre profil ci-dessous.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Compris</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card className="max-w-2xl">
         <CardHeader>
@@ -152,23 +155,79 @@ const ProfilePage = () => {
                 <FormField control={form.control} name="post_nom" render={({ field }) => (
                   <FormItem><FormLabel>Post-nom</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="birth_date" render={({ field }) => (
+                <FormField control={form.control} name="birth_date" render={({ field }) => {
+                  const [month, setMonth] = useState(field.value ?? new Date());
+
+                  useEffect(() => {
+                    if (field.value) {
+                      setMonth(field.value);
+                    }
+                  }, [field.value]);
+
+                  return (
                   <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? format(field.value, "PPP") : <span>Choisissez une date</span>}
+                            {field.value ? format(field.value, "PPP", { locale: fr }) : <span>Choisissez une date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
+                        <Calendar 
+                          mode="single" 
+                          selected={field.value} 
+                          onSelect={field.onChange} 
+                          month={month}
+                          onMonthChange={setMonth}
+                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")} 
+                          initialFocus 
+                          components={{
+                            Caption: () => {
+                              const currentYear = new Date().getFullYear();
+                              const years = Array.from({ length: currentYear - 1919 }, (_, i) => currentYear - i);
+                              const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('fr-FR', { month: 'long' }));
+
+                              return (
+                                <div className="flex justify-center gap-2 mb-4">
+                                  <Select
+                                    value={String(month.getMonth())}
+                                    onValueChange={(value) => {
+                                      setMonth(currentMonth => set(currentMonth, { month: parseInt(value) }));
+                                    }}
+                                  >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {months.map((month, i) => (
+                                        <SelectItem key={month} value={String(i)}>{month.charAt(0).toUpperCase() + month.slice(1)}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={String(month.getFullYear())}
+                                    onValueChange={(value) => {
+                                      setMonth(currentMonth => set(currentMonth, { year: parseInt(value) }));
+                                    }}
+                                  >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent style={{ maxHeight: '200px' }}>
+                                      {years.map(year => (
+                                        <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              );
+                            },
+                          }}
+                        />
                       </PopoverContent>
                     </Popover>
                   <FormMessage /></FormItem>
-                )} />
+                  )
+                }} />
                 <FormField control={form.control} name="phone" render={({ field }) => (
                   <FormItem><FormLabel>Téléphone</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />

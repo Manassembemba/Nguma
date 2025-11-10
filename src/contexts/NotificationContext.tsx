@@ -27,7 +27,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { data: notifications, isLoading } = useQuery<Notification[]>({ 
     queryKey: ['notifications'],
     queryFn: getNotifications,
-    refetchInterval: 60000, // Keep the 60-second refresh
+    refetchInterval: 10000, // Refresh every 10 seconds for debugging
   });
 
   const unreadCount = notifications?.filter(n => !n.is_read).length || 0;

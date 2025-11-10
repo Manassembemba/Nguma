@@ -46,7 +46,76 @@ Nguma est une plateforme de gestion d'investissements permettant à des utilisat
 
 ---
 
-### **Partie 2 : Feuille de Route (Ce que nous allons implémenter)**
+### **Partie 2 : Journal des Modifications (Dernières Interventions)**
+
+Cette section documente les améliorations et corrections récentes apportées au projet.
+
+#### **2.1. Gestion des Contrats PDF**
+
+*   **Téléversement par l'Admin :**
+    *   Une interface a été ajoutée dans la section d'administration pour permettre le téléversement d'un **fichier PDF de contrat unique** pour chaque contrat d'un utilisateur.
+    *   La base de données a été mise à jour pour stocker l'URL de chaque PDF de contrat.
+    *   Les politiques de sécurité de Supabase Storage ont été configurées pour garantir que seuls les administrateurs peuvent téléverser des contrats et que seuls le propriétaire du contrat et les administrateurs peuvent les consulter.
+
+*   **Téléchargement par l'Utilisateur :**
+    *   Sur la page "Mes Contrats", un bouton "Télécharger PDF" a été ajouté à chaque carte de contrat. Ce bouton est actif uniquement si un PDF a été téléversé par l'administrateur.
+
+*   **Contrat Générique pour la Création :**
+    *   Le texte statique des termes et conditions dans la boîte de dialogue de création de contrat a été remplacé par un lien vers un **PDF de contrat générique**.
+    *   Une section a été ajoutée dans les paramètres d'administration pour permettre le téléversement et la gestion de ce PDF générique.
+
+#### **2.2. Améliorations de la Page de Profil**
+
+*   **Correction du Bug de l'Alerte :**
+    *   Le bug qui empêchait de fermer la boîte de dialogue "Profil incomplet" a été corrigé. Le bouton "Compris" est maintenant fonctionnel.
+
+*   **Amélioration du Sélecteur de Date de Naissance :**
+    *   Le calendrier de sélection de la date de naissance a été entièrement revu pour inclure des **listes déroulantes pour le mois et l'année**.
+    *   Cette modification résout le problème de navigation dans les années et garantit une apparence visuelle cohérente avec le reste de l'application.
+
+#### **2.3. Amélioration du Système de Dépôt**
+
+*   **Ajout de la Preuve de Paiement :**
+    *   Le processus de dépôt a été amélioré pour inclure un système de preuve de paiement :
+        *   Pour les dépôts **Crypto**, l'utilisateur doit maintenant fournir l'**ID de la transaction (TxID)**.
+        *   Pour les dépôts **Mobile Money**, l'utilisateur doit fournir son **numéro de téléphone**.
+    *   La base de données a été mise à jour pour stocker ces informations.
+
+*   **Mise à Jour de l'Interface Admin :**
+    *   Le tableau des dépôts en attente affiche désormais la **preuve de paiement** (TxID ou numéro de téléphone), permettant à l'administrateur de vérifier plus facilement et rapidement la validité des dépôts.
+
+#### **2.4. Résolution de la Dette Technique**
+
+*   **Scriptage des Fonctions RPC :**
+    *   Les fonctions RPC critiques `request_deposit` et `approve_deposit`, qui étaient auparavant créées manuellement, ont été **scriptées dans des fichiers de migration**. 
+    *   Cette action cruciale élimine une dette technique majeure, rendant le projet plus robuste, maintenable et facilement redéployable.
+
+#### **2.5. Améliorations du Tableau de Bord Administrateur (Session du 08/11/2025)**
+
+Une session de développement intensive a été menée pour améliorer l'efficacité et l'ergonomie de l'espace d'administration.
+
+*   **Tableau de Bord Interactif :**
+    *   Les cartes de statistiques "Dépôts en attente" et "Retraits en attente" sont désormais **cliquables** et redirigent directement vers les pages de gestion respectives.
+
+*   **Actions Rapides sur la Liste des Investisseurs :**
+    *   Un menu "..." a été ajouté à chaque ligne de la table des investisseurs.
+    *   **"Voir les détails" :** Ouvre une fenêtre modale avec une vue complète de l'utilisateur (profil, portefeuille, etc.) et permet de créditer manuellement son compte.
+    *   **"Voir les contrats" :** Une page dédiée a été créée pour afficher les contrats d'un utilisateur spécifique. *(Note : cette fonctionnalité est actuellement bloquée par un problème de déploiement de base de données).*
+
+*   **Améliorations de la Table des Investisseurs :**
+    *   **Export CSV :** Un bouton "Exporter" a été ajouté pour télécharger la liste complète des investisseurs au format CSV.
+    *   **Filtre par Statut :** Une liste déroulante permet de filtrer les investisseurs affichés (sur la page courante) par statut ("Actif", "Inactif", "Nouveau").
+
+*   **Mises à Jour en Temps Réel :**
+    *   Le tableau de bord utilise maintenant les **Supabase Realtime Subscriptions** pour mettre à jour les statistiques (comme les dépôts en attente) instantanément, sans nécessiter de rafraîchissement de la page.
+
+*   **Traitement par Lot (En cours) :**
+    *   L'interface pour le traitement en masse des dépôts (cases à cocher, boutons d'action) a été entièrement développée.
+    *   Les fonctions backend (`approve_deposits_in_bulk`, `reject_deposits_in_bulk`) ont été créées. *(Note : cette fonctionnalité est également bloquée par le problème de déploiement).*
+
+---
+
+### **Partie 3 : Feuille de Route (Ce que nous allons implémenter)**
 
 Voici une proposition de feuille de route pour les futures évolutions du projet.
 
@@ -76,3 +145,25 @@ Voici une proposition de feuille de route pour les futures évolutions du projet
 *   **Introduction du Concept de "Projets" :** Faire évoluer le modèle pour permettre aux administrateurs de définir des projets d'investissement spécifiques (avec des taux/durées potentiellement différents) dans lesquels les utilisateurs peuvent choisir d'investir.
 *   **Rapports Mensuels Automatisés :** Générer et envoyer automatiquement par e-mail un relevé de compte mensuel en PDF à chaque investisseur.
 *   **Internationalisation (i18n) :** Traduire l'application en plusieurs langues (ex: Anglais) pour élargir l'audience.
+
+---
+
+### **Partie 4 : État Actuel et Prochaines Étapes Critiques**
+
+#### **4.1. Blocage Actuel : Problème de Déploiement**
+
+Le projet est actuellement dans un état **instable** et **bloqué**. Un problème de connexion réseau empêche la synchronisation des modifications locales de la base de données avec la base de données Supabase Cloud via la commande `supabase db push`.
+
+**Conséquences :**
+*   Plusieurs migrations de base de données critiques sont **en attente de déploiement**. Cela concerne la correction de la fonction `get_contracts_for_user` et la création des fonctions pour le traitement en masse.
+*   Les fonctionnalités **"Voir les contrats"** et **"Traitement par lot des dépôts"** sont **non fonctionnelles** et génèrent des erreurs, car les fonctions backend dont elles dépendent ne sont pas déployées.
+
+#### **4.2. Prochaine Étape Obligatoire**
+
+**IL EST IMPÉRATIF DE NE PAS DÉVELOPPER DE NOUVELLES FONCTIONNALITÉS AVANT DE RÉSOUDRE CE PROBLÈME.**
+
+1.  **Action Requise :** Attendre le rétablissement de la connexion réseau.
+2.  **Commande à exécuter :** Lancer `supabase db push` pour appliquer toutes les migrations en attente.
+3.  **Validation :** Tester les fonctionnalités "Voir les contrats" et "Traitement par lot" pour confirmer qu'elles fonctionnent comme prévu.
+
+Une fois le projet stabilisé, la feuille de route définie dans la Partie 3 pourra être reprise.
