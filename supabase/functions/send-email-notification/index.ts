@@ -38,24 +38,32 @@ const createEmailHtml = (message: string, link?: string) => `
 `;
 
 serve(async (req) => {
-  // 1. Check for security key to ensure the request is from our database trigger
+  console.log("--- New Request Received ---");
+
+  // 1. Check for security key
   const authHeader = req.headers.get("Authorization")!;
+  console.log("Auth Header:", authHeader ? "Present" : "Missing");
   if (authHeader !== `Bearer ${Deno.env.get("FUNCTION_SECRET")}`) {
+    console.error("Unauthorized: Invalid or missing security key.");
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
+    console.log("Request authorized. Processing...");
     // 2. Get the notification record from the request body
     const { record } = await req.json();
     const notification = record as NotificationRecord;
+    console.log("Parsed Notification Record:", notification);
 
     // 3. Create a Supabase client to fetch user data
     const supabaseAdmin = createClient(
       Deno.env.get("PROJECT_SUPABASE_URL") ?? '',
       Deno.env.get("SERVICE_ROLE_KEY") ?? ''
     );
+    console.log("Supabase admin client created.");
 
     // 4. Fetch the user's email from the profiles table
+    console.log(`Fetching profile for user_id: ${notification.user_id}`);
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("email")
@@ -63,50 +71,67 @@ serve(async (req) => {
       .single();
 
     if (profileError) {
+      console.error("Profile fetch error:", profileError);
       throw new Error(`Failed to fetch profile for user ${notification.user_id}: ${profileError.message}`);
     }
+    console.log("Profile data fetched:", profile);
 
     const userEmail = profile.email;
     if (!userEmail) {
+      console.error(`Email not found for user ${notification.user_id}`);
       throw new Error(`Email not found for user ${notification.user_id}`);
     }
+    console.log(`Found user email: ${userEmail}`);
 
     // 5. Get the Resend API key from environment variables
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
+      console.error("RESEND_API_KEY is not set.");
       throw new Error("RESEND_API_KEY is not set in environment variables.");
     }
+    console.log("Resend API Key: Present");
 
     // 6. Construct and send the email using the Resend API
+    console.log("Constructing email HTML...");
     const emailHtml = createEmailHtml(notification.message, notification.link_to);
+    
+    const emailPayload = {
+      from: "Nguma <noreply@nguma.org>",
+      to: userEmail,
+      subject: "Nouvelle notification de Nguma",
+      html: emailHtml,
+    };
+    console.log("Sending email with payload:", emailPayload);
+
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: "Nguma <noreply@yourdomain.com>", // IMPORTANT: Change to a domain you have verified with Resend
-        to: userEmail,
-        subject: "Nouvelle notification de Nguma",
-        html: emailHtml,
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
+    console.log(`Resend API response status: ${resendResponse.status}`);
     const resendData = await resendResponse.json();
+    console.log("Resend API response data:", resendData);
 
     if (!resendResponse.ok) {
+      console.error("Failed to send email. Resend API Error:", resendData);
       throw new Error(`Failed to send email: ${JSON.stringify(resendData)}`);
     }
 
     // 7. Return a success response
+    console.log("Email sent successfully. Resend ID:", resendData.id);
     return new Response(JSON.stringify({ message: "Email sent successfully", resendId: resendData.id }), {
       headers: { "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    console.error("Error processing request:", error.message);
+    console.error("--- Unhandled Error in Edge Function ---");
+    console.error(error.message);
+    console.error("--------------------------------------");
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { "Content-Type": "application/json" },
       status: 500,

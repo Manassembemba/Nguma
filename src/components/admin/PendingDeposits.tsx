@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Copy, MoreHorizontal } from "lucide-react";
@@ -24,20 +25,40 @@ interface DialogState {
 }
 type SelectedDeposit = { id: string; amount: number; userEmail: string; };
 
+interface PendingDeposit {
+  id: string;
+  created_at: string;
+  amount: number;
+  currency: string;
+  method: string;
+  payment_reference?: string;
+  payment_phone_number?: string;
+  proof_url?: string;
+  profile?: {
+    full_name?: string;
+    email?: string;
+  };
+}
+
 export const PendingDeposits = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false });
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkRejectDialogOpen, setIsBulkRejectDialogOpen] = useState(false);
   const [isAdjustDepositOpen, setIsAdjustDepositOpen] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<SelectedDeposit | null>(null);
+  const [proofModalOpen, setProofModalOpen] = useState(false);
+  const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
 
   const { data: deposits, isLoading } = useQuery({
     queryKey: ["pendingDeposits"],
-    queryFn: getPendingDeposits,
+    queryFn: async () => {
+      const data = await getPendingDeposits();
+      return data as unknown as PendingDeposit[];
+    },
   });
 
   const approveMutation = useMutation({
@@ -150,14 +171,15 @@ export const PendingDeposits = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Utilisateur</TableHead>
                   <TableHead>Méthode</TableHead>
-                  <TableHead>Preuve de Paiement</TableHead>
+                  <TableHead>Référence</TableHead>
+                  <TableHead>Preuve</TableHead>
                   <TableHead className="text-right">Montant</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center">Chargement...</TableCell></TableRow>
                 ) : allDeposits.length > 0 ? (
                   allDeposits.map((deposit) => (
                     <TableRow key={deposit.id} data-state={selectedIds.includes(deposit.id) && "selected"}>
@@ -173,6 +195,15 @@ export const PendingDeposits = () => {
                           <span className="font-mono text-xs">{deposit.payment_reference || deposit.payment_phone_number || "N/A"}</span>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(deposit.payment_reference || deposit.payment_phone_number || "")}><Copy className="h-3 w-3" /></Button>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {deposit.proof_url ? (
+                          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => { setSelectedProofUrl(deposit.proof_url); setProofModalOpen(true); }}>
+                            Voir l'image
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Aucune</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(Number(deposit.amount), deposit.currency)}</TableCell>
                       <TableCell className="text-center">
@@ -194,18 +225,18 @@ export const PendingDeposits = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow><TableCell colSpan={7} className="text-center h-24">Aucun dépôt en attente.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center h-24">Aucun dépôt en attente.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between border-t pt-6">
-            <div className="text-sm text-muted-foreground">{numSelected} sur {allDeposits.length} ligne(s) sélectionnée(s).</div>
-            <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => approveBulkMutation.mutate(selectedIds)} disabled={numSelected === 0 || isActionPending}>Approuver la sélection</Button>
-                <Button variant="destructive" size="sm" onClick={() => setIsBulkRejectDialogOpen(true)} disabled={numSelected === 0 || isActionPending}>Rejeter la sélection</Button>
-            </div>
+          <div className="text-sm text-muted-foreground">{numSelected} sur {allDeposits.length} ligne(s) sélectionnée(s).</div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => approveBulkMutation.mutate(selectedIds)} disabled={numSelected === 0 || isActionPending}>Approuver la sélection</Button>
+            <Button variant="destructive" size="sm" onClick={() => setIsBulkRejectDialogOpen(true)} disabled={numSelected === 0 || isActionPending}>Rejeter la sélection</Button>
+          </div>
         </CardFooter>
       </Card>
 
@@ -229,7 +260,7 @@ export const PendingDeposits = () => {
       </AlertDialog>
 
       {selectedDeposit && (
-        <AdjustDepositDialog 
+        <AdjustDepositDialog
           transactionId={selectedDeposit.id}
           currentAmount={selectedDeposit.amount}
           userEmail={selectedDeposit.userEmail}
@@ -237,6 +268,23 @@ export const PendingDeposits = () => {
           onOpenChange={setIsAdjustDepositOpen}
         />
       )}
+
+      <Dialog open={proofModalOpen} onOpenChange={setProofModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Preuve de Paiement</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center items-center p-4">
+            {selectedProofUrl && (
+              <img
+                src={selectedProofUrl}
+                alt="Preuve de paiement"
+                className="max-w-full h-auto rounded-md shadow-sm object-contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

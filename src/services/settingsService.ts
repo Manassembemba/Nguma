@@ -5,6 +5,28 @@ import { Database } from "@/integrations/supabase/types";
 type Setting = Database['public']['Tables']['settings']['Row'];
 
 /**
+ * Fetches a single setting by its key.
+ * Assumes the setting is publicly readable via RLS.
+ * @param key The key of the setting to fetch.
+ * @returns {Promise<Setting | null>} A promise that resolves to the setting object or null if not found.
+ */
+export const getSettingByKey = async (key: string): Promise<Setting | null> => {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("*")
+    .eq("key", key)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 = "single row not found"
+    console.error(`Error fetching setting "${key}":`, error);
+    throw new Error(`Could not fetch setting for "${key}".`);
+  }
+
+  return data;
+};
+
+
+/**
  * Fetches all application settings.
  * Requires admin privileges (enforced by RLS).
  * @returns {Promise<Setting[]>} A promise that resolves to an array of settings.

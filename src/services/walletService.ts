@@ -12,14 +12,14 @@ type Wallet = Database['public']['Tables']['wallets']['Row'];
  * @throws {Error} If the user is not authenticated or if there's an error fetching the data.
  */
 export const getWallet = async (): Promise<Wallet | null> => {
-  const { data, error } = await supabase.rpc('get_or_create_wallet').single();
+  const { data, error } = await supabase.rpc('get_or_create_wallet' as any).single();
 
   if (error) {
     console.error("Error fetching or creating wallet:", error.message);
     throw new Error("Could not fetch or create wallet data.");
   }
 
-  return data;
+  return data as unknown as Wallet;
 };
 
 /**
@@ -28,16 +28,19 @@ export const getWallet = async (): Promise<Wallet | null> => {
  * @param method The payment method used.
  * @returns {Promise<any>} The result of the RPC call.
  */
-export const requestDeposit = async (amount: number, method: string, reference?: string, phone?: string) => {
-  const { data, error } = await supabase.rpc('request_deposit', { 
+export const requestDeposit = async (amount: number, method: string, reference?: string, phone?: string, proofUrl?: string) => {
+  const { data, error } = await supabase.rpc('request_deposit', {
     deposit_amount: amount,
     deposit_method: method,
     p_payment_reference: reference,
-    p_payment_phone_number: phone
-  });
+    p_payment_phone_number: phone,
+    p_proof_url: proofUrl
+  } as any);
+
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error);
-  return data;
+  const result = data as any;
+  if (result && !result.success) throw new Error(result.error);
+  return result;
 };
 
 /**
@@ -46,7 +49,7 @@ export const requestDeposit = async (amount: number, method: string, reference?:
  * @returns {Promise<any>} The result of the RPC call.
  */
 export const requestWithdrawal = async ({ amount, method, details }: { amount: number; method: "crypto" | "mobile_money"; details: string }) => {
-  const rpcArgs: { withdraw_amount: number; withdraw_method: string; p_payment_reference?: string; p_payment_phone_number?: string } = {
+  const rpcArgs: any = {
     withdraw_amount: amount,
     withdraw_method: method,
   };
@@ -59,6 +62,7 @@ export const requestWithdrawal = async ({ amount, method, details }: { amount: n
 
   const { data, error } = await supabase.rpc('user_withdraw', rpcArgs);
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error);
-  return data;
+  const result = data as any;
+  if (result && !result.success) throw new Error(result.error);
+  return result;
 };

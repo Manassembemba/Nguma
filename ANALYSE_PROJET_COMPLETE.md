@@ -698,3 +698,4 @@ Une fois ces points résolus, l'application sera prête pour la production.
 *Version du projet : 0.0.0 (développement)*
 
 
+

@@ -2,6 +2,11 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
+export interface MonthlyProfit {
+  month_year: string;
+  total_profit: number;
+}
+
 // --- Deposit Management ---
 export const getPendingDeposits = async () => {
   const { data, error } = await supabase.rpc('get_pending_deposits_with_profiles');
@@ -16,36 +21,48 @@ export const getPendingDeposits = async () => {
 export const approveDeposit = async (transactionId: string) => {
   const { data, error } = await supabase.rpc('approve_deposit', { transaction_id_to_approve: transactionId });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const rejectDeposit = async (transactionId: string, reason: string) => {
   const { data, error } = await supabase.rpc('reject_deposit', { transaction_id_to_reject: transactionId, reason: reason });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const approveDepositsInBulk = async (transactionIds: string[]) => {
   const { data, error } = await supabase.rpc('approve_deposits_in_bulk', { transaction_ids: transactionIds });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred during bulk approval.");
-  return data;
+
+  const result = data as { success: boolean; error?: string; approved_count: number };
+
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred during bulk approval.");
+  return result;
 };
 
 export const rejectDepositsInBulk = async (transactionIds: string[], reason: string) => {
   const { data, error } = await supabase.rpc('reject_deposits_in_bulk', { transaction_ids: transactionIds, reason: reason });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred during bulk rejection.");
-  return data;
+
+  const result = data as { success: boolean; error?: string; rejected_count: number };
+
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred during bulk rejection.");
+  return result;
 };
 
 export const adminAdjustDepositAmount = async ({ transactionId, newAmount }: { transactionId: string; newAmount: number }) => {
   const { data, error } = await supabase.rpc('admin_adjust_deposit_amount', { transaction_id_to_adjust: transactionId, new_amount: newAmount });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred while adjusting amount.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred while adjusting amount.");
+  return result;
 };
 
 // --- User Management ---
@@ -98,22 +115,28 @@ export const getInvestorsList = async (searchQuery?: string, page: number = 1, p
 export const creditUser = async ({ userId, amount, reason }: { userId: string; amount: number; reason: string }) => {
   const { data, error } = await supabase.rpc('admin_credit_user', { target_user_id: userId, credit_amount: amount, reason: reason });
   if (error) throw new Error("Could not credit user.");
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const deactivateUser = async (userId: string) => {
   const { data, error } = await supabase.rpc('admin_deactivate_user', { user_id_to_deactivate: userId });
   if (error) throw new Error("Could not deactivate user.");
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const activateUser = async (userId: string) => {
   const { data, error } = await supabase.rpc('admin_activate_user', { user_id_to_activate: userId });
   if (error) throw new Error("Could not activate user.");
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const updateUserProfile = async ({ userId, firstName, lastName, postNom, phone }: { userId: string; firstName: string; lastName: string; postNom: string; phone: string; }) => {
@@ -125,22 +148,29 @@ export const updateUserProfile = async ({ userId, firstName, lastName, postNom, 
     p_phone: phone,
   });
   if (error) throw new Error("Could not update user profile.");
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 // --- Stats ---
 export const getAdminDashboardStats = async () => {
   const { data, error } = await supabase.rpc('get_admin_stats');
   if (error) throw new Error("Could not fetch admin dashboard stats.");
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  // Note: The actual return structure depends on the RPC function, assuming it returns success/error wrapper or the stats directly.
+  // If it returns just stats, this check might be wrong. Assuming consistency with other admin functions:
+  const result = data as { success: boolean; error?: string;[key: string]: any };
+
+  if (result && typeof result.success === 'boolean' && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const getAggregateProfitsByMonth = async () => {
   const { data, error } = await supabase.rpc('get_aggregate_profits_by_month');
   if (error) throw new Error("Could not fetch aggregate profits.");
-  return data || [];
+  return (data as unknown as MonthlyProfit[]) || [];
 };
 
 export const getCashFlowSummary = async () => {
@@ -175,15 +205,19 @@ export const getPendingWithdrawals = async () => {
 export const approveWithdrawal = async (transactionId: string) => {
   const { data, error } = await supabase.rpc('approve_withdrawal', { transaction_id_to_approve: transactionId });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error);
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error);
+  return result;
 };
 
 export const rejectWithdrawal = async (transactionId: string, reason: string) => {
   const { data, error } = await supabase.rpc('reject_withdrawal', { transaction_id_to_reject: transactionId, reason: reason });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error);
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error);
+  return result;
 };
 
 // --- Contract Management ---
@@ -218,20 +252,26 @@ export const getPendingRefunds = async () => {
 export const approveRefund = async (contractId: string) => {
   const { data, error } = await supabase.rpc('approve_refund', { _contract_id: contractId });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const rejectRefund = async (contractId: string, reason: string) => {
   const { data, error } = await supabase.rpc('reject_refund', { _contract_id: contractId, reason: reason });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };
 
 export const adminUpdateContract = async (contractId: string, updates: Record<string, any>) => {
   const { data, error } = await supabase.rpc('admin_update_contract', { _contract_id: contractId, _updates: updates });
   if (error) throw new Error(error.message);
-  if (data && !data.success) throw new Error(data.error || "An unknown error occurred.");
-  return data;
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
+  return result;
 };

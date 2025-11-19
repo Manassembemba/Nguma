@@ -1,0 +1,1 @@
+ALTER FUNCTION public.trigger_send_email_notification() SET search_path = public, extensions, vault;
