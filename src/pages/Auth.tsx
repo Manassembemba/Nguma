@@ -36,7 +36,7 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -54,11 +54,11 @@ const Auth = () => {
   const handleSignUp = async (values: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             first_name: values.firstName,
             last_name: values.lastName,
@@ -67,10 +67,22 @@ const Auth = () => {
         },
       });
       if (error) throw error;
-      toast({
-        title: "Compte créé !",
-        description: "Veuillez vérifier votre email pour confirmer votre compte.",
-      });
+
+      // If user is created and session exists (email confirmation disabled or auto-confirmed)
+      if (data.session) {
+        toast({
+          title: "Compte créé !",
+          description: "Redirection vers votre dashboard...",
+        });
+        // Redirect to dashboard immediately
+        navigate("/dashboard");
+      } else {
+        // Email confirmation required
+        toast({
+          title: "Compte créé !",
+          description: "Veuillez vérifier votre email pour confirmer votre compte.",
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -96,7 +108,7 @@ const Auth = () => {
           .select("role")
           .eq("user_id", signInData.user.id)
           .single();
-        
+
         const from = location.state?.from || (roleData?.role === 'admin' ? "/admin" : "/dashboard");
         navigate(from);
       }

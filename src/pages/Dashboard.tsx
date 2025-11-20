@@ -3,6 +3,7 @@ import { getWallet } from "@/services/walletService";
 import { getContracts } from "@/services/contractService";
 import { getRecentTransactions } from "@/services/transactionService";
 import { getProfits } from "@/services/profitService";
+import { getSettings } from "@/services/settingsService";
 import { WalletCard } from "@/components/WalletCard";
 import { TransactionTable } from "@/components/TransactionTable";
 import { ContractCard } from "@/components/ContractCard";
@@ -38,21 +39,25 @@ const Dashboard = () => {
     queryFn: getProfits,
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+  });
+
   const activeContracts = contracts?.filter(c => c.status === 'active') || [];
   const totalInvested = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
   const roi = totalInvested > 0 ? ((Number(wallet?.profit_balance || 0) / totalInvested) * 100) : 0;
 
-  // Calculate quick stats
+  // Calculate latest profit and next payment
   const latestProfit = profits?.[0]?.amount || 0;
-  const nextPaymentDays = activeContracts.length > 0
-    ? Math.min(...activeContracts.map(c => {
-      const monthsPaid = c.months_paid || 0;
-      const startDate = new Date(c.start_date);
-      const nextPaymentDate = new Date(startDate);
-      nextPaymentDate.setMonth(nextPaymentDate.getMonth() + monthsPaid + 1);
-      return differenceInDays(nextPaymentDate, new Date());
-    }))
-    : null;
+  const nextPayment = activeContracts.length > 0 ? activeContracts[0] : null;
+  const nextPaymentDays = nextPayment ? differenceInDays(new Date(nextPayment.end_date), new Date()) : 0;
+
+  // Get monthly profit rate from settings (default to 0.10 = 10%)
+  const monthlyRateSetting = settings?.find(s => s.key === 'monthly_profit_rate');
+  const monthlyRatePercent = monthlyRateSetting?.value
+    ? (parseFloat(monthlyRateSetting.value) * 100).toFixed(0)
+    : '10';
 
   return (
     <div className="p-8 space-y-8">
@@ -144,13 +149,13 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 sm:py-16 bg-gradient-to-br from-violet-50 to-purple-50 rounded-lg border-2 border-dashed border-violet-200">
+          <div className="text-center py-12 sm:py-16 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border-2 border-dashed border-slate-700">
             <div className="text-5xl sm:text-6xl mb-4 animate-bounce">📊</div>
-            <h3 className="text-xl sm:text-2xl font-semibold mb-2 text-violet-900">
+            <h3 className="text-xl sm:text-2xl font-semibold mb-2 text-white">
               Commencez votre premier investissement
             </h3>
-            <p className="text-sm sm:text-base text-muted-foreground mb-6 max-w-md mx-auto px-4">
-              Créez un contrat pour commencer à générer des profits mensuels de 15%
+            <p className="text-sm sm:text-base text-slate-300 mb-6 max-w-md mx-auto px-4">
+              Créez un contrat pour commencer à générer des profits mensuels de {monthlyRatePercent}%
             </p>
             <NewContractDialog />
           </div>
