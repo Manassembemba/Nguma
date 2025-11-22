@@ -18,7 +18,6 @@ import { useNotifications } from "@/contexts/NotificationContext";
 const investorItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Mes Contrats", url: "/contracts", icon: FileText },
-  { title: "Wallet", url: "/wallet", icon: Wallet },
   { title: "Transactions", url: "/transactions", icon: TrendingUp },
 ];
 

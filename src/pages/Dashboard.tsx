@@ -11,6 +11,7 @@ import { ProfitChart } from "@/components/ProfitChart";
 import { NewContractDialog } from "@/components/NewContractDialog";
 import { DepositDialog } from "@/components/DepositDialog";
 import { WithdrawDialog } from "@/components/WithdrawDialog";
+import { ReinvestDialog } from "@/components/ReinvestDialog";
 import { UpcomingPayments } from "@/components/UpcomingPayments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -46,7 +47,12 @@ const Dashboard = () => {
 
   const activeContracts = contracts?.filter(c => c.status === 'active') || [];
   const totalInvested = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
-  const roi = totalInvested > 0 ? ((Number(wallet?.profit_balance || 0) / totalInvested) * 100) : 0;
+
+  // ROI = (Total Profit / Total Invested) * 100
+  // This shows the percentage return on the invested capital
+  const roi = Number(wallet?.invested_balance || 0) > 0
+    ? ((Number(wallet?.profit_balance || 0) / Number(wallet?.invested_balance || 0)) * 100)
+    : 0;
 
   // Calculate latest profit and next payment
   const latestProfit = profits?.[0]?.amount || 0;
@@ -71,6 +77,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-2">
           <DepositDialog />
           <WithdrawDialog wallet={wallet} />
+          <ReinvestDialog wallet={wallet} />
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
+import { checkRateLimit, formatRateLimitReset } from "@/services/rateLimitService";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -32,14 +33,30 @@ const signUpSchema = z.object({
   path: ["confirmPassword"],
 });
 
+import { Checkbox } from "@/components/ui/checkbox";
+
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Check for accepted param in URL
+    const params = new URLSearchParams(location.search);
+    if (params.get("accepted") === "true") {
+      setTermsAccepted(true);
+      // Switch to signup tab if accepted
+      if (params.get("tab") === "signup") {
+        // We need to handle tab switching, but the Tabs component is uncontrolled by default.
+        // Let's just set the state, the user will see the checkbox checked.
+      }
+    }
+  }, [location.search]);
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -94,14 +111,58 @@ const Auth = () => {
     }
   };
 
+  const [showMFAInput, setShowMFAInput] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string>("");
+  const [mfaCode, setMfaCode] = useState("");
+
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
     setIsLoading(true);
     try {
+      // Vérifier rate limit AVANT la tentative de connexion
+      const rateLimit = await checkRateLimit(values.email, 'login');
+
+      if (!rateLimit.allowed) {
+        const resetTime = formatRateLimitReset(rateLimit.reset_at);
+        toast({
+          variant: "destructive",
+          title: "🔒 Trop de tentatives",
+          description: `Votre compte est temporairement bloqué. Réessayez dans ${resetTime}.`,
+        });
+        return; // Arrêter ici, pas de tentative de login
+      }
+
+      // Afficher avertissement si proche de la limite
+      if (rateLimit.remaining <= 2 && rateLimit.remaining > 0) {
+        toast({
+          variant: "warning" as any,
+          title: "⚠️ Attention",
+          description: `Il vous reste ${rateLimit.remaining} tentative(s) avant blocage.`,
+        });
+      }
+
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
+
       if (signInError) throw signInError;
+
+      // Check if MFA is required (Supabase might return a session with aal1 if mfa is enabled but not verified)
+      // However, usually signInWithPassword returns data.user and data.session.
+      // If MFA is enforced, we might need to check the assurance level or if an error was thrown (Supabase Auth v2 handles this differently depending on config).
+      // But typically for "optional" MFA that we enforce in app, we check if the user has factors.
+
+      // Let's check if the user has any MFA factors enrolled
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.find(f => f.status === 'verified');
+
+      if (totpFactor) {
+        setMfaFactorId(totpFactor.id);
+        setShowMFAInput(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (signInData.user) {
         const { data: roleData } = await supabase
           .from("user_roles")
@@ -112,11 +173,51 @@ const Auth = () => {
         const from = location.state?.from || (roleData?.role === 'admin' ? "/admin" : "/dashboard");
         navigate(from);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Handle specific MFA error if Supabase throws one (depends on project settings)
+      console.error("Login error:", error);
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
-        description: "Identifiants incorrects ou erreur de réseau.",
+        description: error.message || "Identifiants incorrects ou erreur de réseau.",
+      });
+    } finally {
+      if (!showMFAInput) setIsLoading(false);
+    }
+  };
+
+  const handleMFAVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId: mfaFactorId,
+        code: mfaCode,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Authentification réussie",
+        description: "Connexion sécurisée validée.",
+      });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+
+        const from = location.state?.from || (roleData?.role === 'admin' ? "/admin" : "/dashboard");
+        navigate(from);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur 2FA",
+        description: error.message || "Code incorrect.",
       });
     } finally {
       setIsLoading(false);
@@ -170,6 +271,15 @@ const Auth = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("signin");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("tab") === "signup") {
+      setActiveTab("signup");
+    }
+  }, [location.search]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -185,7 +295,7 @@ const Auth = () => {
             <CardDescription>Connectez-vous ou créez votre compte</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Connexion</TabsTrigger>
                 <TabsTrigger value="signup">Inscription</TabsTrigger>
@@ -206,35 +316,61 @@ const Auth = () => {
               </div>
 
               <TabsContent value="signin">
-                <Form {...signInForm}>
-                  <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
-                    <FormField control={signInForm.control} name="email" render={({ field }) => (
-                      <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="vous@exemple.com" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={signInForm.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mot de passe</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
-                          </FormControl>
-                          <Button type="button" variant="ghost" size="sm" className="absolute inset-y-0 right-0 h-full px-3 text-gray-500 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
-                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                          </Button>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <div className="text-right text-sm -mt-2">
-                      <Button variant="link" type="button" onClick={handleForgotPassword} className="px-0 h-auto py-1">
-                        Mot de passe oublié ?
-                      </Button>
+                {showMFAInput ? (
+                  <form onSubmit={handleMFAVerify} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mfa-code">Code d'authentification (2FA)</Label>
+                      <Input
+                        id="mfa-code"
+                        placeholder="123456"
+                        value={mfaCode}
+                        onChange={(e) => setMfaCode(e.target.value)}
+                        maxLength={6}
+                        className="text-center text-lg tracking-widest"
+                        autoFocus
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Ouvrez votre application d'authentification (Google Authenticator, Authy...) pour obtenir le code.
+                      </p>
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? "Connexion..." : "Se connecter"}
+                    <Button type="submit" className="w-full" disabled={isLoading || mfaCode.length !== 6}>
+                      {isLoading ? "Vérification..." : "Vérifier"}
+                    </Button>
+                    <Button variant="ghost" type="button" className="w-full" onClick={() => setShowMFAInput(false)}>
+                      Retour
                     </Button>
                   </form>
-                </Form>
+                ) : (
+                  <Form {...signInForm}>
+                    <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
+                      <FormField control={signInForm.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="vous@exemple.com" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={signInForm.control} name="password" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mot de passe</FormLabel>
+                          <div className="relative">
+                            <FormControl>
+                              <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                            </FormControl>
+                            <Button type="button" variant="ghost" size="sm" className="absolute inset-y-0 right-0 h-full px-3 text-gray-500 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
+                              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <div className="text-right text-sm -mt-2">
+                        <Button variant="link" type="button" onClick={handleForgotPassword} className="px-0 h-auto py-1">
+                          Mot de passe oublié ?
+                        </Button>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? "Connexion..." : "Se connecter"}
+                      </Button>
+                    </form>
+                  </Form>
+                )}
               </TabsContent>
 
               <TabsContent value="signup">
@@ -282,7 +418,22 @@ const Auth = () => {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+
+                    <div className="flex items-center space-x-2 py-2">
+                      <Checkbox
+                        id="terms"
+                        checked={termsAccepted}
+                        onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                      />
+                      <label
+                        htmlFor="terms"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        J'accepte les <a href="/terms" className="text-primary hover:underline font-semibold">conditions générales d'utilisation</a>
+                      </label>
+                    </div>
+
+                    <Button type="submit" className="w-full" disabled={isLoading || !termsAccepted}>
                       {isLoading ? "Création..." : "Créer mon compte"}
                     </Button>
                   </form>

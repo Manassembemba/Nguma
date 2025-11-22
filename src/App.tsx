@@ -10,7 +10,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import ContractsPage from "./pages/Contracts";
-import WalletPage from "./pages/Wallet";
 import TransactionsPage from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -29,6 +28,9 @@ import ProfilePage from "./pages/Profile";
 import Logout from "./pages/Logout";
 import { ProfileCompletionGuard } from "./components/ProfileCompletionGuard";
 import UpdatePassword from "./pages/UpdatePassword";
+import Setup2FA from "./pages/Setup2FA";
+
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -54,144 +56,136 @@ const App = () => (
       <BrowserRouter>
         <NotificationProvider>
           <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/how-it-works" element={<HowItWorksPage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/contracts"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ContractsPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/wallet"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <WalletPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/transactions"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <TransactionsPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ProfilePage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <AdminPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <UsersPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <SettingsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/deposits"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <PendingDepositsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/withdrawals"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <PendingWithdrawalsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/refunds"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <PendingRefundsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/contracts"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <AdminContractsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/user-contracts"
-            element={
-              <AdminRoute>
-                <AppLayout>
-                  <AdminUserContractsPage />
-                </AppLayout>
-              </AdminRoute>
-            }
-          />
-          <Route path="/logout" element={<Logout />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/how-it-works" element={<HowItWorksPage />} />
+            <Route path="/setup-2fa" element={<ProtectedRoute><Setup2FA /></ProtectedRoute>} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contracts"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ContractsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transactions"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <TransactionsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ProfilePage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <AdminPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <UsersPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <SettingsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/deposits"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <PendingDepositsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/withdrawals"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <PendingWithdrawalsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/refunds"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <PendingRefundsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/contracts"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <AdminContractsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/user-contracts"
+              element={
+                <AdminRoute>
+                  <AppLayout>
+                    <AdminUserContractsPage />
+                  </AppLayout>
+                </AdminRoute>
+              }
+            />
+            <Route path="/logout" element={<Logout />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </NotificationProvider>
       </BrowserRouter>
     </TooltipProvider>

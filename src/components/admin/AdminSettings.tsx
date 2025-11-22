@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSettings, updateSetting, uploadGenericContractPdf } from "@/services/settingsService";
+import { getSettings, updateSetting } from "@/services/settingsService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +54,20 @@ const SettingControl = ({ setting, handleInputChange, handleSave, mutation }: { 
           </Button>
         </div>
       );
+    case 'textarea':
+      return (
+        <div className="flex flex-col gap-2 w-full">
+          <Textarea
+            id={setting.key}
+            value={setting.value ?? ""}
+            onChange={(e) => handleInputChange(setting.key, e.target.value)}
+            className="min-h-[200px] font-mono text-sm"
+          />
+          <Button onClick={() => handleSave(setting.key)} disabled={mutation.isPending && mutation.variables?.key === setting.key} className="self-end">
+            Sauvegarder
+          </Button>
+        </div>
+      );
     case 'number':
     default: // 'text' and others
       return (
@@ -73,16 +88,14 @@ const SettingControl = ({ setting, handleInputChange, handleSave, mutation }: { 
 };
 
 export const AdminSettings = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [settingsState, setSettingsState] = useState<Setting[]>([]);
-  const [selectedGenericPdfFile, setSelectedGenericPdfFile] = useState<File | null>(null);
-  const [genericPdfFileInputKey, setGenericPdfFileInputKey] = useState(Date.now());
-
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
     queryFn: getSettings,
   });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [settingsState, setSettingsState] = useState<Setting[]>([]);
 
   useEffect(() => {
     if (settings) {
@@ -100,20 +113,6 @@ export const AdminSettings = () => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
-
-  const uploadGenericPdfMutation = useMutation({
-    mutationFn: uploadGenericContractPdf,
-    onSuccess: () => {
-      toast({ title: "Succès", description: "PDF de contrat générique téléversé et mis à jour." });
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-      setSelectedGenericPdfFile(null);
-      setGenericPdfFileInputKey(Date.now()); // Reset file input
-    },
-    onError: (error) => {
-      toast({ variant: "destructive", title: "Erreur de téléversement", description: error.message });
-    },
-  });
-
   const handleInputChange = (key: string, value: string) => {
     setSettingsState(currentSettings =>
       currentSettings.map(s => s.key === key ? { ...s, value } : s)
@@ -127,24 +126,6 @@ export const AdminSettings = () => {
     }
   };
 
-  const handleGenericPdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      setSelectedGenericPdfFile(event.target.files[0]);
-    } else {
-      setSelectedGenericPdfFile(null);
-    }
-  };
-
-  const handleUploadGenericPdf = () => {
-    if (!selectedGenericPdfFile) {
-      toast({ variant: "destructive", title: "Erreur", description: "Veuillez sélectionner un fichier PDF." });
-      return;
-    }
-    uploadGenericPdfMutation.mutate(selectedGenericPdfFile);
-  };
-
-  const genericContractPdfUrl = settingsState.find(s => s.key === 'generic_contract_pdf_url')?.value || "";
-
   // Categorize settings
   const paymentSettings = settingsState.filter(s => s.key.includes('payment') || s.key.includes('deposit') || s.key.includes('withdrawal'));
   const contractSettings = settingsState.filter(s => s.key.includes('contract') || s.key.includes('profit') || s.key.includes('roi'));
@@ -152,8 +133,6 @@ export const AdminSettings = () => {
 
   // Calculate stats
   const totalSettings = settingsState.length;
-  const customizedSettings = settingsState.filter(s => s.value !== s.default_value).length;
-  const hasPdf = !!genericContractPdfUrl;
 
   if (isLoading) {
     return (
@@ -213,35 +192,9 @@ export const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Personnalisés</div>
-              <Clock className="h-4 w-4 text-purple-600" />
-            </div>
-            <div className="text-2xl font-bold text-purple-700">
-              {customizedSettings}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Modifiés par défaut
-            </p>
-          </CardContent>
-        </Card>
 
-        <Card className={`bg-gradient-to-br ${hasPdf ? 'from-green-500/10 to-emerald-500/10 border-green-500/20' : 'from-amber-500/10 to-orange-500/10 border-amber-500/20'}`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">PDF Contrat</div>
-              <FileText className={`h-4 w-4 ${hasPdf ? 'text-green-600' : 'text-amber-600'}`} />
-            </div>
-            <div className={`text-2xl font-bold ${hasPdf ? 'text-green-700' : 'text-amber-700'}`}>
-              {hasPdf ? '✓ Configuré' : '⚠ Manquant'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Modèle de contrat
-            </p>
-          </CardContent>
-        </Card>
+
+
       </div>
 
       {/* Categorized Settings */}
@@ -297,49 +250,7 @@ export const AdminSettings = () => {
         </CardContent>
       </Card>
 
-      {/* PDF Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contrat PDF Générique</CardTitle>
-          <CardDescription>Téléversez le fichier PDF qui servira de modèle pour tous les nouveaux contrats.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1">
-              <Label htmlFor="generic_contract_pdf" className="font-medium text-base">Fichier PDF du Contrat Modèle</Label>
-              {genericContractPdfUrl && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Actuel: <a href={genericContractPdfUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Voir le PDF</a>
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <Input
-                key={genericPdfFileInputKey}
-                id="generic_contract_pdf"
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={handleGenericPdfFileChange}
-              />
-              <label htmlFor="generic_contract_pdf" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-3 cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" /> Choisir un fichier
-              </label>
-              {selectedGenericPdfFile && (
-                <span className="text-sm text-muted-foreground truncate max-w-[200px]">{selectedGenericPdfFile.name}</span>
-              )}
-              <Button
-                size="sm"
-                onClick={handleUploadGenericPdf}
-                disabled={!selectedGenericPdfFile || uploadGenericPdfMutation.isPending}
-                className="w-full sm:w-auto"
-              >
-                {uploadGenericPdfMutation.isPending ? "Téléversement..." : "Téléverser"}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 };

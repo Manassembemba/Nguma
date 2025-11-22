@@ -18,7 +18,6 @@ import { PlusCircle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContract } from "@/services/contractService";
 import { getWallet } from "@/services/walletService";
-import { getSettings } from "@/services/settingsService"; // Import getSettings
 import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
 
@@ -34,12 +33,7 @@ export const NewContractDialog = () => {
     queryFn: getWallet,
   });
 
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: getSettings,
-  });
 
-  const genericContractPdfUrl = settings?.find(s => s.key === 'generic_contract_pdf_url')?.value;
 
   useEffect(() => {
     if (wallet) {
@@ -81,10 +75,6 @@ export const NewContractDialog = () => {
       toast({ variant: "destructive", title: "Erreur", description: "Vous devez accepter les termes du contrat." });
       return;
     }
-    if (!genericContractPdfUrl) {
-      toast({ variant: "destructive", title: "Erreur", description: "Le PDF du contrat générique n'est pas disponible. Veuillez contacter l'administrateur." });
-      return;
-    }
     try {
       const validatedData = contractSchema.parse({ amount });
       mutation.mutate(validatedData.amount);
@@ -111,19 +101,13 @@ export const NewContractDialog = () => {
               Veuillez lire et accepter les termes du contrat avant d'investir.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="w-full rounded-md border my-4" style={{ height: 'calc(100% - 200px)' }}>
-            {genericContractPdfUrl ? (
-              <iframe 
-                src={`${genericContractPdfUrl}#toolbar=0`} 
-                width="100%" 
-                height="100%" 
-                style={{ border: "none" }}
-                title="Termes du Contrat"
-              ></iframe>
-            ) : (
-              <p className="text-muted-foreground text-center p-4">Les termes du contrat ne sont pas disponibles pour le moment.</p>
-            )}
+
+          <div className="w-full rounded-md border my-4 p-4 bg-muted/20 text-sm text-muted-foreground overflow-y-auto" style={{ height: '200px' }}>
+            <p className="mb-2 font-semibold">Termes et Conditions d'Investissement</p>
+            <p>En créant ce contrat, vous acceptez d'investir le montant spécifié pour une durée de 10 mois.</p>
+            <p>Les profits seront versés mensuellement sur votre solde de profit.</p>
+            <p>Le capital initial n'est pas restitué à la fin du contrat (il est amorti dans les versements mensuels).</p>
+            <p>Tout remboursement anticipé (avant 5 mois) sera calculé en déduisant les profits déjà perçus.</p>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">

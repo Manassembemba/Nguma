@@ -18,7 +18,8 @@ const formatCurrency = (amount: number) => {
 const templates = {
   // ✅ FOR USER: Deposit Approved
   deposit_approved: (params: any) => ({
-    subject: `✅ Votre dépôt de ${formatCurrency(params.amount)} a été approuvé !`,
+    subject: `Votre dépôt de ${formatCurrency(params.amount)} a été approuvé`,
+    text: `Bonjour ${params.name},\n\nBonne nouvelle ! Votre dépôt de ${formatCurrency(params.amount)} a été approuvé avec succès.\n\nDÉTAILS DE LA TRANSACTION\nMontant crédité : ${formatCurrency(params.amount)}\nStatus : Approuvé\nDate : ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}\n\nPROCHAINE ÉTAPE\nVos fonds sont prêts à être investis ! Créez votre premier contrat d'investissement pour commencer à générer des profits mensuels.\n\nACCÉDER À VOTRE COMPTE\nVoir mon solde : ${SITE_URL}/wallet\nCréer un investissement : ${SITE_URL}/dashboard\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge success">
         <span class="icon">✓</span> Dépôt Approuvé
@@ -59,7 +60,8 @@ const templates = {
 
   // ❌ FOR USER: Deposit Rejected
   deposit_rejected: (params: any) => ({
-    subject: `❌ Votre dépôt de ${formatCurrency(params.amount)} n'a pas pu être validé`,
+    subject: `Mise à jour concernant votre dépôt de ${formatCurrency(params.amount)}`,
+    text: `Bonjour ${params.name},\n\nNous avons examiné votre demande de dépôt de ${formatCurrency(params.amount)}, mais malheureusement nous ne pouvons pas la valider pour le moment.\n\nINFORMATIONS SUR LE DÉPÔT\nMontant : ${formatCurrency(params.amount)}\nStatus : Rejeté\nRaison : ${params.reason || "Informations de paiement invalides ou incomplètes"}\n\nCOMMENT CORRIGER CELA\n- Vérifiez que la preuve de paiement est claire et lisible\n- Assurez-vous que le montant correspond exactement\n- Utilisez le bon numéro de référence pour le transfert\n\nBESOIN D'AIDE\nNotre équipe support est là pour vous assister.\nContacter le support : ${SITE_URL}/support\nRéessayer un dépôt : ${SITE_URL}/wallet\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge error">
         <span class="icon">✖</span> Dépôt Non Validé
@@ -107,7 +109,8 @@ const templates = {
 
   // 🔔 FOR ADMIN: New Deposit Request
   new_deposit_request: (params: any) => ({
-    subject: `🔔 Nouvelle demande de dépôt - ${formatCurrency(params.amount)}`,
+    subject: `Nouvelle demande de dépôt - ${formatCurrency(params.amount)}`,
+    text: `NOUVELLE DEMANDE DE DÉPÔT À TRAITER\n\nINFORMATIONS UTILISATEUR\nNom : ${params.name}\nEmail : ${params.email}\nMontant : ${formatCurrency(params.amount)}\nDate de soumission : ${new Date().toLocaleString('fr-FR')}\n\nACTION REQUISE\nVeuillez vérifier la preuve de paiement et valider ou rejeter cette demande dans le panneau d'administration.\n\nACCÉDER AU PANNEAU ADMIN\nVoir les détails : ${SITE_URL}/admin/deposits\nPanneau admin : ${SITE_URL}/admin\n\n---\nNguma - Panneau d'Administration\nCet e-mail est destiné aux administrateurs uniquement.`,
     body: `
       <div class="status-badge info">
         <span class="icon">🔔</span> Nouvelle Demande
@@ -152,7 +155,8 @@ const templates = {
 
   // ✅ FOR USER: Withdrawal Approved
   withdrawal_approved: (params: any) => ({
-    subject: `✅ Votre retrait de ${formatCurrency(params.amount)} est approuvé`,
+    subject: `Confirmation de votre retrait de ${formatCurrency(params.amount)}`,
+    text: `Bonjour ${params.name},\n\nVotre demande de retrait de ${formatCurrency(params.amount)} a été approuvée.\n\nDÉTAILS DU RETRAIT\nMontant : ${formatCurrency(params.amount)}\nStatus : Approuvé\nDélai estimé : 24-48 heures ouvrées\n\nÉTAPES DU TRAITEMENT\n✓ Demande soumise - Votre demande a été reçue\n✓ Validation effectuée - Votre retrait est approuvé\n⏳ Traitement en cours - Le paiement est en cours d'envoi\n○ Paiement reçu - Vous recevrez une confirmation\n\nSUIVRE VOTRE RETRAIT\nPortefeuille : ${SITE_URL}/wallet\nHistorique : ${SITE_URL}/transactions\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge success">
         <span class="icon">✓</span> Retrait Approuvé
@@ -220,7 +224,8 @@ const templates = {
 
   // ❌ FOR USER: Withdrawal Rejected
   withdrawal_rejected: (params: any) => ({
-    subject: `❌ Votre retrait de ${formatCurrency(params.amount)} n'a pas été validé`,
+    subject: `Mise à jour concernant votre retrait de ${formatCurrency(params.amount)}`,
+    text: `Bonjour ${params.name},\n\nNous avons examiné votre demande de retrait, mais nous ne pouvons pas la traiter pour le moment.\n\nINFORMATIONS SUR LE RETRAIT\nMontant demandé : ${formatCurrency(params.amount)}\nStatus : Rejeté\nRaison : ${params.reason || "Informations de paiement manquantes ou incorrectes"}\n\nVOTRE SOLDE EST INTACT\nRassurez-vous, aucun montant n'a été débité de votre compte. Votre solde reste inchangé.\n\nSOLUTIONS\n- Vérifiez vos informations de paiement\n- Assurez-vous que votre solde est suffisant\n- Contactez notre support pour assistance\n\nACCÉDER À VOTRE COMPTE\nVoir mon solde : ${SITE_URL}/wallet\nContacter le support : ${SITE_URL}/support\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge error">
         <span class="icon">✖</span> Retrait Non Validé
@@ -271,7 +276,8 @@ const templates = {
 
   // 🔔 FOR ADMIN: New Withdrawal Request
   new_withdrawal_request: (params: any) => ({
-    subject: `🔔 Nouvelle demande de retrait - ${formatCurrency(params.amount)}`,
+    subject: `Nouvelle demande de retrait - ${formatCurrency(params.amount)}`,
+    text: `NOUVELLE DEMANDE DE RETRAIT À TRAITER\n\nINFORMATIONS UTILISATEUR\nNom : ${params.name}\nEmail : ${params.email}\nMontant demandé : ${formatCurrency(params.amount)}\nDate de soumission : ${new Date().toLocaleString('fr-FR')}\n\nACTION REQUISE\nVérifiez le solde de l'utilisateur et les informations de paiement avant de valider ce retrait.\n\nACCÉDER AU PANNEAU ADMIN\nVoir les détails : ${SITE_URL}/admin/withdrawals\nPanneau admin : ${SITE_URL}/admin\n\n---\nNguma - Panneau d'Administration\nCet e-mail est destiné aux administrateurs uniquement.`,
     body: `
       <div class="status-badge info">
         <span class="icon">🔔</span> Nouvelle Demande
@@ -316,7 +322,8 @@ const templates = {
 
   // 📈 FOR USER: Monthly Profit
   monthly_profit: (params: any) => ({
-    subject: `📈 Votre profit mensuel de ${formatCurrency(params.amount)} est disponible !`,
+    subject: `Votre profit mensuel de ${formatCurrency(params.amount)} est disponible`,
+    text: `Félicitations ${params.name} !\n\nVotre profit mensuel vient d'être versé sur votre compte. Votre investissement continue de générer des revenus !\n\nPAIEMENT DE PROFIT\nProfit versé : ${formatCurrency(params.amount)}\nType de paiement : Profit mensuel\nDate : ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}\n\nPERFORMANCE\nPerformance : Excellent\nProchain paiement : Dans 30 jours\n\nMAXIMISEZ VOS REVENUS\nRéinvestissez vos profits pour bénéficier de l'effet des intérêts composés et augmenter vos gains mensuels !\n\nACCÉDER À VOTRE COMPTE\nVoir mes profits : ${SITE_URL}/wallet\nRéinvestir : ${SITE_URL}/dashboard\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge success">
         <span class="icon">🎉</span> Profit Versé
@@ -370,7 +377,8 @@ const templates = {
 
   // 🎉 FOR USER: New Investment
   new_investment: (params: any) => ({
-    subject: `🎉 Votre investissement de ${formatCurrency(params.amount)} est créé !`,
+    subject: `Confirmation de votre investissement de ${formatCurrency(params.amount)}`,
+    text: `Félicitations ${params.name} !\n\nVous avez franchi une étape importante ! Votre contrat d'investissement est maintenant actif et va commencer à générer des profits mensuels.\n\nRÉCAPITULATIF DE VOTRE CONTRAT\nMontant investi : ${formatCurrency(params.amount)}\nDurée du contrat : 12 mois\nTaux mensuel : 15%\nProfit mensuel estimé : ${formatCurrency(params.amount * 0.15)}\n\nPROCHAINES ÉTAPES\n1. Dans 30 jours - Premier paiement de profit\n2. À maturité (12 mois) - Capital + tous les profits versés\n\nVOTRE INVESTISSEMENT TRAVAILLE POUR VOUS\nVous n'avez rien à faire, vos profits seront automatiquement versés chaque mois.\n\nACCÉDER À VOTRE COMPTE\nVoir mon contrat : ${SITE_URL}/dashboard\nTableau de bord : ${SITE_URL}/wallet\n\nMerci de votre confiance,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
     body: `
       <div class="status-badge success">
         <span class="icon">🎉</span> Investissement Actif
@@ -430,438 +438,486 @@ const templates = {
       </div>
     `,
   }),
+
+  // 🔐 FOR USER: Withdrawal OTP Code
+  withdrawal_otp: (params: any) => ({
+    subject: `Code de vérification pour votre retrait de ${formatCurrency(params.amount)}`,
+    text: `Bonjour ${params.name},\n\nVous avez demandé un retrait de ${formatCurrency(params.amount)}.\n\nCODE DE VÉRIFICATION\nVotre code OTP : ${params.otp_code}\nValide pendant : 10 minutes\n\nSÉCURITÉ\n⚠️ Ne partagez jamais ce code avec qui que ce soit\n⚠️ Notre équipe ne vous demandera jamais ce code\n⚠️ Si vous n'avez pas demandé ce retrait, contactez-nous immédiatement\n\nACCÉDER À VOTRE COMPTE\nPortefeuille : ${SITE_URL}/wallet\nSupport : ${SITE_URL}/support\n\nCORDIALEMENT,\nL'équipe Nguma\n\n---\nNguma - Votre plateforme d'investissement de confiance\nVous recevez cet e-mail car vous avez un compte actif sur Nguma.\nSe désabonner : ${SITE_URL}/settings/notifications`,
+    body: `
+      <div class="status-badge info">
+        <span class="icon">🔐</span> Code de Vérification
+      </div>
+      
+      <h2>Bonjour ${params.name},</h2>
+      
+      <p class="lead">Vous avez demandé un retrait de <strong>${formatCurrency(params.amount)}</strong>.</p>
+      
+      <p>Pour confirmer cette opération, veuillez utiliser le code de vérification ci-dessous :</p>
+      
+      <div style="background: white; border: 2px solid #667eea; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+        <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 12px;">Votre code OTP</p>
+        <h1 style="margin: 0; font-size: 48px; color: #667eea; letter-spacing: 12px; font-weight: 700;">${params.otp_code}</h1>
+        <p style="margin: 12px 0 0 0; font-size: 12px; color: #999;">Valide pendant 10 minutes</p>
+      </div>
+      
+      <div class="highlight-box warning">
+        <p><strong>⚠️ Sécurité :</strong></p>
+        <ul>
+          <li>Ne partagez jamais ce code avec qui que ce soit</li>
+          <li>Notre équipe ne vous demandera jamais ce code</li>
+          <li>Si vous n'avez pas demandé ce retrait, contactez-nous immédiatement</li>
+        </ul>
+      </div>
+      
+      <p style="margin-top: 30px; font-size: 14px; color: #666;">
+        Si vous n'avez pas demandé ce code, veuillez ignorer cet email ou nous contacter.
+      </p>
+      
+      <div class="cta-buttons">
+        <a href="${SITE_URL}/wallet" class="btn btn-primary">Accéder à Mon Compte</a>
+        <a href="${SITE_URL}/support" class="btn btn-secondary">Contacter le Support</a>
+      </div>
+    `,
+  }),
 };
 
 // Enhanced HTML template generator with modern design
 function generateEmailHtml(bodyContent: string) {
   return `
-    <!DOCTYPE html>
+      <!DOCTYPE html>
     <html lang="fr">
     <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Nguma</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta charset="UTF-8">
+      <meta name="viewport" content = "width=device-width, initial-scale=1.0" >
+        <title>Nguma </title>
+        <style>
+        * { margin: 0; padding: 0; box- sizing: border- box; }
         
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          line-height: 1.6;
-          color: #1F2937;
-          background-color: #F3F4F6;
-        }
+  font - family: -apple - system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans - serif;
+  line - height: 1.6;
+  color: #1F2937;
+  background - color: #F3F4F6;
+}
         
-        .email-wrapper {
-          max-width: 600px;
-          margin: 0 auto;
-          background-color: #FFFFFF;
-        }
+        .email - wrapper {
+  max - width: 600px;
+  margin: 0 auto;
+  background - color: #FFFFFF;
+}
         
-        .email-header {
-          background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
-          padding: 40px 30px;
-          text-align: center;
-        }
+        .email - header {
+  background: linear - gradient(135deg, #667EEA 0 %, #764BA2 100 %);
+  padding: 40px 30px;
+  text - align: center;
+}
         
         .logo {
-          font-size: 32px;
-          font-weight: 700;
-          color: #FFFFFF;
-          letter-spacing: 1px;
-        }
+  font - size: 32px;
+  font - weight: 700;
+  color: #FFFFFF;
+  letter - spacing: 1px;
+}
         
-        .email-body {
-          padding: 40px 30px;
-        }
+        .email - body {
+  padding: 40px 30px;
+}
         
         h2 {
-          font-size: 24px;
-          font-weight: 700;
-          color: #1F2937;
-          margin-bottom: 16px;
-        }
+  font - size: 24px;
+  font - weight: 700;
+  color: #1F2937;
+  margin - bottom: 16px;
+}
         
         h3 {
-          font-size: 18px;
-          font-weight: 600;
-          color: #374151;
-          margin-bottom: 12px;
-        }
+  font - size: 18px;
+  font - weight: 600;
+  color: #374151;
+  margin - bottom: 12px;
+}
         
         .lead {
-          font-size: 16px;
-          color: #4B5563;
-          margin-bottom: 24px;
-          line-height: 1.7;
-        }
+  font - size: 16px;
+  color: #4B5563;
+  margin - bottom: 24px;
+  line - height: 1.7;
+}
         
         p {
-          margin-bottom: 16px;
-          color: #4B5563;
-        }
+  margin - bottom: 16px;
+  color: #4B5563;
+}
         
-        .status-badge {
-          display: inline-block;
-          padding: 12px 24px;
-          border-radius: 8px;
-          font-weight: 600;
-          margin-bottom: 24px;
-          font-size: 14px;
-        }
+        .status - badge {
+  display: inline - block;
+  padding: 12px 24px;
+  border - radius: 8px;
+  font - weight: 600;
+  margin - bottom: 24px;
+  font - size: 14px;
+}
         
-        .status-badge.success {
-          background-color: #ECFDF5;
-          color: #059669;
-          border: 1px solid #10B981;
-        }
+        .status - badge.success {
+  background - color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #10B981;
+}
         
-        .status-badge.error {
-          background-color: #FEF2F2;
-          color: #DC2626;
-          border: 1px solid #EF4444;
-        }
+        .status - badge.error {
+  background - color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #EF4444;
+}
         
-        .status-badge.info {
-          background-color: #EFF6FF;
-          color: #2563EB;
-          border: 1px solid #3B82F6;
-        }
+        .status - badge.info {
+  background - color: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #3B82F6;
+}
         
-        .status-badge .icon {
-          font-size: 18px;
-          margin-right: 8px;
-        }
+        .status - badge.icon {
+  font - size: 18px;
+  margin - right: 8px;
+}
         
-        .info-card {
-          background-color: #F9FAFB;
-          border: 1px solid #E5E7EB;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-        }
+        .info - card {
+  background - color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border - radius: 12px;
+  padding: 24px;
+  margin - bottom: 24px;
+}
         
-        .info-card.success-card {
-          background-color: #ECFDF5;
-          border-color: #A7F3D0;
-        }
+        .info - card.success - card {
+  background - color: #ECFDF5;
+  border - color: #A7F3D0;
+}
         
-        .info-card.error-card {
-          background-color: #FEF2F2;
-          border-color: #FECACA;
-        }
+        .info - card.error - card {
+  background - color: #FEF2F2;
+  border - color: #FECACA;
+}
         
-        .info-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
+        .info - table {
+  width: 100 %;
+  border - collapse: collapse;
+}
         
-        .info-table tr {
-          border-bottom: 1px solid #E5E7EB;
-        }
+        .info - table tr {
+  border - bottom: 1px solid #E5E7EB;
+}
         
-        .info-table tr:last-child {
-          border-bottom: none;
-        }
+        .info - table tr: last - child {
+  border - bottom: none;
+}
         
-        .info-table td {
-          padding: 12px 0;
-        }
+        .info - table td {
+  padding: 12px 0;
+}
         
-        .info-table td:first-child {
-          color: #6B7280;
-          width: 50%;
-        }
+        .info - table td: first - child {
+  color: #6B7280;
+  width: 50 %;
+}
         
-        .info-table td:last-child {
-          text-align: right;
-          font-weight: 500;
-        }
+        .info - table td: last - child {
+  text - align: right;
+  font - weight: 500;
+}
         
-        .amount-success {
-          color: #059669;
-          font-size: 20px;
-          font-weight: 700;
-        }
+        .amount - success {
+  color: #059669;
+  font - size: 20px;
+  font - weight: 700;
+}
         
-        .amount-highlight {
-          color: #7C3AED;
-          font-size: 18px;
-          font-weight: 700;
-        }
+        .amount - highlight {
+  color: #7C3AED;
+  font - size: 18px;
+  font - weight: 700;
+}
         
-        .profit-amount {
-          font-size: 24px !important;
-        }
+        .profit - amount {
+  font - size: 24px!important;
+}
         
         .badge {
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 600;
-        }
+  display: inline - block;
+  padding: 4px 12px;
+  border - radius: 12px;
+  font - size: 12px;
+  font - weight: 600;
+}
         
-        .badge-success {
-          background-color: #D1FAE5;
-          color: #065F46;
-        }
+        .badge - success {
+  background - color: #D1FAE5;
+  color: #065F46;
+}
         
-        .badge-error {
-          background-color: #FEE2E2;
-          color: #991B1B;
-        }
+        .badge - error {
+  background - color: #FEE2E2;
+  color: #991B1B;
+}
         
-        .highlight-box {
-          background-color: #EFF6FF;
-          border-left: 4px solid #3B82F6;
-          padding: 16px 20px;
-          margin-bottom: 24px;
-          border-radius: 4px;
-        }
+        .highlight - box {
+  background - color: #EFF6FF;
+  border - left: 4px solid #3B82F6;
+  padding: 16px 20px;
+  margin - bottom: 24px;
+  border - radius: 4px;
+}
         
-        .highlight-box.success {
-          background-color: #ECFDF5;
-          border-left-color: #10B981;
-        }
+        .highlight - box.success {
+  background - color: #ECFDF5;
+  border - left - color: #10B981;
+}
         
-        .highlight-box.warning {
-          background-color: #FFFBEB;
-          border-left-color: #F59E0B;
-        }
+        .highlight - box.warning {
+  background - color: #FFFBEB;
+  border - left - color: #F59E0B;
+}
         
-        .highlight-box p {
-          margin-bottom: 8px;
-        }
+        .highlight - box p {
+  margin - bottom: 8px;
+}
         
-        .highlight-box ul {
-          margin-left: 20px;
-          margin-top: 8px;
-        }
+        .highlight - box ul {
+  margin - left: 20px;
+  margin - top: 8px;
+}
         
-        .highlight-box li {
-          margin-bottom: 4px;
-          color: #4B5563;
-        }
+        .highlight - box li {
+  margin - bottom: 4px;
+  color: #4B5563;
+}
         
-        .rejection-reason {
-          color: #DC2626;
-          font-weight: 600;
-        }
+        .rejection - reason {
+  color: #DC2626;
+  font - weight: 600;
+}
         
         .timeline {
-          margin: 24px 0;
-        }
+  margin: 24px 0;
+}
         
-        .timeline-item {
-          display: flex;
-          align-items: flex-start;
-          margin-bottom: 16px;
-          opacity: 0.5;
-        }
+        .timeline - item {
+  display: flex;
+  align - items: flex - start;
+  margin - bottom: 16px;
+  opacity: 0.5;
+}
         
-        .timeline-item.completed,
-        .timeline-item.active {
-          opacity: 1;
-        }
+        .timeline - item.completed,
+        .timeline - item.active {
+  opacity: 1;
+}
         
-        .timeline-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background-color: #E5E7EB;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-right: 16px;
-          flex-shrink: 0;
-          font-size: 16px;
-        }
+        .timeline - icon {
+  width: 32px;
+  height: 32px;
+  border - radius: 50 %;
+  background - color: #E5E7EB;
+  display: flex;
+  align - items: center;
+  justify - content: center;
+  margin - right: 16px;
+  flex - shrink: 0;
+  font - size: 16px;
+}
         
-        .timeline-item.completed .timeline-icon {
-          background-color: #10B981;
-          color: #FFFFFF;
-        }
+        .timeline - item.completed.timeline - icon {
+  background - color: #10B981;
+  color: #FFFFFF;
+}
         
-        .timeline-item.active .timeline-icon {
-          background-color: #3B82F6;
-          color: #FFFFFF;
-        }
+        .timeline - item.active.timeline - icon {
+  background - color: #3B82F6;
+  color: #FFFFFF;
+}
         
-        .timeline-item strong {
-          display: block;
-          color: #1F2937;
-          margin-bottom: 4px;
-        }
+        .timeline - item strong {
+  display: block;
+  color: #1F2937;
+  margin - bottom: 4px;
+}
         
-        .timeline-item p {
-          color: #6B7280;
-          font-size: 14px;
-          margin: 0;
-        }
+        .timeline - item p {
+  color: #6B7280;
+  font - size: 14px;
+  margin: 0;
+}
         
-        .timeline-simple {
-          display: flex;
-          justify-content: space-around;
-          margin: 24px 0;
-        }
+        .timeline - simple {
+  display: flex;
+  justify - content: space - around;
+  margin: 24px 0;
+}
         
-        .timeline-item-simple {
-          text-align: center;
-          flex: 1;
-        }
+        .timeline - item - simple {
+  text - align: center;
+  flex: 1;
+}
         
-        .timeline-number {
-          display: inline-block;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
-          color: #FFFFFF;
-          font-size: 18px;
-          font-weight: 700;
-          line-height: 40px;
-          margin-bottom: 12px;
-        }
+        .timeline - number {
+  display: inline - block;
+  width: 40px;
+  height: 40px;
+  border - radius: 50 %;
+  background: linear - gradient(135deg, #667EEA 0 %, #764BA2 100 %);
+  color: #FFFFFF;
+  font - size: 18px;
+  font - weight: 700;
+  line - height: 40px;
+  margin - bottom: 12px;
+}
         
-        .timeline-item-simple strong {
-          display: block;
-          color: #1F2937;
-          margin-bottom: 4px;
-        }
+        .timeline - item - simple strong {
+  display: block;
+  color: #1F2937;
+  margin - bottom: 4px;
+}
         
-        .timeline-item-simple p {
-          color: #6B7280;
-          font-size: 14px;
-          margin: 0;
-        }
+        .timeline - item - simple p {
+  color: #6B7280;
+  font - size: 14px;
+  margin: 0;
+}
         
-        .stats-grid {
-          display: flex;
-          gap: 16px;
-          margin: 24px 0;
-        }
+        .stats - grid {
+  display: flex;
+  gap: 16px;
+  margin: 24px 0;
+}
         
-        .stat-box {
-          flex: 1;
-          background-color: #F9FAFB;
-          border: 1px solid #E5E7EB;
-          border-radius: 12px;
-          padding: 20px;
-          text-align: center;
-        }
+        .stat - box {
+  flex: 1;
+  background - color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border - radius: 12px;
+  padding: 20px;
+  text - align: center;
+}
         
-        .stat-icon {
-          font-size: 32px;
-          margin-bottom: 8px;
-        }
+        .stat - icon {
+  font - size: 32px;
+  margin - bottom: 8px;
+}
         
-        .stat-label {
-          font-size: 12px;
-          color: #6B7280;
-          margin-bottom: 4px;
-        }
+        .stat - label {
+  font - size: 12px;
+  color: #6B7280;
+  margin - bottom: 4px;
+}
         
-        .stat-value {
-          font-size: 16px;
-          font-weight: 700;
-          color: #1F2937;
-        }
+        .stat - value {
+  font - size: 16px;
+  font - weight: 700;
+  color: #1F2937;
+}
         
-        .cta-buttons {
-          text-align: center;
-          margin: 32px 0;
-        }
+        .cta - buttons {
+  text - align: center;
+  margin: 32px 0;
+}
         
         .btn {
-          display: inline-block;
-          padding: 14px 32px;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 16px;
-          margin: 8px;
-          transition: all 0.3s ease;
-        }
+  display: inline - block;
+  padding: 14px 32px;
+  text - decoration: none;
+  border - radius: 8px;
+  font - weight: 600;
+  font - size: 16px;
+  margin: 8px;
+  transition: all 0.3s ease;
+}
         
-        .btn-primary {
-          background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
-          color: #FFFFFF !important;
-          box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);
-        }
+        .btn - primary {
+  background: linear - gradient(135deg, #667EEA 0 %, #764BA2 100 %);
+  color: #FFFFFF!important;
+  box - shadow: 0 4px 6px rgba(102, 126, 234, 0.4);
+}
         
-        .btn-secondary {
-          background-color: #FFFFFF;
-          color: #667EEA !important;
-          border: 2px solid #667EEA;
-        }
+        .btn - secondary {
+  background - color: #FFFFFF;
+  color: #667EEA!important;
+  border: 2px solid #667EEA;
+}
         
-        .email-footer {
-          background-color: #F9FAFB;
-          padding: 30px;
-          text-align: center;
-          border-top: 1px solid #E5E7EB;
-        }
+        .email - footer {
+  background - color: #F9FAFB;
+  padding: 30px;
+  text - align: center;
+  border - top: 1px solid #E5E7EB;
+}
         
-        .footer-links {
-          margin-bottom: 20px;
-        }
+        .footer - links {
+  margin - bottom: 20px;
+}
         
-        .footer-links a {
-          color: #667EEA;
-          text-decoration: none;
-          margin: 0 12px;
-          font-size: 14px;
-          font-weight: 500;
-        }
+        .footer - links a {
+  color: #667EEA;
+  text - decoration: none;
+  margin: 0 12px;
+  font - size: 14px;
+  font - weight: 500;
+}
         
-        .footer-text {
-          font-size: 13px;
-          color: #6B7280;
-          margin-bottom: 8px;
-        }
+        .footer - text {
+  font - size: 13px;
+  color: #6B7280;
+  margin - bottom: 8px;
+}
         
-        .footer-copyright {
-          font-size: 12px;
-          color: #9CA3AF;
-        }
-        
-        @media only screen and (max-width: 600px) {
-          .email-header { padding: 30px 20px; }
-          .email-body { padding: 30px 20px; }
-          .email-footer { padding: 20px; }
-          h2 { font-size: 20px; }
+        .footer - copyright {
+  font - size: 12px;
+  color: #9CA3AF;
+}
+
+@media only screen and(max - width: 600px) {
+          .email - header { padding: 30px 20px; }
+          .email - body { padding: 30px 20px; }
+          .email - footer { padding: 20px; }
+          h2 { font - size: 20px; }
           .btn { display: block; margin: 8px 0; }
-          .stats-grid { flex-direction: column; }
-          .timeline-simple { flex-direction: column; gap: 16px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-wrapper">
-        <div class="email-header">
-          <div class="logo">NGUMA</div>
+          .stats - grid { flex - direction: column; }
+          .timeline - simple { flex - direction: column; gap: 16px; }
+}
+</style>
+  </head>
+  < body >
+  <div class="email-wrapper" >
+    <div class="email-header" >
+      <div class="logo" > NGUMA </div>
         </div>
-        
-        <div class="email-body">
+
+        < div class="email-body" >
           ${bodyContent}
-        </div>
-        
-        <div class="email-footer">
-          <div class="footer-links">
-            <a href="${SITE_URL}/dashboard">Tableau de bord</a>
-            <a href="${SITE_URL}/wallet">Portefeuille</a>
-            <a href="${SITE_URL}/support">Support</a>
-          </div>
-          <p class="footer-text">
-            <strong>Nguma</strong> - Votre plateforme d'investissement de confiance<br>
-            Vous recevez cet e-mail car vous avez un compte actif sur Nguma.
-          </p>
-          <p class="footer-copyright">© ${new Date().getFullYear()} Nguma. Tous droits réservés.</p>
-        </div>
-      </div>
+</div>
+
+  < div class="email-footer" >
+    <div class="footer-links" >
+      <a href="${SITE_URL}/dashboard" > Tableau de bord </a>
+        < a href = "${SITE_URL}/wallet" > Portefeuille </a>
+          < a href = "${SITE_URL}/support" > Support </a>
+            < a href = "${SITE_URL}/settings/notifications" > Gérer les notifications </a>
+              </div>
+              < p class="footer-text" >
+                <strong>Nguma </strong> - Votre plateforme d'investissement de confiance<br>
+            Vous recevez cet e - mail car vous avez un compte actif sur Nguma.< br >
+  <a href="${SITE_URL}/settings/notifications" style = "color: #667EEA; text-decoration: none;" > Se désabonner < /a> | <a href="${SITE_URL}/privacy" style="color: #667EEA; text - decoration: none; ">Politique de confidentialité</a>
+    </p>
+    < p class="footer-text" style = "margin-top: 16px;" >
+      <strong>Nguma Inc.</strong><br>
+Kinshasa, République Démocratique du Congo<br>
+Email: <a href="mailto:contact@nguma.org" style = "color: #667EEA; text-decoration: none;" > contact@nguma.org</a>
+  </p>
+  < p class="footer-copyright" >© ${new Date().getFullYear()} Nguma.Tous droits réservés.</p>
+    </div>
+    </div>
     </body>
     </html>
-  `;
+      `;
 }
 
 serve(async (req) => {
@@ -892,7 +948,7 @@ serve(async (req) => {
       throw new Error(`Template with id '${template_id}' not found.`);
     }
 
-    const { subject, body } = templateGenerator(params);
+    const { subject, body, text } = templateGenerator(params);
     const html = generateEmailHtml(body);
     const fromAddress = `Nguma <notification@${RESEND_FROM_DOMAIN}>`;
 
@@ -901,6 +957,7 @@ serve(async (req) => {
       to: [params.to],
       subject: subject,
       html: html,
+      text: text, // Include plain text version for better deliverability
     });
 
     if (error) {

@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestRefund } from "@/services/contractService"; // Changed import
-import { getSettings } from "@/services/settingsService";
+
 import { useToast } from "@/components/ui/use-toast";
 import { AlertTriangle, Download, Clock, Sparkles, TrendingUp } from "lucide-react";
 
@@ -33,13 +33,7 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: getSettings,
-  });
-
-  const genericContractPdfUrl = settings?.find(s => s.key === 'generic_contract_pdf_url')?.value;
-  const pdfToDownload = contract.contract_pdf_url || genericContractPdfUrl;
+  const pdfToDownload = contract.contract_pdf_url;
 
   const mutation = useMutation({
     mutationFn: requestRefund, // Changed mutationFn

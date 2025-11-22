@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { checkRateLimit } from "@/services/rateLimitService";
 
 // Define the type for a single wallet based on your Database types
 type Wallet = Database['public']['Tables']['wallets']['Row'];
@@ -29,6 +30,19 @@ export const getWallet = async (): Promise<Wallet | null> => {
  * @returns {Promise<any>} The result of the RPC call.
  */
 export const requestDeposit = async (amount: number, method: string, reference?: string, phone?: string, proofUrl?: string) => {
+  // Récupérer l'utilisateur courant
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Utilisateur non authentifié");
+
+  // Vérifier rate limit : 10 dépôts par heure
+  const rateLimit = await checkRateLimit(user.id, 'deposit');
+
+  if (!rateLimit.allowed) {
+    throw new Error(
+      `Trop de demandes de dépôt. Veuillez patienter avant de réessayer.`
+    );
+  }
+
   const { data, error } = await supabase.rpc('request_deposit', {
     deposit_amount: amount,
     deposit_method: method,
@@ -49,6 +63,19 @@ export const requestDeposit = async (amount: number, method: string, reference?:
  * @returns {Promise<any>} The result of the RPC call.
  */
 export const requestWithdrawal = async ({ amount, method, details }: { amount: number; method: "crypto" | "mobile_money"; details: string }) => {
+  // Récupérer l'utilisateur courant
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Utilisateur non authentifié");
+
+  // Vérifier rate limit : 5 retraits par heure
+  const rateLimit = await checkRateLimit(user.id, 'withdrawal');
+
+  if (!rateLimit.allowed) {
+    throw new Error(
+      `Trop de demandes de retrait. Veuillez patienter avant de réessayer.`
+    );
+  }
+
   const rpcArgs: any = {
     withdraw_amount: amount,
     withdraw_method: method,
