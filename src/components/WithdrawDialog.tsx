@@ -133,6 +133,84 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Validation manuelle avant Zod pour messages personnalisés
+      const amountNum = Number(amount);
+
+      if (!amount || amountNum <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Montant invalide",
+          description: "Veuillez saisir un montant valide."
+        });
+        return;
+      }
+
+      if (amountNum < minWithdrawal) {
+        toast({
+          variant: "destructive",
+          title: "Montant trop faible",
+          description: `Le montant minimum de retrait est de ${minWithdrawal} USD.`
+        });
+        return;
+      }
+
+      if (amountNum > maxWithdrawal) {
+        toast({
+          variant: "destructive",
+          title: "Montant trop élevé",
+          description: `Le montant maximum de retrait est de ${maxWithdrawal.toFixed(2)} USD.`
+        });
+        return;
+      }
+
+      if (amountNum > profitBalance) {
+        toast({
+          variant: "destructive",
+          title: "Solde insuffisant",
+          description: `Votre solde de profits disponible est de ${profitBalance.toFixed(2)} USD.`
+        });
+        return;
+      }
+
+      if (!paymentMethod) {
+        toast({
+          variant: "destructive",
+          title: "Moyen de paiement requis",
+          description: "Veuillez sélectionner un moyen de paiement."
+        });
+        return;
+      }
+
+      if (!paymentDetails) {
+        toast({
+          variant: "destructive",
+          title: "Détails de paiement requis",
+          description: paymentMethod === "crypto"
+            ? "Veuillez saisir votre adresse USDT TRC20."
+            : "Veuillez saisir votre numéro Mobile Money."
+        });
+        return;
+      }
+
+      // Validation du format
+      if (paymentMethod === "crypto" && !/^T[A-Za-z0-9]{33}$/.test(paymentDetails)) {
+        toast({
+          variant: "destructive",
+          title: "Adresse crypto invalide",
+          description: "L'adresse USDT TRC20 doit commencer par 'T' et contenir 34 caractères."
+        });
+        return;
+      }
+
+      if (paymentMethod === "mobile_money" && !/^\+?[1-9]\d{1,14}$/.test(paymentDetails)) {
+        toast({
+          variant: "destructive",
+          title: "Numéro invalide",
+          description: "Veuillez saisir un numéro de téléphone au format international (ex: +243812345678)."
+        });
+        return;
+      }
+
       requestOTPMutation.mutate();
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -158,75 +236,107 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
       <DialogTrigger asChild>
         <Button variant="secondary">Retirer</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         {step === 1 ? (
           <form onSubmit={handleStep1Submit}>
             <DialogHeader>
               <DialogTitle>Effectuer un retrait</DialogTitle>
               <DialogDescription>
-                Montant disponible : {maxWithdrawal.toFixed(2)} USD (profits)<br />
-                Limites : {minWithdrawal} USD - {maxWithdrawal.toFixed(2)} USD
+                Retirez vos profits vers votre compte crypto ou mobile money
               </DialogDescription>
             </DialogHeader>
 
+            {/* Solde disponible - Card mise en évidence */}
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 my-4">
+              <p className="text-sm text-gray-600 mb-1">Profits disponibles</p>
+              <p className="text-3xl font-bold text-purple-700">{profitBalance.toFixed(2)} USD</p>
+            </div>
+
             {!hasSufficientBalance && (
-              <Alert className="bg-yellow-50 border-yellow-200">
+              <Alert className="bg-yellow-50 border-yellow-200 mb-4">
                 <Info className="h-4 w-4 text-yellow-600" />
                 <AlertDescription className="text-yellow-800">
                   <strong>Solde insuffisant</strong><br />
-                  Votre solde de profits ({profitBalance.toFixed(2)} USD) est inférieur au montant minimum de retrait ({minWithdrawal} USD).
+                  Votre solde de profits est inférieur au montant minimum de retrait ({minWithdrawal} USD).
                 </AlertDescription>
               </Alert>
             )}
 
+            {/* Calcul des frais en temps réel */}
             {amount && Number(amount) > 0 && hasSufficientBalance && (
-              <Alert className="bg-blue-50 border-blue-200">
+              <Alert className="bg-blue-50 border-blue-200 mb-4">
                 <Info className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
-                  Frais de retrait : {calculateFee(Number(amount)).toFixed(2)} USD ({feePercent}% + {feeFixed} USD fixe)<br />
-                  <strong>Vous recevrez : {(Number(amount) - calculateFee(Number(amount))).toFixed(2)} USD</strong>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>Montant demandé :</span>
+                      <span className="font-medium">{Number(amount).toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Frais de retrait ({feePercent}% + {feeFixed} USD) :</span>
+                      <span className="font-medium text-red-600">- {calculateFee(Number(amount)).toFixed(2)} USD</span>
+                    </div>
+                    <div className="border-t border-blue-300 pt-1 mt-1"></div>
+                    <div className="flex justify-between">
+                      <span className="font-semibold">Vous recevrez :</span>
+                      <span className="font-bold text-green-700 text-lg">{(Number(amount) - calculateFee(Number(amount))).toFixed(2)} USD</span>
+                    </div>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
 
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="amount" className="text-right">Montant</Label>
-                <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="col-span-3" required disabled={requestOTPMutation.isPending} />
+              <div className="space-y-2">
+                <Label htmlFor="amount">Montant à retirer (USD)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={`Min: ${minWithdrawal} USD`}
+                  required
+                  disabled={requestOTPMutation.isPending || !hasSufficientBalance}
+                />
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="paymentMethod" className="text-right">Moyen de paiement</Label>
-                <Select onValueChange={(value: "crypto" | "mobile_money") => setPaymentMethod(value)} value={paymentMethod} disabled={requestOTPMutation.isPending}>
-                  <SelectTrigger className="col-span-3">
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Moyen de paiement</Label>
+                <Select onValueChange={(value: "crypto" | "mobile_money") => setPaymentMethod(value)} value={paymentMethod} disabled={requestOTPMutation.isPending || !hasSufficientBalance}>
+                  <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un moyen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="crypto">Crypto (USDT TRC20)</SelectItem>
-                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="crypto">💰 Crypto (USDT TRC20)</SelectItem>
+                    <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {paymentMethod && (
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="paymentDetails" className="text-right">
-                    {paymentMethod === "crypto" ? "Adresse USDT TRC20" : "Numéro Mobile Money"}
+                <div className="space-y-2">
+                  <Label htmlFor="paymentDetails">
+                    {paymentMethod === "crypto" ? "Adresse de réception USDT (TRC20)" : "Numéro Mobile Money"}
                   </Label>
                   <Input
                     id="paymentDetails"
                     value={paymentDetails}
                     onChange={(e) => setPaymentDetails(e.target.value)}
-                    className="col-span-3"
                     required
-                    disabled={requestOTPMutation.isPending}
-                    placeholder={paymentMethod === "crypto" ? "Ex: TRC20_ADDRESS_HERE" : "Ex: +243 812345678"}
+                    disabled={requestOTPMutation.isPending || !hasSufficientBalance}
+                    placeholder={paymentMethod === "crypto" ? "TXXXxxxXXXxxxXXXxxxXXXxxxXXXxxx" : "+243 812 345 678"}
                   />
+                  <p className="text-xs text-gray-500">
+                    {paymentMethod === "crypto"
+                      ? "L'adresse doit commencer par 'T' et contenir 34 caractères"
+                      : "Format international requis (ex: +243812345678)"}
+                  </p>
                 </div>
               )}
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={requestOTPMutation.isPending || !paymentMethod || !paymentDetails || !hasSufficientBalance}>
+              <Button type="submit" disabled={requestOTPMutation.isPending || !paymentMethod || !paymentDetails || !hasSufficientBalance} className="w-full">
                 {requestOTPMutation.isPending ? "Envoi en cours..." : "Recevoir le code de vérification"}
               </Button>
             </DialogFooter>
