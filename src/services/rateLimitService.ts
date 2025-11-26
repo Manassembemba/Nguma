@@ -51,7 +51,7 @@ export async function checkRateLimit(
             };
         }
 
-        return data as RateLimitResult;
+        return data as unknown as RateLimitResult;
     } catch (err) {
         console.error('Rate limit exception:', err);
         // Fail-open en cas d'exception
@@ -132,7 +132,7 @@ export async function adminUnblockRateLimit(
             throw error;
         }
 
-        return data as boolean;
+        return data as unknown as boolean;
     } catch (err) {
         console.error('Admin unblock exception:', err);
         throw err;

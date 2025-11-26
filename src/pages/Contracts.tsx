@@ -13,10 +13,11 @@ import { useUserContractsRealtime } from "@/hooks/useRealtimeSync";
 
 const ContractsPage = () => {
   // Get current user ID for Realtime filtering
-  const { data: { user } = {} } = useQuery({
+  const { data: userResponse } = useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => supabase.auth.getUser(),
   });
+  const user = userResponse?.data.user;
 
   // Enable Realtime synchronization for contracts
   useUserContractsRealtime(user?.id);

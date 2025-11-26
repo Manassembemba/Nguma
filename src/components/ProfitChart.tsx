@@ -9,6 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import type { Database } from '@/integrations/supabase/types';
 
 type ProfitData = Database['public']['Tables']['profits']['Row'];
 

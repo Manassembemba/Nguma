@@ -20,10 +20,11 @@ export const NotificationBell = () => {
   const { toast } = useToast();
 
   // Get current user ID for Realtime filtering
-  const { data: { user } = {} } = useQuery({
+  const { data: userResponse } = useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => supabase.auth.getUser(),
   });
+  const user = userResponse?.data.user;
 
   // Enable Realtime synchronization for notifications
   useUserNotificationsRealtime(user?.id);

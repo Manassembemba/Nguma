@@ -62,7 +62,7 @@ export const getPortfolioStats = async (): Promise<PortfolioStats | null> => {
         throw new Error("Could not fetch portfolio stats.");
     }
 
-    return data as PortfolioStats;
+    return data as unknown as PortfolioStats;
 };
 
 /**
@@ -78,7 +78,7 @@ export const getContractROI = async (contractId: string): Promise<ContractROI | 
         throw new Error("Could not calculate contract ROI.");
     }
 
-    return data as ContractROI;
+    return data as unknown as ContractROI;
 };
 
 /**
@@ -133,5 +133,5 @@ export const getPerformanceTrends = async (): Promise<PerformanceTrends | null> 
         throw new Error("Could not fetch performance trends.");
     }
 
-    return data as PerformanceTrends;
+    return data as unknown as PerformanceTrends;
 };

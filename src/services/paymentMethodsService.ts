@@ -1,4 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from '@/integrations/supabase/types';
+
+const CATEGORY_COLUMNS = 'id, code, name, description, icon, image_url, display_order, is_active';
+
+type PaymentMethodInsert = Database['public']['Tables']['payment_methods']['Insert'];
+type PaymentMethodUpdate = Database['public']['Tables']['payment_methods']['Update'];
+type PaymentMethodFieldInsert = Database['public']['Tables']['payment_method_fields']['Insert'];
+type PaymentMethodFieldUpdate = Database['public']['Tables']['payment_method_fields']['Update'];
 
 // ============================================================================
 // TYPES
@@ -74,7 +82,7 @@ export interface TransactionMetadata {
 export const getActiveCategories = async (): Promise<PaymentCategory[]> => {
     const { data, error } = await supabase
         .from('payment_categories')
-        .select('*')
+        .select(CATEGORY_COLUMNS)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 
@@ -88,7 +96,7 @@ export const getActiveCategories = async (): Promise<PaymentCategory[]> => {
 export const getAllCategories = async (): Promise<PaymentCategory[]> => {
     const { data, error } = await supabase
         .from('payment_categories')
-        .select('*')
+        .select(CATEGORY_COLUMNS)
         .order('display_order', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -107,7 +115,7 @@ export const getActiveDepositMethods = async (): Promise<PaymentMethod[]> => {
         .from('payment_methods')
         .select(`
       *,
-      category:payment_categories(*),
+      category:payment_categories(${CATEGORY_COLUMNS}),
       fields:payment_method_fields(*)
     `)
         .eq('is_active', true)
@@ -131,7 +139,7 @@ export const getActiveWithdrawalMethods = async (): Promise<PaymentMethod[]> => 
         .from('payment_methods')
         .select(`
       *,
-      category:payment_categories(*),
+      category:payment_categories(${CATEGORY_COLUMNS}),
       fields:payment_method_fields(*)
     `)
         .eq('is_active', true)
@@ -154,7 +162,7 @@ export const getPaymentMethodByCode = async (code: string): Promise<PaymentMetho
         .from('payment_methods')
         .select(`
       *,
-      category:payment_categories(*),
+      category:payment_categories(${CATEGORY_COLUMNS}),
       fields:payment_method_fields(*)
     `)
         .eq('code', code)
@@ -179,7 +187,7 @@ export const getPaymentMethodById = async (id: string): Promise<PaymentMethod | 
         .from('payment_methods')
         .select(`
       *,
-      category:payment_categories(*),
+      category:payment_categories(${CATEGORY_COLUMNS}),
       fields:payment_method_fields(*)
     `)
         .eq('id', id)
@@ -204,7 +212,7 @@ export const getAllPaymentMethods = async (): Promise<PaymentMethod[]> => {
         .from('payment_methods')
         .select(`
       *,
-      category:payment_categories(*),
+      category:payment_categories(${CATEGORY_COLUMNS}),
       fields:payment_method_fields(*)
     `)
         .order('display_order', { ascending: true });
@@ -220,7 +228,7 @@ export const getAllPaymentMethods = async (): Promise<PaymentMethod[]> => {
 /**
  * Admin: Crée une nouvelle méthode de paiement
  */
-export const createPaymentMethod = async (method: Partial<PaymentMethod>) => {
+export const createPaymentMethod = async (method: PaymentMethodInsert) => {
     const { data, error } = await supabase
         .from('payment_methods')
         .insert(method)
@@ -234,7 +242,7 @@ export const createPaymentMethod = async (method: Partial<PaymentMethod>) => {
 /**
  * Admin: Met à jour une méthode de paiement
  */
-export const updatePaymentMethod = async (id: string, updates: Partial<PaymentMethod>) => {
+export const updatePaymentMethod = async (id: string, updates: PaymentMethodUpdate) => {
     const { data, error } = await supabase
         .from('payment_methods')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -272,7 +280,7 @@ export const deletePaymentMethod = async (id: string) => {
 /**
  * Admin: Ajoute un champ à une méthode de paiement
  */
-export const addPaymentMethodField = async (field: Partial<PaymentMethodField>) => {
+export const addPaymentMethodField = async (field: PaymentMethodFieldInsert) => {
     const { data, error } = await supabase
         .from('payment_method_fields')
         .insert(field)
@@ -286,7 +294,7 @@ export const addPaymentMethodField = async (field: Partial<PaymentMethodField>) 
 /**
  * Admin: Met à jour un champ
  */
-export const updatePaymentMethodField = async (id: string, updates: Partial<PaymentMethodField>) => {
+export const updatePaymentMethodField = async (id: string, updates: PaymentMethodFieldUpdate) => {
     const { data, error } = await supabase
         .from('payment_method_fields')
         .update(updates)

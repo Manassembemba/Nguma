@@ -35,10 +35,11 @@ export const createContract = async (amount: number) => {
     console.error("Error creating contract:", error.message);
     throw new Error("Failed to create contract.");
   }
-  if (data && !data.success) {
-    throw new Error(data.error || "An unknown error occurred in the database function.");
+  const response = data as unknown as { success: boolean; error?: string };
+  if (response && !response.success) {
+    throw new Error(response.error || "An unknown error occurred in the database function.");
   }
-  return data;
+  return response;
 };
 
 /**
@@ -56,10 +57,11 @@ export const requestRefund = async (contractId: string) => {
     console.error("Error requesting refund:", error.message);
     throw new Error("Failed to request refund.");
   }
-  if (data && !data.success) {
-    throw new Error(data.error || "An unknown error occurred during the refund request process.");
+  const response = data as unknown as { success: boolean; error?: string };
+  if (response && !response.success) {
+    throw new Error(response.error || "An unknown error occurred during the refund request process.");
   }
-  return data;
+  return response;
 };
 
 /**
@@ -74,8 +76,9 @@ export const reinvestProfit = async (amount: number) => {
     console.error("Error reinvesting profit:", error.message);
     throw new Error("Failed to create reinvestment contract.");
   }
-  if (data && !data.success) {
-    throw new Error(data.error || "An unknown error occurred in the database function.");
+  const response = data as unknown as { success: boolean; error?: string };
+  if (response && !response.success) {
+    throw new Error(response.error || "An unknown error occurred in the database function.");
   }
-  return data;
+  return response;
 };

@@ -247,7 +247,7 @@ export const getRecentFailedLogins = async (
 
         if (data && data.length > 0) {
             return {
-                count: parseInt(data[0].attempt_count) || 0,
+                count: data[0].attempt_count || 0,
                 lastAttempt: data[0].last_attempt ? new Date(data[0].last_attempt) : null,
             };
         }
