@@ -33,8 +33,6 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const pdfToDownload = contract.contract_pdf_url;
-
   const mutation = useMutation({
     mutationFn: requestRefund, // Changed mutationFn
     onSuccess: (data) => {

@@ -10,9 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, Shield, Settings as SettingsIcon } from 'lucide-react';
+import { Loader2, Shield, Settings as SettingsIcon, CreditCard } from 'lucide-react';
 import { invalidateSecuritySettingsCache } from '@/services/securitySettingsService';
 import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { PaymentMethodsManager } from '@/components/admin/PaymentMethodsManager';
 
 interface Setting {
   id: string;
@@ -109,11 +110,16 @@ export const AdminSettings = () => {
       icon: Shield,
       description: 'Configuration des fonctionnalités de sécurité',
     },
+    payment_methods: {
+      label: 'Moyens de Paiement',
+      icon: CreditCard,
+      description: 'Gestion des méthodes de paiement disponibles',
+    },
   };
 
   return (
     <div className="space-y-6">
-      <Accordion type="multiple" defaultValue={['security', 'general']} className="space-y-4">
+      <Accordion type="multiple" defaultValue={['security', 'general', 'payment_methods']} className="space-y-4">
         {Object.entries(settingsByCategory || {}).map(([category, categorySettings]) => {
           const categoryInfo = categoryLabels[category] || {
             label: category.charAt(0).toUpperCase() + category.slice(1),
@@ -167,6 +173,26 @@ export const AdminSettings = () => {
             </AccordionItem>
           );
         })}
+
+        {/* Section spéciale pour les moyens de paiement */}
+        <AccordionItem value="payment_methods" className="border rounded-lg">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-semibold">Moyens de Paiement</div>
+                <div className="text-sm text-muted-foreground">
+                  Gestion des méthodes de paiement disponibles
+                </div>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="pt-4">
+              <PaymentMethodsManager />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
     </div>
   );

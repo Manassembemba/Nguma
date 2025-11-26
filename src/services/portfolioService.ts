@@ -98,7 +98,7 @@ export const getUpcomingPayments = async (limit: number = 5): Promise<UpcomingPa
         throw new Error("Could not fetch upcoming payments.");
     }
 
-    return data || [];
+    return (data as unknown as UpcomingPayment[]) || [];
 };
 
 /**
@@ -114,7 +114,7 @@ export const getContractProfitHistory = async (contractId: string): Promise<Prof
         throw new Error("Could not fetch contract profit history.");
     }
 
-    return data || [];
+    return (data as unknown as ProfitHistoryItem[]) || [];
 };
 
 /**

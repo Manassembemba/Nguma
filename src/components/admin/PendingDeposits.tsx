@@ -16,9 +16,10 @@ import { Copy, MoreHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AdjustDepositDialog } from "./AdjustDepositDialog";
+import { TransactionDetailsDialog } from "./TransactionDetailsDialog";
 import { usePendingDepositsRealtime } from "@/hooks/useRealtimeSync";
 
-type ActionType = "approve" | "reject";
+type ActionType = "approve" | "reject" | "details";
 
 interface DialogState {
   isOpen: boolean;
@@ -219,6 +220,7 @@ export const PendingDeposits = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openDialog("details", deposit.id)}>Voir les détails</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openDialog("approve", deposit.id)}>Approuver</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openDialog("reject", deposit.id)}>Rejeter</DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -303,6 +305,12 @@ export const PendingDeposits = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TransactionDetailsDialog
+        transactionId={dialogState.transactionId || null}
+        open={dialogState.isOpen && dialogState.action === 'details'}
+        onOpenChange={(open) => !open && closeDialog()}
+      />
     </>
   );
 };

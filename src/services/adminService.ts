@@ -25,6 +25,19 @@ export const getPendingDeposits = async () => {
   return data || [];
 };
 
+export const getTransactionMetadata = async (transactionId: string) => {
+  const { data, error } = await supabase
+    .from('transaction_metadata')
+    .select('*')
+    .eq('transaction_id', transactionId);
+
+  if (error) {
+    console.error("Error fetching transaction metadata:", error);
+    throw new Error("Could not fetch transaction metadata.");
+  }
+  return data || [];
+};
+
 export const approveDeposit = async (transactionId: string) => {
   const { data, error } = await supabase.rpc('approve_deposit', { transaction_id_to_approve: transactionId });
   if (error) throw new Error(error.message);

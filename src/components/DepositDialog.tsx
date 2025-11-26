@@ -1,295 +1,274 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { requestDeposit } from "@/services/walletService";
-import { getSettingByKey } from "@/services/settingsService";
+import { saveTransactionMetadata, PaymentMethod } from "@/services/paymentMethodsService";
 import { useToast } from "@/components/ui/use-toast";
-import { z } from "zod";
-import { CreditCard, Smartphone, Bitcoin, ArrowLeft, Loader2, Upload, Copy, Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft } from "lucide-react";
+import { DynamicPaymentMethodSelector } from "@/components/DynamicPaymentMethodSelector";
+import { DynamicPaymentForm } from "@/components/DynamicPaymentForm";
 
 type Step = "select_method" | "enter_details";
-type Method = "crypto" | "mobile_money" | "card";
 
 export const DepositDialog = () => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("select_method");
-  const [method, setMethod] = useState<Method | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [amount, setAmount] = useState("");
-  const [reference, setReference] = useState("");
-  const [phone, setPhone] = useState("");
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings', 'payment'],
-    queryFn: async () => {
-      const keys = [
-        'payment_usdt_address',
-        'payment_mobile_money_info',
-        'payment_instructions_crypto',
-        'payment_instructions_mobile'
-      ];
-      const results = await Promise.all(keys.map(key => getSettingByKey(key)));
-      return {
-        usdtAddress: results[0]?.value || "Adresse non configurée",
-        mobileInfo: results[1]?.value || "Info non configurée",
-        cryptoInstructions: results[2]?.value || "Envoyez le montant exact.",
-        mobileInstructions: results[3]?.value || "Envoyez le montant au numéro indiqué."
-      };
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const { data: minDepositSetting, isLoading: isLoadingMinDeposit } = useQuery({
-    queryKey: ['settings', 'minimum_deposit_amount'],
-    queryFn: () => getSettingByKey('minimum_deposit_amount'),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  const minDepositAmount = useMemo(() => {
-    return minDepositSetting?.value ? Number(minDepositSetting.value) : 0;
-  }, [minDepositSetting]);
-
-  const depositSchema = useMemo(() => {
-    return z.object({
-      amount: z.coerce
-        .number()
-        .positive("Le montant doit être positif.")
-        .min(minDepositAmount, `Le montant minimum du dépôt est de ${minDepositAmount} USD.`),
-      reference: z.string().optional(),
-      phone: z.string().optional(),
-    });
-  }, [minDepositAmount]);
-
-
   const mutation = useMutation({
-    mutationFn: async (data: { amount: number; method: string; reference?: string; phone?: string }) => {
-      let proofUrl = undefined;
+    mutationFn: async (data: { amount: number; formData: Record<string, any> }) => {
+      if (!selectedMethod) throw new Error("Aucune méthode sélectionnée");
 
-      if (proofFile) {
-        setIsUploading(true);
-        const fileExt = proofFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+      // Extraire les données pour requestDeposit
+      // Les champs admin ne sont pas envoyés, seulement les champs utilisateur
+      const userFields = selectedMethod.fields?.filter(f => f.is_user_input) || [];
 
-        const { error: uploadError } = await supabase.storage
-          .from('payment_proofs')
-          .upload(filePath, proofFile);
+      // Trouver le champ de référence (transaction_id, mtcn, pin_number, etc.)
+      const referenceField = userFields.find(f =>
+        f.field_key.includes('transaction') ||
+        f.field_key.includes('mtcn') ||
+        f.field_key.includes('reference') ||
+        f.field_key.includes('pin')
+      );
 
-        if (uploadError) {
-          setIsUploading(false);
-          throw new Error("Erreur lors de l'upload de la preuve : " + uploadError.message);
-        }
+      // Trouver le champ de téléphone
+      const phoneField = userFields.find(f =>
+        f.field_key.includes('phone') ||
+        f.field_key.includes('sender_number')
+      );
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('payment_proofs')
-          .getPublicUrl(filePath);
+      // Trouver le champ de preuve
+      const proofField = userFields.find(f =>
+        f.field_type === 'file'
+      );
 
-        proofUrl = publicUrl;
-        setIsUploading(false);
+      const reference = referenceField ? data.formData[referenceField.field_key] : undefined;
+      const phone = phoneField ? data.formData[phoneField.field_key] : undefined;
+      const proofUrl = proofField ? data.formData[proofField.field_key] : undefined;
+
+      // Créer la transaction
+      const result = await requestDeposit(
+        data.amount,
+        selectedMethod.code,
+        reference,
+        phone,
+        proofUrl
+      );
+
+      // Sauvegarder toutes les métadonnées
+      if (result && typeof result === 'object' && 'transaction_id' in result) {
+        await saveTransactionMetadata(
+          (result as any).transaction_id,
+          data.formData
+        );
       }
 
-      return requestDeposit(data.amount, data.method, data.reference, data.phone, proofUrl);
+      return result;
     },
     onSuccess: () => {
       toast({
-        title: "Demande de dépôt reçue",
+        title: "✅ Demande de dépôt reçue",
         description: "Votre dépôt est en attente de validation par un administrateur.",
       });
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
       setOpen(false);
       reset();
     },
     onError: (error) => {
-      toast({ variant: "destructive", title: "Erreur", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "❌ Erreur",
+        description: error.message
+      });
     },
   });
 
   const reset = () => {
     setStep("select_method");
-    setMethod(null);
+    setSelectedMethod(null);
     setAmount("");
-    setReference("");
-    setPhone("");
-    setProofFile(null);
-    setIsUploading(false);
-  }
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast({ description: "Copié dans le presse-papier" });
-    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!method) return;
-    try {
-      const validatedData = depositSchema.parse({ amount, reference, phone });
-      mutation.mutate({
-        amount: validatedData.amount,
-        method,
-        reference: validatedData.reference,
-        phone: validatedData.phone
+  const handleMethodSelect = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    setStep("enter_details");
+  };
+
+  const handleFormSubmit = (formData: Record<string, any>) => {
+    const amountValue = parseFloat(amount);
+
+    if (isNaN(amountValue) || amountValue <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Montant invalide",
+        description: "Veuillez entrer un montant valide."
       });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({ variant: "destructive", title: "Erreur de validation", description: error.errors[0].message });
-      }
+      return;
     }
-  };
 
-  const renderMethodDetails = () => {
-    switch (method) {
-      case "crypto":
-        return (
-          <div className="text-center space-y-4 p-4 rounded-lg bg-muted/50">
-            <div className="space-y-2">
-              <p className="font-semibold">Adresse USDT (TRC20)</p>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-md bg-background font-mono text-sm break-all flex-1 border">
-                  {settings?.usdtAddress}
-                </div>
-                <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(settings?.usdtAddress || "")}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{settings?.cryptoInstructions}</p>
-            </div>
-
-            <div className="space-y-2 text-left pt-4">
-              <Label htmlFor="reference">ID de Transaction (TxID)</Label>
-              <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Collez l'ID de la transaction ici" required />
-            </div>
-
-            <div className="space-y-2 text-left">
-              <Label htmlFor="proof">Preuve de paiement (Capture d'écran)</Label>
-              <Input
-                id="proof"
-                type="file"
-                accept="image/*"
-                onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                className="cursor-pointer"
-              />
-            </div>
-          </div>
-        );
-      case "mobile_money":
-        return (
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-              <p className="font-semibold text-center">Numéros de Dépôt</p>
-              <p className="text-sm text-center font-mono">{settings?.mobileInfo}</p>
-              <p className="text-xs text-center text-muted-foreground">{settings?.mobileInstructions}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Votre numéro de téléphone</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex: 0812345678" required />
-              <p className="text-xs text-muted-foreground">Ce numéro sera utilisé pour identifier votre paiement.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="proof">Preuve de paiement (Optionnel)</Label>
-              <Input
-                id="proof"
-                type="file"
-                accept="image/*"
-                onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                className="cursor-pointer"
-              />
-            </div>
-          </div>
-        );
-      case "card":
-        return (
-          <div className="space-y-2">
-            <Label>Informations de la carte</Label>
-            <Input type="text" placeholder="Numéro de carte" />
-            <div className="flex gap-2">
-              <Input type="text" placeholder="MM/AA" />
-              <Input type="text" placeholder="CVC" />
-            </div>
-            <p className="text-xs text-muted-foreground pt-2">Simulation uniquement. N'entrez pas de vraies informations.</p>
-          </div>
-        );
-      default:
-        return null;
+    // Valider le montant minimum si défini
+    if (selectedMethod?.min_amount && amountValue < selectedMethod.min_amount) {
+      toast({
+        variant: "destructive",
+        title: "Montant trop faible",
+        description: `Le montant minimum pour ${selectedMethod.name} est de ${selectedMethod.min_amount} USD.`
+      });
+      return;
     }
+
+    // Valider le montant maximum si défini
+    if (selectedMethod?.max_amount && amountValue > selectedMethod.max_amount) {
+      toast({
+        variant: "destructive",
+        title: "Montant trop élevé",
+        description: `Le montant maximum pour ${selectedMethod.name} est de ${selectedMethod.max_amount} USD.`
+      });
+      return;
+    }
+
+    mutation.mutate({
+      amount: amountValue,
+      formData
+    });
   };
 
   const descriptionText = () => {
     if (step === 'select_method') {
-      return "Choisissez une méthode de dépôt.";
+      return "Choisissez une méthode de dépôt parmi les options disponibles.";
     }
-    if (isLoadingMinDeposit) {
-      return <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />;
+    if (selectedMethod) {
+      const minText = selectedMethod.min_amount ? ` Minimum: ${selectedMethod.min_amount} USD.` : "";
+      const maxText = selectedMethod.max_amount ? ` Maximum: ${selectedMethod.max_amount} USD.` : "";
+      return `Entrez le montant et les détails du dépôt.${minText}${maxText}`;
     }
-    if (minDepositAmount > 0) {
-      return `Entrez le montant et les détails du dépôt. Minimum: ${minDepositAmount} USD.`;
+    return "Entrez les détails du dépôt.";
+  };
+
+  const calculateFees = (amount: number, method: PaymentMethod) => {
+    let fees = 0;
+    if (method.fee_type === 'fixed') {
+      fees = method.fee_fixed || 0;
+    } else if (method.fee_type === 'percentage') {
+      fees = amount * ((method.fee_percentage || 0) / 100);
+    } else if (method.fee_type === 'combined') {
+      fees = (method.fee_fixed || 0) + (amount * ((method.fee_percentage || 0) / 100));
     }
-    return "Entrez le montant et les détails du dépôt.";
-  }
+    return fees;
+  };
+
+  const fees = selectedMethod && amount ? calculateFees(parseFloat(amount) || 0, selectedMethod) : 0;
+  const totalAmount = (parseFloat(amount) || 0) + fees;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
       <DialogTrigger asChild>
         <Button>Déposer</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            {step === 'enter_details' && (
-              <Button variant="ghost" size="sm" className="absolute left-4 top-4 h-auto p-1" onClick={() => setStep("select_method")}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            <DialogTitle>Effectuer un dépôt</DialogTitle>
-            <DialogDescription>
-              {descriptionText()}
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          {step === 'enter_details' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4 h-auto p-1"
+              onClick={() => setStep("select_method")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <DialogTitle>Effectuer un dépôt</DialogTitle>
+          <DialogDescription>
+            {descriptionText()}
+          </DialogDescription>
+        </DialogHeader>
 
-          {step === 'select_method' ? (
-            <div className="grid gap-4 py-4">
-              <Button variant="outline" className="justify-start h-14" onClick={() => { setMethod("crypto"); setStep("enter_details"); }}><Bitcoin className="mr-4" /> Crypto (USDT)</Button>
-              <Button variant="outline" className="justify-start h-14" onClick={() => { setMethod("mobile_money"); setStep("enter_details"); }}><Smartphone className="mr-4" /> Mobile Money</Button>
-              <Button variant="outline" className="justify-start h-14" onClick={() => { setMethod("card"); setStep("enter_details"); }}><CreditCard className="mr-4" /> Carte Bancaire</Button>
-            </div>
-          ) : (
-            <div className="space-y-4 py-4">
-              {renderMethodDetails()}
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="amount">Montant du dépôt (USD)</Label>
-                <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required disabled={mutation.isPending || isLoadingMinDeposit} />
+        {step === 'select_method' ? (
+          <div className="py-4">
+            <DynamicPaymentMethodSelector
+              type="deposit"
+              onSelect={handleMethodSelect}
+            />
+          </div>
+        ) : selectedMethod && (
+          <div className="py-4 space-y-4">
+            {/* Affichage de la méthode sélectionnée */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Méthode: </span>
+                <span className="font-semibold">{selectedMethod.name}</span>
               </div>
             </div>
-          )}
 
-          {step === 'enter_details' && (
-            <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending || isLoadingMinDeposit || isUploading}>
-                {isUploading ? "Upload de la preuve..." : mutation.isPending ? "Demande en cours..." : "Confirmer la demande de dépôt"}
-              </Button>
-            </DialogFooter>
-          )}
-        </form>
+            {/* Champ montant */}
+            <div className="space-y-2">
+              <label htmlFor="amount" className="text-sm font-medium">
+                Montant à déposer (USD)
+                {selectedMethod.min_amount && (
+                  <span className="text-muted-foreground ml-2">
+                    (Min: {selectedMethod.min_amount} USD)
+                  </span>
+                )}
+              </label>
+              <input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Entrez le montant"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                required
+                disabled={mutation.isPending}
+              />
+            </div>
+
+            {/* Résumé des frais */}
+            {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
+              <div className="bg-muted/30 p-3 rounded-lg space-y-2 text-sm border">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Montant demandé:</span>
+                  <span>{parseFloat(amount).toFixed(2)} USD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Frais
+                    {selectedMethod.fee_type === 'percentage' && ` (${selectedMethod.fee_percentage}%)`}
+                    {selectedMethod.fee_type === 'fixed' && ` (Fixe)`}
+                    {selectedMethod.fee_type === 'combined' && ` (${selectedMethod.fee_percentage}% + ${selectedMethod.fee_fixed} USD)`}
+                    :
+                  </span>
+                  <span className="text-orange-600 font-medium">
+                    + {fees.toFixed(2)} USD
+                  </span>
+                </div>
+                <div className="border-t pt-2 flex justify-between font-bold">
+                  <span>Total à payer:</span>
+                  <span className="text-primary">{totalAmount.toFixed(2)} USD</span>
+                </div>
+              </div>
+            )}
+
+            {/* Formulaire dynamique */}
+            <DynamicPaymentForm
+              method={selectedMethod}
+              amount={parseFloat(amount) || 0}
+              onSubmit={handleFormSubmit}
+              isSubmitting={mutation.isPending}
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

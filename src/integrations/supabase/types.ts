@@ -364,6 +364,7 @@ export type Database = {
                     value: string
                     description: string | null
                     type: string
+                    category: string
                     updated_by: string | null
                     created_at: string
                     updated_at: string
@@ -374,6 +375,7 @@ export type Database = {
                     value: string
                     description?: string | null
                     type?: string
+                    category?: string
                     updated_by?: string | null
                     created_at?: string
                     updated_at?: string
@@ -384,6 +386,7 @@ export type Database = {
                     value?: string
                     description?: string | null
                     type?: string
+                    category?: string
                     updated_by?: string | null
                     created_at?: string
                     updated_at?: string
@@ -394,6 +397,38 @@ export type Database = {
                         columns: ["updated_by"]
                         isOneToOne: false
                         referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            transaction_metadata: {
+                Row: {
+                    id: string
+                    transaction_id: string
+                    field_key: string
+                    field_value: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    transaction_id: string
+                    field_key: string
+                    field_value: string
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    transaction_id?: string
+                    field_key?: string
+                    field_value?: string
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "transaction_metadata_transaction_id_fkey"
+                        columns: ["transaction_id"]
+                        isOneToOne: false
+                        referencedRelation: "transactions"
                         referencedColumns: ["id"]
                     }
                 ]
@@ -556,7 +591,236 @@ export type Database = {
             [_ in never]: never
         }
         Functions: {
-            [_ in never]: never
+            get_pending_deposits_with_profiles: {
+                Args: Record<string, never>
+                Returns: Json[]
+            }
+            approve_deposit: {
+                Args: {
+                    transaction_id_to_approve: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            reject_deposit: {
+                Args: {
+                    transaction_id_to_reject: string
+                    reason: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            approve_deposits_in_bulk: {
+                Args: {
+                    transaction_ids: string[]
+                }
+                Returns: { success: boolean; error?: string; approved_count: number }
+            }
+            reject_deposits_in_bulk: {
+                Args: {
+                    transaction_ids: string[]
+                    reason: string
+                }
+                Returns: { success: boolean; error?: string; rejected_count: number }
+            }
+            admin_adjust_deposit_amount: {
+                Args: {
+                    transaction_id_to_adjust: string
+                    new_amount: number
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            get_contracts_for_user: {
+                Args: {
+                    p_user_id: string
+                }
+                Returns: Json[]
+            }
+            get_investor_list_details: {
+                Args: {
+                    p_search_query?: string
+                    p_page_num: number
+                    p_page_size: number
+                }
+                Returns: { data: Json[]; count: number }
+            }
+            admin_credit_user: {
+                Args: {
+                    target_user_id: string
+                    credit_amount: number
+                    reason: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            admin_deactivate_user: {
+                Args: {
+                    user_id_to_deactivate: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            admin_activate_user: {
+                Args: {
+                    user_id_to_activate: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            admin_update_user_profile: {
+                Args: {
+                    p_user_id: string
+                    p_first_name: string
+                    p_last_name: string
+                    p_post_nom: string
+                    p_phone: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            get_admin_stats: {
+                Args: Record<string, never>
+                Returns: {
+                    total_investors: number
+                    active_investors: number
+                    funds_under_management: number
+                    total_profit: number
+                    pending_deposits: number
+                    pending_withdrawals: number
+                }
+            }
+            get_aggregate_profits_by_month: {
+                Args: Record<string, never>
+                Returns: { month_year: string; total_profit: number }[]
+            }
+            get_cash_flow_summary: {
+                Args: Record<string, never>
+                Returns: Json[]
+            }
+            get_user_growth_summary: {
+                Args: Record<string, never>
+                Returns: { month_year: string; new_users_count: number }[]
+            }
+            get_pending_withdrawals_with_profiles: {
+                Args: Record<string, never>
+                Returns: Json[]
+            }
+            approve_withdrawal: {
+                Args: {
+                    transaction_id_to_approve: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            reject_withdrawal: {
+                Args: {
+                    transaction_id_to_reject: string
+                    reason: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            admin_get_all_contracts: {
+                Args: {
+                    p_search_query: string
+                    p_status_filter: string
+                    p_page_num: number
+                    p_page_size: number
+                }
+                Returns: { data: Json[]; count: number }
+            }
+            get_pending_refunds: {
+                Args: Record<string, never>
+                Returns: Json[]
+            }
+            approve_refund: {
+                Args: {
+                    _contract_id: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            reject_refund: {
+                Args: {
+                    _contract_id: string
+                    reason: string
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            admin_update_contract: {
+                Args: {
+                    _contract_id: string
+                    _updates: Json
+                }
+                Returns: { success: boolean; error?: string }
+            }
+            check_rate_limit: {
+                Args: {
+                    p_identifier: string
+                    p_action: string
+                    p_max_attempts: number
+                    p_window_minutes: number
+                }
+                Returns: {
+                    allowed: boolean
+                    remaining: number
+                    reset_at: string
+                    blocked: boolean
+                }
+            }
+            admin_unblock_rate_limit: {
+                Args: {
+                    p_identifier: string
+                    p_action: string
+                }
+                Returns: boolean
+            }
+            get_portfolio_stats: {
+                Args: {
+                    p_user_id: string
+                }
+                Returns: {
+                    total_invested: number
+                    total_profits: number
+                    profit_balance: number
+                    active_contracts: number
+                    completed_contracts: number
+                    roi_percentage: number
+                    annual_return_percentage: number
+                    monthly_avg_profit: number
+                    total_contracts: number
+                }
+            }
+            calculate_contract_roi: {
+                Args: {
+                    p_contract_id: string
+                }
+                Returns: {
+                    contract_amount: number
+                    profits_paid: number
+                    months_paid: number
+                    duration_months: number
+                    current_roi: number
+                    projected_total: number
+                    projected_roi: number
+                    progress_percentage: number
+                }
+            }
+            get_upcoming_payments: {
+                Args: {
+                    p_user_id: string
+                    p_limit: number
+                }
+                Returns: Json[]
+            }
+            get_contract_profit_history: {
+                Args: {
+                    p_contract_id: string
+                }
+                Returns: Json[]
+            }
+            get_performance_trends: {
+                Args: {
+                    p_user_id: string
+                }
+                Returns: {
+                    current_month: number
+                    last_month: number
+                    trend_percentage: number
+                    is_positive: boolean
+                }
+            }
         }
         Enums: {
             app_role: "admin" | "investor"
