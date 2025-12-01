@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, set } from 'date-fns';
@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { COUNTRIES, getCitiesByCountry, getCountryDialCode } from '@/lib/countries';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { uploadAvatar } from '@/services/avatarService';
 
 const profileSchema = z.object({
   email: z.string().email().optional(),
@@ -54,6 +56,13 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [wasProfileIncomplete, setWasProfileIncomplete] = useState(false);
+
+  // Avatar states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -140,6 +149,8 @@ const ProfilePage = () => {
         updatedProfile.birth_date;
 
       queryClient.setQueryData(['profile'], updatedProfile);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+
 
       // Si le profil était incomplet et est maintenant complet, rediriger
       if (wasProfileIncomplete && isNowComplete) {
@@ -163,11 +174,49 @@ const ProfilePage = () => {
     mutation.mutate(values);
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validation simple du type de fichier
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        toast({ variant: "destructive", title: "Erreur", description: "Type de fichier non autorisé. Uniquement PNG, JPG, WEBP." });
+        return;
+      }
+      // Validation de la taille
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast({ variant: "destructive", title: "Erreur", description: "Fichier trop volumineux. La taille maximale est de 5Mo." });
+        return;
+      }
+
+      setSelectedFile(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUploadClick = async () => {
+    if (!selectedFile || !profile) return;
+
+    setIsUploading(true);
+    try {
+      await uploadAvatar(selectedFile, profile.id);
+      toast({ title: "Succès", description: "Votre photo de profil a été mise à jour." });
+      setSelectedFile(null);
+      setPreview(null);
+      // Invalider la query du profil pour rafraîchir l'avatar partout
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+
   return (
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Mon Profil</h1>
-        <p className="text-muted-foreground">Mettez à jour vos informations personnelles.</p>
+        <p className="text-muted-foreground">Mettez à jour vos informations personnelles et votre photo.</p>
       </div>
 
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
@@ -186,14 +235,62 @@ const ProfilePage = () => {
 
       <Card className="max-w-2xl">
         <CardHeader>
+          <CardTitle>Photo de Profil</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-6">
+            <Avatar className="h-24 w-24">
+              <AvatarImage src={preview || profile?.avatar_url || ''} alt="User avatar" />
+              <AvatarFallback>
+                {profile?.first_name?.[0]?.toUpperCase()}
+                {profile?.last_name?.[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/png, image/jpeg, image/webp"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                variant="outline"
+              >
+                Changer la photo
+              </Button>
+              {preview && selectedFile && (
+                <Button onClick={handleUploadClick} disabled={isUploading}>
+                  {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Sauvegarder la photo
+                </Button>
+              )}
+              <p className="text-sm text-muted-foreground">PNG, JPG ou WEBP. 5Mo maximum.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+
+      <Card className="max-w-2xl">
+        <CardHeader>
           <CardTitle>Informations du Profil</CardTitle>
           <CardDescription>Ces informations nous aident à mieux vous connaître.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-4">
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-              <Skeleton className="h-8 w-24 mt-4" />
+               <div className="flex items-center space-x-6">
+                  <Skeleton className="h-24 w-24 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                </div>
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              <Skeleton className="h-10 w-32 mt-4" />
             </div>
           ) : (
             <Form {...form}>

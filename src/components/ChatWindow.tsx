@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Menu } from "lucide-react";
+import { X, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatMessageInput } from "./ChatMessageInput";
 import { ConversationHistory } from "./ConversationHistory";
+import { ConversationSelector } from "./ConversationSelector";
 import {
     getUserConversations,
     createNewConversation,
@@ -12,9 +13,11 @@ import {
     sendMessage,
     markConversationAsRead,
     subscribeToMessages,
-    updateConversationTitle
+    updateConversationTitle,
+    switchToConversation
 } from "@/services/chatService";
 import type { ChatMessage, ChatConversation } from "@/services/chatService";
+import { uploadChatFile } from "@/services/fileUploadService";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -29,7 +32,8 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [showHistory, setShowHistory] = useState(true);
-    const [humanRequested, setHumanRequested] = useState(false); // Tracker si l'utilisateur a demandé un humain
+    const [humanRequested, setHumanRequested] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
     const { toast } = useToast();
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -113,11 +117,22 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
         return convs.find(c => c.id === id)!;
     };
 
-    const handleSelectConversation = (id: string) => {
-        setActiveConversationId(id);
-        // Sur mobile, cacher l'historique quand on sélectionne une conversation
-        if (window.innerWidth < 768) {
-            setShowHistory(false);
+    const handleSelectConversation = async (id: string) => {
+        try {
+            // Utiliser la fonction RPC pour basculer vers cette conversation
+            await switchToConversation(id);
+            setActiveConversationId(id);
+            // Sur mobile, cacher l'historique quand on sélectionne une conversation
+            if (window.innerWidth < 768) {
+                setShowHistory(false);
+            }
+        } catch (error) {
+            console.error('Error switching conversation:', error);
+            toast({
+                title: "Erreur",
+                description: "Impossible de basculer vers cette conversation.",
+                variant: "destructive"
+            });
         }
     };
 
@@ -143,8 +158,8 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
         }
     };
 
-    const handleSendMessage = async (message: string) => {
-        if (!activeConversationId || !message.trim()) return;
+    const handleSendMessage = async (message: string, files?: File[]) => {
+        if (!activeConversationId || (!message.trim() && (!files || files.length === 0))) return;
 
         try {
             setSending(true);
@@ -159,7 +174,23 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
             const isFirstMessage = messages.length === 0;
 
             // Envoyer le message
-            await sendMessage(activeConversationId, message);
+            const messageId = await sendMessage(activeConversationId, message);
+
+            // Upload des fichiers si présents
+            if (files && files.length > 0) {
+                for (const file of files) {
+                    try {
+                        await uploadChatFile(file, messageId);
+                    } catch (fileError) {
+                        console.error('File upload error:', fileError);
+                        toast({
+                            title: "Avertissement",
+                            description: `Impossible d'uploader ${file.name}`,
+                            variant: "destructive"
+                        });
+                    }
+                }
+            }
 
             // Générer le titre automatiquement au premier message
             if (isFirstMessage) {
@@ -171,15 +202,20 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
                 }, 500);
             }
 
-            // Appeler l'IA après un court délai
-            setTimeout(async () => {
-                try {
-                    const { callChatAI } = await import('@/services/aiChatService');
-                    await callChatAI(activeConversationId, message);
-                } catch (aiError) {
-                    console.error('AI response error:', aiError);
-                }
-            }, 500);
+            // Appeler l'IA après un court délai si message texte présent
+            if (message.trim()) {
+                setIsTyping(true);
+                setTimeout(async () => {
+                    try {
+                        const { callChatAI } = await import('@/services/aiChatService');
+                        await callChatAI(activeConversationId, message);
+                    } catch (aiError) {
+                        console.error('AI response error:', aiError);
+                    } finally {
+                        setIsTyping(false);
+                    }
+                }, 500);
+            }
 
         } catch (error) {
             console.error('Error sending message:', error);
@@ -205,7 +241,7 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     return (
         <Card className="fixed bottom-4 right-4 w-full md:w-[800px] h-[650px] shadow-2xl flex flex-col z-50 overflow-hidden">
             <CardHeader className="flex-row items-center justify-between p-4 border-b flex-shrink-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
                     {/* Bouton Menu (mobile uniquement) */}
                     <Button
                         variant="ghost"
@@ -215,7 +251,18 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
                     >
                         <Menu className="h-4 w-4" />
                     </Button>
-                    <CardTitle className="text-lg">Support Chat</CardTitle>
+                    <CardTitle className="text-lg mr-2">Support Chat</CardTitle>
+
+                    {/* Sélecteur de conversation */}
+                    <div className="flex-1 max-w-[300px] hidden md:block">
+                        <ConversationSelector
+                            conversations={conversations}
+                            currentConversationId={activeConversationId}
+                            onSelect={handleSelectConversation}
+                            onNew={handleNewConversation}
+                            loading={loading}
+                        />
+                    </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                     <X className="h-4 w-4" />
@@ -250,6 +297,7 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
                             <ChatMessageList
                                 messages={messages}
                                 onSuggestionClick={handleSendMessage}
+                                isTyping={isTyping}
                             />
                             <ChatMessageInput
                                 onSend={handleSendMessage}

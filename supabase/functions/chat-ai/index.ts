@@ -60,6 +60,30 @@ serve(async (req) => {
 
         if (matchError) throw matchError
 
+        // Timestamp de début pour analytics
+        const startTime = Date.now()
+
+        // Récupérer les informations de la conversation et de l'utilisateur
+        const { data: conversation } = await supabase
+            .from('chat_conversations')
+            .select('user_id')
+            .eq('id', conversationId)
+            .single()
+
+        let userContext = ''
+        if (conversation) {
+            // Récupérer le profil utilisateur pour enrichir le contexte
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('subscription_tier, total_invested, risk_profile, investment_goals')
+                .eq('id', conversation.user_id)
+                .single()
+
+            if (profile) {
+                userContext = `\n**Contexte utilisateur:**\n- Niveau d'abonnement: ${profile.subscription_tier || 'standard'}\n- Investissement total: ${profile.total_invested || 0}€\n- Profil de risque: ${profile.risk_profile || 'non défini'}\n- Objectifs: ${profile.investment_goals || 'non définis'}`
+            }
+        }
+
         // Récupérer les derniers messages de la conversation pour le contexte
         const { data: recentMessages } = await supabase
             .from('chat_messages')
@@ -169,94 +193,107 @@ serve(async (req) => {
             .map((doc: any) => `**${doc.title}**\\n${doc.content}`)
             .join('\\n\\n---\\n\\n')
 
-        // 5. Générer une réponse naturelle avec Gemini
-        const prompt = `Tu es ${message.toLowerCase().includes('qui es-tu') || message.toLowerCase().includes('qui êtes-vous') ? 'l\'assistant virtuel de Nguma' : 'un conseiller'} chez Nguma, une plateforme d'investissement fiable.
+        // 5. Générer une réponse naturelle avec Gemini (avec contexte enrichi)
+        const prompt = `Tu es ${message.toLowerCase().includes('qui es-tu') || message.toLowerCase().includes('qui êtes-vous') ? 'l\\'assistant virtuel de Nguma' : 'un conseiller'} chez Nguma, une plateforme d'investissement fiable.
+            ${ userContext }
 
-**Informations disponibles :**
-${context}
+** Informations disponibles:**
+            ${ context }
 
-**Conversation précédente :**
-${conversationHistory || 'Aucun historique'}
+** Conversation précédente:**
+            ${ conversationHistory || 'Aucun historique' }
 
-**Question de l'utilisateur :** "${message}"
+** Question de l'utilisateur :** "${message}"
 
-**Ton rôle :**
-Tu es un humain, pas un robot. Réponds naturellement comme si tu parlais à un ami qui te fait confiance pour l'aider avec ses investissements.
+            ** Ton rôle:**
+                Tu es un humain, pas un robot.Réponds naturellement comme si tu parlais à un ami qui te fait confiance pour l'aider avec ses investissements.
+${ userContext ? 'Utilise le contexte utilisateur pour personnaliser tes réponses (adapte selon son niveau, son profil de risque, etc.).' : '' }
 
-**Style de réponse :**
-- Parle comme un humain : utilise "je", sois empathique, montre que tu comprends
-- Adapte la longueur : courte si question simple, détaillée si question complexe
-- Sois chaleureux mais professionnel
-- Sois concis et direct. Évite les redondances et va droit au but, surtout pour les questions simples.
+** Style de réponse:**
+            - Parle comme un humain: utilise "je", sois empathique, montre que tu comprends
+                - Adapte la longueur: courte si question simple, détaillée si question complexe
+                    - Sois chaleureux mais professionnel
+                        - Sois concis et direct.Évite les redondances et va droit au but, surtout pour les questions simples.
 - Utilise des exemples concrets quand c'est pertinent
-- Si l'utilisateur fait référence à la conversation, utilise l'historique
-- Émojis OK mais avec modération (😊, 👍, ✅)
-- Réponds UNIQUEMENT en français
+            - Si l'utilisateur fait référence à la conversation, utilise l'historique
+                - Émojis OK mais avec modération(😊, 👍, ✅)
+                    - Réponds UNIQUEMENT en français
 
-**Important :** Ne dis JAMAIS "selon la base de connaissances" ou "d'après les informations". Parle comme si TU savais ces informations de toi-même.`
+                        ** Important :** Ne dis JAMAIS "selon la base de connaissances" ou "d'après les informations".Parle comme si TU savais ces informations de toi - même.`
 
         const generateResponse = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`,
-            {
-                method: 'POST',
+        {
+            method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: 0.8, // Plus créatif et naturel
-                        maxOutputTokens: 1000, // Augmenté pour permettre des réponses complètes
-                        topP: 0.95,
-                        topK: 40
-                    }
-                })
-            }
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.8, // Plus créatif et naturel
+                    maxOutputTokens: 1000, // Augmenté pour permettre des réponses complètes
+                    topP: 0.95,
+                    topK: 40
+                }
+            })
+        }
         )
 
-        if (!generateResponse.ok) {
-            throw new Error('Failed to generate AI response')
-        }
+if (!generateResponse.ok) {
+    throw new Error('Failed to generate AI response')
+}
 
-        const generateData = await generateResponse.json()
+const generateData = await generateResponse.json()
 
-        const aiReply = generateData.candidates[0].content.parts[0].text
-        let isTruncated = false;
+const aiReply = generateData.candidates[0].content.parts[0].text
+let isTruncated = false;
 
-        // Gérer MAX_TOKENS (réponse trop longue)
-        if (generateData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
-            console.warn('Gemini hit MAX_TOKENS, response was truncated.')
-            aiReply += "\n\n[... La réponse a été tronquée. Veuillez reformuler votre question pour plus de détails ou précisez votre demande.]";
-            isTruncated = true;
-        }
+// Gérer MAX_TOKENS (réponse trop longue)
+if (generateData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    console.warn('Gemini hit MAX_TOKENS, response was truncated.')
+    aiReply += "\n\n[... La réponse a été tronquée. Veuillez reformuler votre question pour plus de détails ou précisez votre demande.]";
+    isTruncated = true;
+}
 
-        // Vérifier réponse valide
-        if (!aiReply) {
-            console.error('Invalid response:', JSON.stringify(generateData))
-            throw new Error('AI response invalid')
-        }
+// Vérifier réponse valide
+if (!aiReply) {
+    console.error('Invalid response:', JSON.stringify(generateData))
+    throw new Error('AI response invalid')
+}
 
-        // 6. Enregistrer
-        await supabase.from('chat_messages').insert({
-            conversation_id: conversationId,
-            sender_id: '00000000-0000-0000-0000-000000000000',
-            message: aiReply,
-            is_admin: false
-        })
+// 6. Enregistrer
+await supabase.from('chat_messages').insert({
+    conversation_id: conversationId,
+    sender_id: '00000000-0000-0000-0000-000000000000',
+    message: aiReply,
+    is_admin: false
+})
 
-        await supabase.from('chat_conversations').update({
-            last_message_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        }).eq('id', conversationId)
+await supabase.from('chat_conversations').update({
+    last_message_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+}).eq('id', conversationId)
 
-        return new Response(
-            JSON.stringify({ shouldEscalate: false, reply: aiReply, confidence: bestMatch.similarity, isTruncated }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+// 7. Tracker les analytics
+const responseTime = Math.floor((Date.now() - startTime) / 1000)
+await supabase.from('chat_analytics').upsert({
+    conversation_id: conversationId,
+    ai_answered: true,
+    escalated_to_admin: false,
+    first_response_time_seconds: responseTime
+}, {
+    onConflict: 'conversation_id'
+})
+
+return new Response(
+    JSON.stringify({ shouldEscalate: false, reply: aiReply, confidence: bestMatch.similarity, isTruncated }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+)
 
     } catch (error) {
-        console.error('Error:', error)
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        )
-    }
+    console.error('Error:', error)
+    return new Response(
+        JSON.stringify({ error: error.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
+}
 })

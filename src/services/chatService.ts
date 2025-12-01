@@ -3,6 +3,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type ChatConversation = Database['public']['Tables']['chat_conversations']['Row'];
 export type ChatMessage = Database['public']['Tables']['chat_messages']['Row'];
+export type ChatAttachment = Database['public']['Tables']['chat_attachments']['Row'];
+export type ChatAnalytics = Database['public']['Tables']['chat_analytics']['Row'];
 
 export interface AdminConversation {
     id: string;
@@ -15,6 +17,16 @@ export interface AdminConversation {
     admin_unread_count: number;
     created_at: string;
     last_message_preview: string | null;
+}
+
+export interface SearchResult {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    message: string;
+    is_admin: boolean;
+    created_at: string;
+    rank: number;
 }
 
 /**
@@ -46,24 +58,15 @@ export const getUserConversations = async (): Promise<ChatConversation[]> => {
 
 /**
  * Crée une nouvelle conversation pour l'utilisateur
+ * La nouvelle conversation devient automatiquement active et l'ancienne est désactivée
  */
 export const createNewConversation = async (title?: string): Promise<string> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const { data, error } = await supabase
-        .from('chat_conversations')
-        .insert({
-            user_id: user.id,
-            title: title || null,
-            subject: 'Conversation de support',
-            status: 'open'
-        })
-        .select('id')
-        .single();
+    const { data, error } = await supabase.rpc('create_new_conversation', {
+        p_title: title || null
+    });
 
     if (error) throw new Error(error.message);
-    return data.id;
+    return data as string;
 };
 
 /**
@@ -401,3 +404,82 @@ export const getAdminUnreadCount = async (): Promise<number> => {
 
     return (data || []).reduce((sum, conv) => sum + (conv.admin_unread_count || 0), 0);
 };
+
+/**
+ * Bascule vers une conversation existante (la rend active)
+ * @param conversationId ID de la conversation
+ */
+export const switchToConversation = async (conversationId: string): Promise<void> => {
+    const { error } = await supabase.rpc('switch_to_conversation', {
+        p_conversation_id: conversationId
+    });
+
+    if (error) throw new Error(error.message);
+};
+
+/**
+ * Recherche dans les messages de l'utilisateur (full-text)
+ * @param query Texte à rechercher
+ * @param limit Nombre maximum de résultats
+ * @returns Résultats de recherche triés par pertinence
+ */
+export const searchMessages = async (query: string, limit: number = 50): Promise<SearchResult[]> => {
+    if (!query.trim()) return [];
+
+    const { data, error } = await supabase.rpc('search_chat_messages', {
+        p_query: query.trim(),
+        p_limit: limit
+    });
+
+    if (error) {
+        console.error('Error searching messages:', error);
+        throw new Error(error.message);
+    }
+
+    return data as SearchResult[] || [];
+};
+
+/**
+ * Enregistre les métriques analytics pour une conversation
+ * @param conversationId ID de la conversation
+ * @param analytics Données analytics
+ */
+export const trackAnalytics = async (
+    conversationId: string,
+    analytics: Partial<Omit<ChatAnalytics, 'id' | 'conversation_id' | 'created_at'>>
+): Promise<void> => {
+    const { error } = await supabase
+        .from('chat_analytics')
+        .upsert({
+            conversation_id: conversationId,
+            ...analytics
+        }, {
+            onConflict: 'conversation_id'
+        });
+
+    if (error) {
+        console.error('Error tracking analytics:', error);
+        // Ne pas throw l'erreur pour ne pas bloquer le flux principal
+    }
+};
+
+/**
+ * Récupère les analytics d'une conversation
+ * @param conversationId ID de la conversation
+ * @returns Données analytics ou null
+ */
+export const getConversationAnalytics = async (conversationId: string): Promise<ChatAnalytics | null> => {
+    const { data, error } = await supabase
+        .from('chat_analytics')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .single();
+
+    if (error) {
+        console.error('Error fetching analytics:', error);
+        return null;
+    }
+
+    return data;
+};
+

@@ -7,17 +7,20 @@ import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { SuggestionCategories } from "./SuggestionCategories";
+import { FilePreview } from "./FilePreview";
+import { getMessageAttachments } from "@/services/fileUploadService";
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
     onSuggestionClick?: (message: string) => void;
+    isTyping?: boolean;
 }
 
 // Fonction utilitaire pour formater le texte (gras et sauts de ligne)
 function formatMessage(text: string, isAi: boolean) {
     return text.split('\\n').map((line, i) => (
         <span key={i} className="block min-h-[1.2em]">
-            {line.split(/(\\*\\*.*?\\*\\*)/g).map((part, j) => {
+            {line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
                 if (part.startsWith('**') && part.endsWith('**')) {
                     return <strong key={j} className={isAi ? "font-bold text-purple-600 dark:text-purple-400" : "font-bold"}>{part.slice(2, -2)}</strong>;
                 }
@@ -27,7 +30,27 @@ function formatMessage(text: string, isAi: boolean) {
     ));
 }
 
-export function ChatMessageList({ messages, onSuggestionClick }: ChatMessageListProps) {
+// Composant pour afficher les fichiers attachés à un message
+function MessageAttachments({ messageId }: { messageId: string }) {
+    const { data: attachments, isLoading } = useQuery({
+        queryKey: ['message-attachments', messageId],
+        queryFn: () => getMessageAttachments(messageId)
+    });
+
+    if (isLoading || !attachments || attachments.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-2 space-y-2">
+            {attachments.map((attachment) => (
+                <FilePreview key={attachment.id} attachment={attachment} />
+            ))}
+        </div>
+    );
+}
+
+export function ChatMessageList({ messages, onSuggestionClick, isTyping = false }: ChatMessageListProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Récupérer l'utilisateur courant
@@ -86,13 +109,16 @@ export function ChatMessageList({ messages, onSuggestionClick }: ChatMessageList
                                     className={`rounded-2xl px-4 py-2 shadow-sm ${isOwnMessage
                                         ? 'bg-primary text-primary-foreground rounded-tr-sm'
                                         : message.sender_id === '00000000-0000-0000-0000-000000000000'
-                                            ? 'bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800 text-zinc-800 dark:text-zinc-100 rounded-tl-sm shadow-sm'
+                                            ? 'bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800 text-zinc-800  dark:text-zinc-100 rounded-tl-sm shadow-sm'
                                             : 'bg-muted text-foreground rounded-tl-sm'
                                         }`}
                                 >
                                     <div className="text-sm break-words">
                                         {formatMessage(message.message, message.sender_id === '00000000-0000-0000-0000-000000000000')}
                                     </div>
+
+                                    {/* Fichiers attachés */}
+                                    <MessageAttachments messageId={message.id} />
                                 </div>
 
                                 {/* Timestamp */}
@@ -106,6 +132,22 @@ export function ChatMessageList({ messages, onSuggestionClick }: ChatMessageList
                         </div>
                     );
                 })}
+
+                {/* Typing indicator */}
+                {isTyping && (
+                    <div className="flex gap-3">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarFallback className="bg-primary text-primary-foreground">A</AvatarFallback>
+                        </Avatar>
+                        <div className="bg-muted rounded-2xl px-4 py-3 rounded-tl-sm">
+                            <div className="flex gap-1">
+                                <span className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Élément pour auto-scroll */}
                 <div ref={scrollRef} />
