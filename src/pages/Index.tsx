@@ -15,7 +15,6 @@ const faqData = [
     question: "Nguma est-il un site d’investissement ou un système de type Ponzi ?",
     answer: "Non. Nguma n’est ni un site d’investissement, ni un système Ponzi. Nguma est une plateforme qui gère vos contrats, lesquels sont ensuite exécutés par un robot de trading opérant sur MetaTrader 5. De plus, Nguma ne propose aucune option de parrainage et n’autorise aucun recrutement, car ce sont précisément les mécanismes typiques des systèmes de type Ponzi.",
   },
-
   {
     question: "Qu’est-ce qui garantit mon capital ?",
     answer: "Seuls les clients ayant souscrit à l’option Assurance Capital bénéficient d’une garantie : l’entreprise assure jusqu’à 5 mois de retraits, peu importe les circonstances. En revanche, ceux qui n’ont pas pris d’assurance ne disposent d’aucune garantie. Il est important de comprendre que l’investissement dans la spéculation boursière reste un investissement à haut risque, et vous pouvez perdre une partie ou la totalité de votre capital.",
@@ -68,8 +67,10 @@ const Index = () => {
               Nguma
             </h1>
 
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">Profitez de l'opportunité qu'offre le Robot Trading Nguma.</p>
-
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Profite de l’opportunité qu’offre le robot de trading Nguma.
+            </p>
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
