@@ -305,10 +305,10 @@ const Auth = () => {
         redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
-          toast({
-            title: "Email envoyé",
-            description: "Veuillez vérifier votre boîte de réception (et vos spams) pour réinitialiser votre mot de passe.",
-          });
+      toast({
+        title: "Email envoyé",
+        description: "Veuillez vérifier votre boîte de réception (et vos spams) pour réinitialiser votre mot de passe.",
+      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -350,14 +350,14 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <img src="/logo.png" alt="Nguma" className="mx-auto h-18 w-auto rounded-md shadow-sm" />
-          <h1 className="text-3xl font-bold mt-3 mb-2">NGUMA</h1>
-          <p className="text-muted-foreground">Plateforme d'investissement automatisé</p>
+          <h1 className="text-3xl font-bold mt-3 mb-2">Bienvenue</h1>
+          <p className="text-muted-foreground">Connectez-vous ou créez votre compte</p>
         </div>
 
         <Card className="shadow-elegant border-border/50">
           <CardHeader>
-            <CardTitle>Bienvenue</CardTitle>
-            <CardDescription>Connectez-vous ou créez votre compte</CardDescription>
+            <CardTitle>    </CardTitle>
+            <CardDescription>      </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

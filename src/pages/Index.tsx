@@ -12,19 +12,33 @@ import {
 
 const faqData = [
   {
-    question: "Comment la plateforme Nguma sécurise-t-elle mon investissement ?",
-            answer: "Votre investissement est protégé par des protocoles de sécurité de pointe et des systèmes d'authentification robustes. De plus, toutes les transactions financières importantes, telles que les dépôts et les retraits, sont soumises à une vérification rigoureuse par nos équipes dédiées, assurant une protection maximale contre la fraude.",  },
+    question: "Nguma est-il un site d’investissement ou un système de type Ponzi ?",
+    answer: "Non. Nguma n’est ni un site d’investissement, ni un système Ponzi. Nguma est une plateforme qui gère vos contrats, lesquels sont ensuite exécutés par un robot de trading opérant sur MetaTrader 5. De plus, Nguma ne propose aucune option de parrainage et n’autorise aucun recrutement, car ce sont précisément les mécanismes typiques des systèmes de type Ponzi.",
+  },
+
+  {
+    question: "Qu’est-ce qui garantit mon capital ?",
+    answer: "Seuls les clients ayant souscrit à l’option Assurance Capital bénéficient d’une garantie : l’entreprise assure jusqu’à 5 mois de retraits, peu importe les circonstances. En revanche, ceux qui n’ont pas pris d’assurance ne disposent d’aucune garantie. Il est important de comprendre que l’investissement dans la spéculation boursière reste un investissement à haut risque, et vous pouvez perdre une partie ou la totalité de votre capital.",
+  },
   {
     question: "Comment sont calculés et distribués les profits ?",
-    answer: "Les profits sont calculés chaque mois en fonction du taux de rendement global fixé par l'administrateur. Notre système automatisé distribue vos gains sur votre solde de profits à la date anniversaire de votre contrat, garantissant un paiement juste et ponctuel.",
+    answer: "Les profits sont calculés en fonction du montant de votre contrat. Vous recevez 20 % de votre capital comme profit chaque mois, pendant 10 mois.Veuillez noter que le capital investi n’est pas remboursable.",
   },
   {
     question: "Puis-je retirer mon argent à tout moment ?",
-    answer: "Vous pouvez demander un retrait de votre solde de profits à tout moment. Les demandes sont traitées par nos administrateurs. Un remboursement anticipé de votre capital investi est également possible sous certaines conditions définies dans votre contrat.",
+    answer: "Oui. Dès que vous recevez vos profits, vous pouvez les retirer à tout moment et par le moyen de votre choix. Cependant, le capital investi dans le contrat n’est ni retirable ni remboursable, même après l’expiration du contrat.",
+  },
+  {
+    question: "Est-il possible d’avoir plusieurs contrats sur mon compte ?",
+    answer: "Oui. Vous avez la possibilité de détenir plusieurs contrats sur votre compte, et chacun d’eux sera traité séparément et de manière individuelle.",
   },
   {
     question: "Y a-t-il des frais cachés ?",
     answer: "La transparence est au cœur de nos valeurs. Il n'y a aucun frais caché. Tous les frais ou commissions éventuels sont clairement indiqués avant que vous ne preniez une décision d'investissement.",
+  },
+  {
+    question: "Qui contacter si le site devient indisponible ou subit une tentative de piratage ?",
+    answer: "Nguma est une propriété de Botes Group S.A.R.L. Toutes les coordonnées officielles de l’entreprise sont disponibles dans les Conditions Générales. De plus, Nguma fonctionne de manière décentralisée : la plateforme sert uniquement à visualiser vos contrats et à faciliter vos demandes de dépôts et de retraits. L’exécution, la gestion et la sécurisation des opérations sont traitées en dehors de la plateforme, à travers différentes bases de données et systèmes de sauvegarde, garantissant ainsi une sécurité renforcée même en cas d’indisponibilité du site.",
   },
 ];
 
@@ -45,17 +59,17 @@ const Index = () => {
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background"></div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <img src="/logo.png" alt="Nguma Logo" className="mx-auto h-32 w-32 mb-8" />
-            
+
             <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
               Nguma
             </h1>
-            
-                        <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">Profite de l’opportunité qu’offre le robot de trading Nguma.</p>
-            
+
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">Profitez de l'opportunité qu'offre le Robot Trading Nguma.</p>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"

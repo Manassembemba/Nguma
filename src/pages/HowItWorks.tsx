@@ -1,6 +1,9 @@
 import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button"; // Added Button import
+import { useNavigate } from "react-router-dom"; // Added useNavigate import
 
 const HowItWorksPage = () => {
+  const navigate = useNavigate(); // Initialize useNavigate
   const steps = [
     {
       number: "01",
@@ -60,6 +63,12 @@ const HowItWorksPage = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="text-center mt-24">
+          <Button size="lg" onClick={() => navigate("/auth")} className="text-lg px-8">
+            Commencer maintenant <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </div>
     </div>

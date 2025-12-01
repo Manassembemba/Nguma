@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Loader2, Shield, Settings as SettingsIcon, CreditCard, ShieldCheck } from 'lucide-react';
 import { invalidateSecuritySettingsCache } from '@/services/securitySettingsService';
-import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { WysiwygEditor } from '@/components/WysiwygEditor'; // Changed import
 import { PaymentMethodsManager } from '@/components/admin/PaymentMethodsManager';
 
 interface Setting {
@@ -242,14 +242,29 @@ const SettingControl = ({
       <div className="flex items-center gap-3 flex-shrink-0 justify-end">
         {/* Special handling for terms_content */}
         {setting.key === 'terms_content' && (
-          <div className="w-full">
-            <MarkdownEditor
+          <div className="w-full flex flex-col gap-2">
+            <WysiwygEditor
               value={localValue}
               onChange={setLocalValue}
-              onSave={handleSave}
-              isSaving={isLoading}
-              hasChanged={hasChanged}
             />
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanged || isLoading}
+              size="sm"
+              variant={hasChanged ? 'default' : 'outline'}
+              className="self-end"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Sauvegarde...
+                </>
+              ) : hasChanged ? (
+                '💾 Sauvegarder'
+              ) : (
+                '✓ Sauvegardé'
+              )}
+            </Button>
           </div>
         )}
 
