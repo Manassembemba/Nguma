@@ -113,9 +113,19 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
       return verifyAndWithdraw(verificationId, otpCode);
     },
         onSuccess: () => {
-          toast({ title: "Succès", description: "Votre demande de retrait a été soumise. Pensez à vérifier vos spams pour l'email de confirmation." });
-          onClose();
-        },
+      toast({ title: "Succès", description: "Votre demande de retrait a été soumise. Pensez à vérifier vos spams pour l'email de confirmation." });
+      setOpen(false);
+      // Reset state for next time
+      setStep(1);
+      setAmount("");
+      setPaymentMethod("");
+      setPaymentDetails("");
+      setOtpCode("");
+      setVerificationId(null);
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
