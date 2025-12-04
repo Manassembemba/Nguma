@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { requestDeposit } from "@/services/walletService";
-import { saveTransactionMetadata, PaymentMethod } from "@/services/paymentMethodsService";
+import { PaymentMethod } from "@/services/paymentMethodsService";
 import { useToast } from "@/components/ui/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { DynamicPaymentMethodSelector } from "@/components/DynamicPaymentMethodSelector";
@@ -27,52 +27,17 @@ export const DepositDialog = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (data: { amount: number; formData: Record<string, any> }) => {
+    mutationFn: async (data: { amount: number; proofUrl: string }) => {
       if (!selectedMethod) throw new Error("Aucune méthode sélectionnée");
 
-      // Extraire les données pour requestDeposit
-      // Les champs admin ne sont pas envoyés, seulement les champs utilisateur
-      const userFields = selectedMethod.fields?.filter(f => f.is_user_input) || [];
-
-      // Trouver le champ de référence (transaction_id, mtcn, pin_number, etc.)
-      const referenceField = userFields.find(f =>
-        f.field_key.includes('transaction') ||
-        f.field_key.includes('mtcn') ||
-        f.field_key.includes('reference') ||
-        f.field_key.includes('pin')
-      );
-
-      // Trouver le champ de téléphone
-      const phoneField = userFields.find(f =>
-        f.field_key.includes('phone') ||
-        f.field_key.includes('sender_number')
-      );
-
-      // Trouver le champ de preuve
-      const proofField = userFields.find(f =>
-        f.field_type === 'file'
-      );
-
-      const reference = referenceField ? data.formData[referenceField.field_key] : undefined;
-      const phone = phoneField ? data.formData[phoneField.field_key] : undefined;
-      const proofUrl = proofField ? data.formData[proofField.field_key] : undefined;
-
-      // Créer la transaction
+      // Créer la transaction avec uniquement la preuve de paiement
       const result = await requestDeposit(
         data.amount,
         selectedMethod.code,
-        reference,
-        phone,
-        proofUrl
+        undefined, // plus de référence
+        undefined, // plus de téléphone
+        data.proofUrl
       );
-
-      // Sauvegarder toutes les métadonnées
-      if (result && typeof result === 'object' && 'transaction_id' in result) {
-        await saveTransactionMetadata(
-          (result as any).transaction_id,
-          data.formData
-        );
-      }
 
       return result;
     },
@@ -140,7 +105,7 @@ export const DepositDialog = () => {
 
     mutation.mutate({
       amount: amountValue,
-      formData
+      proofUrl: formData.proof_url
     });
   };
 

@@ -225,8 +225,11 @@ export const getPendingWithdrawals = async () => {
   return data || [];
 };
 
-export const approveWithdrawal = async (transactionId: string) => {
-  const { data, error } = await supabase.rpc('approve_withdrawal', { transaction_id_to_approve: transactionId });
+export const approveWithdrawal = async (transactionId: string, proofUrl: string) => {
+  const { data, error } = await supabase.rpc('approve_withdrawal', {
+    transaction_id_to_approve: transactionId,
+    p_proof_url: proofUrl
+  });
   if (error) throw new Error(error.message);
 
   const result = data as { success: boolean; error?: string };

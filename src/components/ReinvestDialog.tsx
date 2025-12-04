@@ -122,7 +122,7 @@ export const ReinvestDialog = ({ wallet }: ReinvestDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Réinvestir les Profits</Button>
+        <Button variant="default">Réinvestir les Profits</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>

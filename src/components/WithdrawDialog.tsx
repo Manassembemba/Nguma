@@ -10,19 +10,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { requestWithdrawal } from "@/services/walletService";
 import { getSettings } from "@/services/settingsService";
 import { useToast } from "@/components/ui/use-toast";
-import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Info, ArrowLeft } from "lucide-react";
+import { DynamicPaymentMethodSelector } from "@/components/DynamicPaymentMethodSelector";
+import { PaymentMethod } from "@/services/paymentMethodsService";
 
 type WalletData = Database['public']['Tables']['wallets']['Row'];
+type Step = "select_method" | "enter_details" | "verify_otp";
 
 interface WithdrawDialogProps {
   wallet: WalletData | undefined;
@@ -30,11 +28,16 @@ interface WithdrawDialogProps {
 
 export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<Step>("select_method");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"crypto" | "mobile_money" | "">("");
-  const [paymentDetails, setPaymentDetails] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // MFA State
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
 
   // Load withdrawal settings
   const { data: settings } = useQuery({
@@ -46,8 +49,8 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
   const profitBalance = Number(wallet?.profit_balance || 0);
   const maxWithdrawalSetting = Number(settings?.find(s => s.key === 'max_withdrawal_amount')?.value || 10000);
   const maxWithdrawal = profitBalance > 0 ? Math.min(profitBalance, maxWithdrawalSetting) : maxWithdrawalSetting;
-  const feePercent = Number(settings?.find(s => s.key === 'withdrawal_fee_percent')?.value || 2);
-  const feeFixed = Number(settings?.find(s => s.key === 'withdrawal_fee_fixed')?.value || 1);
+  const feePercent = Number(settings?.find(s => s.key === 'withdrawal_fee_percent')?.value || 0);
+  const feeFixed = Number(settings?.find(s => s.key === 'withdrawal_fee_fixed')?.value || 0);
 
   // Calculate total fee
   const calculateFee = (amt: number) => {
@@ -57,51 +60,46 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
   // Check if user has sufficient balance
   const hasSufficientBalance = profitBalance >= minWithdrawal;
 
-  const withdrawSchema = z.object({
-    amount: z.coerce.number()
-      .positive("Le montant doit être positif.")
-      .min(minWithdrawal, `Le montant minimum est de ${minWithdrawal} USD.`)
-      .max(maxWithdrawal, `Le montant ne peut pas dépasser ${maxWithdrawal.toFixed(2)} USD.`)
-      .refine((val) => val <= profitBalance, {
-        message: `Solde de profits insuffisant. Disponible : ${profitBalance.toFixed(2)} USD.`
-      }),
-    paymentMethod: z.enum(["crypto", "mobile_money"], { message: "Veuillez sélectionner un moyen de paiement." }),
-    paymentDetails: z.string().min(1, "Les détails de paiement sont obligatoires.")
-      .refine((val) => {
-        if (paymentMethod === "crypto") {
-          // USDT TRC20 address validation: starts with T, 34 characters
-          return /^T[A-Za-z0-9]{33}$/.test(val);
-        } else if (paymentMethod === "mobile_money") {
-          // International phone number format
-          return /^\+?[1-9]\d{1,14}$/.test(val);
-        }
-        return true;
-      }, {
-        message: paymentMethod === "crypto"
-          ? "Adresse USDT TRC20 invalide (doit commencer par 'T' et contenir 34 caractères)."
-          : "Numéro de téléphone invalide (format international requis, ex: +243812345678)."
-      }),
-  });
-
-  // MFA State
-  const [step, setStep] = useState<1 | 2>(1); // Step 1: Request OTP, Step 2: Verify OTP
-  const [verificationId, setVerificationId] = useState<string | null>(null);
-  const [otpCode, setOtpCode] = useState("");
-
   // Step 1: Request OTP
   const requestOTPMutation = useMutation({
     mutationFn: async () => {
-      const validatedData = withdrawSchema.parse({ amount, paymentMethod, paymentDetails });
+      if (!selectedMethod) throw new Error("Aucune méthode sélectionnée");
+
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        throw new Error("Montant invalide");
+      }
+
+      if (amountNum < minWithdrawal) {
+        throw new Error(`Le montant minimum est de ${minWithdrawal} USD.`);
+      }
+
+      if (amountNum > maxWithdrawal) {
+        throw new Error(`Le montant maximum est de ${maxWithdrawal.toFixed(2)} USD.`);
+      }
+
+      if (amountNum > profitBalance) {
+        throw new Error(`Solde insuffisant. Disponible : ${profitBalance.toFixed(2)} USD.`);
+      }
+
+      // Passer l'objet paymentDetails directement (pas JSON.stringify)
       const { requestWithdrawalOTP } = await import("@/services/withdrawalMFAService");
-      return requestWithdrawalOTP(validatedData.amount, validatedData.paymentMethod, validatedData.paymentDetails);
+      return requestWithdrawalOTP(amountNum, selectedMethod.code, paymentDetails);
     },
     onSuccess: (data) => {
       setVerificationId(data.verification_id);
-      setStep(2);
-      toast({ title: "Code envoyé", description: "Un code de vérification a été envoyé à votre email (et vos spams)." });
+      setStep("verify_otp");
+      toast({
+        title: "Code envoyé",
+        description: "Un code de vérification a été envoyé à votre email (et vos spams)."
+      });
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Erreur", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message
+      });
     },
   });
 
@@ -112,245 +110,220 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
       const { verifyAndWithdraw } = await import("@/services/withdrawalMFAService");
       return verifyAndWithdraw(verificationId, otpCode);
     },
-        onSuccess: () => {
-      toast({ title: "Succès", description: "Votre demande de retrait a été soumise. Pensez à vérifier vos spams pour l'email de confirmation." });
+    onSuccess: () => {
+      toast({
+        title: "Succès",
+        description: "Votre demande de retrait a été soumise. Pensez à vérifier vos spams pour l'email de confirmation."
+      });
       setOpen(false);
-      // Reset state for next time
-      setStep(1);
-      setAmount("");
-      setPaymentMethod("");
-      setPaymentDetails("");
-      setOtpCode("");
-      setVerificationId(null);
-      // Invalidate queries to refetch data
+      reset();
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Erreur", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message
+      });
     },
   });
 
-  const handleStep1Submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      // Validation manuelle avant Zod pour messages personnalisés
-      const amountNum = Number(amount);
-
-      if (!amount || amountNum <= 0) {
-        toast({
-          variant: "destructive",
-          title: "Montant invalide",
-          description: "Veuillez saisir un montant valide."
-        });
-        return;
-      }
-
-      if (amountNum < minWithdrawal) {
-        toast({
-          variant: "destructive",
-          title: "Montant trop faible",
-          description: `Le montant minimum de retrait est de ${minWithdrawal} USD.`
-        });
-        return;
-      }
-
-      if (amountNum > maxWithdrawal) {
-        toast({
-          variant: "destructive",
-          title: "Montant trop élevé",
-          description: `Le montant maximum de retrait est de ${maxWithdrawal.toFixed(2)} USD.`
-        });
-        return;
-      }
-
-      if (amountNum > profitBalance) {
-        toast({
-          variant: "destructive",
-          title: "Solde insuffisant",
-          description: `Votre solde de profits disponible est de ${profitBalance.toFixed(2)} USD.`
-        });
-        return;
-      }
-
-      if (!paymentMethod) {
-        toast({
-          variant: "destructive",
-          title: "Moyen de paiement requis",
-          description: "Veuillez sélectionner un moyen de paiement."
-        });
-        return;
-      }
-
-      if (!paymentDetails) {
-        toast({
-          variant: "destructive",
-          title: "Détails de paiement requis",
-          description: paymentMethod === "crypto"
-            ? "Veuillez saisir votre adresse USDT TRC20."
-            : "Veuillez saisir votre numéro Mobile Money."
-        });
-        return;
-      }
-
-      // Validation du format
-      if (paymentMethod === "crypto" && !/^T[A-Za-z0-9]{33}$/.test(paymentDetails)) {
-        toast({
-          variant: "destructive",
-          title: "Adresse crypto invalide",
-          description: "L'adresse USDT TRC20 doit commencer par 'T' et contenir 34 caractères."
-        });
-        return;
-      }
-
-      if (paymentMethod === "mobile_money" && !/^\+?[1-9]\d{1,14}$/.test(paymentDetails)) {
-        toast({
-          variant: "destructive",
-          title: "Numéro invalide",
-          description: "Veuillez saisir un numéro de téléphone au format international (ex: +243812345678)."
-        });
-        return;
-      }
-
-      requestOTPMutation.mutate();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({ variant: "destructive", title: "Erreur de validation", description: error.errors[0].message });
-      } else if (error instanceof Error) {
-        toast({ variant: "destructive", title: "Erreur", description: error.message });
-      }
-    }
+  const handleMethodSelect = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    setStep("enter_details");
   };
 
-  const handleStep2Submit = (e: React.FormEvent) => {
+  const handleDetailsSubmit = (formData: Record<string, any>) => {
+    setPaymentDetails(formData);
+    requestOTPMutation.mutate();
+  };
+
+  const handleOTPSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     verifyOTPMutation.mutate();
   };
 
-  const handleBack = () => {
-    setStep(1);
+  const reset = () => {
+    setStep("select_method");
+    setSelectedMethod(null);
+    setAmount("");
+    setPaymentDetails({});
     setOtpCode("");
+    setVerificationId(null);
+  };
+
+  const handleBack = () => {
+    if (step === "verify_otp") {
+      setStep("enter_details");
+      setOtpCode("");
+    } else if (step === "enter_details") {
+      setStep("select_method");
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
       <DialogTrigger asChild>
         <Button variant="secondary">Retirer</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        {step === 1 ? (
-          <form onSubmit={handleStep1Submit}>
-            <DialogHeader>
-              <DialogTitle>Effectuer un retrait</DialogTitle>
-              <DialogDescription>
-                Retirez vos profits vers votre compte crypto ou mobile money
-              </DialogDescription>
-            </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          {step !== 'select_method' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4 h-auto p-1"
+              onClick={handleBack}
+              disabled={requestOTPMutation.isPending || verifyOTPMutation.isPending}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <DialogTitle>Effectuer un retrait</DialogTitle>
+          <DialogDescription>
+            {step === 'select_method' && "Choisissez une méthode de retrait parmi les options disponibles."}
+            {step === 'enter_details' && "Entrez le montant et les détails du retrait."}
+            {step === 'verify_otp' && `Un code de vérification a été envoyé à votre email. Veuillez le saisir ci-dessous pour confirmer votre retrait de ${amount} USD.`}
+          </DialogDescription>
+        </DialogHeader>
 
-            {/* Solde disponible - Card mise en évidence */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 my-4">
-              <p className="text-sm text-gray-600 mb-1">Profits disponibles</p>
-              <p className="text-3xl font-bold text-purple-700">{profitBalance.toFixed(2)} USD</p>
+        {/* Solde disponible - Toujours visible */}
+        {step !== 'verify_otp' && (
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 my-4">
+            <p className="text-sm text-gray-600 mb-1">Profits disponibles</p>
+            <p className="text-3xl font-bold text-purple-700">{profitBalance.toFixed(2)} USD</p>
+          </div>
+        )}
+
+        {!hasSufficientBalance && step !== 'verify_otp' && (
+          <Alert className="bg-yellow-50 border-yellow-200 mb-4">
+            <Info className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              <strong>Solde insuffisant</strong><br />
+              Votre solde de profits est inférieur au montant minimum de retrait ({minWithdrawal} USD).
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Step 1: Sélection de la méthode */}
+        {step === 'select_method' && (
+          <div className="py-4">
+            <DynamicPaymentMethodSelector
+              type="withdrawal"
+              onSelect={handleMethodSelect}
+            />
+          </div>
+        )}
+
+        {/* Step 2: Saisie des détails + montant */}
+        {step === 'enter_details' && selectedMethod && (
+          <div className="py-4 space-y-4">
+            {/* Méthode sélectionnée */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Méthode: </span>
+                <span className="font-semibold">{selectedMethod.name}</span>
+              </div>
             </div>
 
-            {!hasSufficientBalance && (
-              <Alert className="bg-yellow-50 border-yellow-200 mb-4">
-                <Info className="h-4 w-4 text-yellow-600" />
-                <AlertDescription className="text-yellow-800">
-                  <strong>Solde insuffisant</strong><br />
-                  Votre solde de profits est inférieur au montant minimum de retrait ({minWithdrawal} USD).
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Champ montant */}
+            <div className="space-y-2">
+              <label htmlFor="amount" className="text-sm font-medium">
+                Montant à retirer (USD)
+                {selectedMethod.min_amount && (
+                  <span className="text-muted-foreground ml-2">
+                    (Min: {selectedMethod.min_amount} USD)
+                  </span>
+                )}
+              </label>
+              <input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`Min: ${minWithdrawal} USD`}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                required
+                disabled={requestOTPMutation.isPending || !hasSufficientBalance}
+              />
+            </div>
 
-            {/* Calcul des frais en temps réel */}
-            {amount && Number(amount) > 0 && hasSufficientBalance && (
-              <Alert className="bg-blue-50 border-blue-200 mb-4">
+            {/* Résumé des frais */}
+            {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
+              <Alert className="bg-blue-50 border-blue-200">
                 <Info className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span>Montant demandé :</span>
-                      <span className="font-medium">{Number(amount).toFixed(2)} USD</span>
+                      <span className="font-medium">{parseFloat(amount).toFixed(2)} USD</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Frais de retrait ({feePercent}% + {feeFixed} USD) :</span>
-                      <span className="font-medium text-red-600">- {calculateFee(Number(amount)).toFixed(2)} USD</span>
+                      <span className="font-medium text-red-600">- {calculateFee(parseFloat(amount)).toFixed(2)} USD</span>
                     </div>
                     <div className="border-t border-blue-300 pt-1 mt-1"></div>
                     <div className="flex justify-between">
                       <span className="font-semibold">Vous recevrez :</span>
-                      <span className="font-bold text-green-700 text-lg">{(Number(amount) - calculateFee(Number(amount))).toFixed(2)} USD</span>
+                      <span className="font-bold text-green-700 text-lg">{(parseFloat(amount) - calculateFee(parseFloat(amount))).toFixed(2)} USD</span>
                     </div>
                   </div>
                 </AlertDescription>
               </Alert>
             )}
 
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Montant à retirer (USD)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder={`Min: ${minWithdrawal} USD`}
-                  required
-                  disabled={requestOTPMutation.isPending || !hasSufficientBalance}
-                />
-              </div>
+            {/* Formulaire dynamique pour les champs de paiement */}
+            <div className="space-y-4">
+              {selectedMethod.fields
+                ?.filter(f => f.is_user_input)
+                // Pour les RETRAITS : afficher UNIQUEMENT les champs de réception (recipient_*)
+                // Exclure tous les champs de dépôt (sender_*, transaction_*, proof_*)
+                .filter(f => {
+                  // Exclure tous les champs de type 'file'
+                  if (f.field_type === 'file') return false;
 
-              <div className="space-y-2">
-                <Label htmlFor="paymentMethod">Moyen de paiement</Label>
-                <Select onValueChange={(value: "crypto" | "mobile_money") => setPaymentMethod(value)} value={paymentMethod} disabled={requestOTPMutation.isPending || !hasSufficientBalance}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un moyen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="crypto">💰 Crypto (USDT TRC20)</SelectItem>
-                    <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  // Garder UNIQUEMENT les champs qui commencent par 'recipient_'
+                  return f.field_key.startsWith('recipient_');
+                })
+                .map((field) => (
+                  <div key={field.id} className="space-y-2">
+                    <label htmlFor={field.field_key} className="text-sm font-medium">
+                      {field.field_label}
+                      {field.is_required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    <input
+                      id={field.field_key}
+                      type={field.field_type}
+                      placeholder={field.field_placeholder || ''}
+                      required={field.is_required}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={(e) => setPaymentDetails(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+                      value={paymentDetails[field.field_key] || ''}
+                      disabled={requestOTPMutation.isPending}
+                    />
+                    {field.help_text && (
+                      <p className="text-xs text-muted-foreground">{field.help_text}</p>
+                    )}
+                  </div>
+                ))}
 
-              {paymentMethod && (
-                <div className="space-y-2">
-                  <Label htmlFor="paymentDetails">
-                    {paymentMethod === "crypto" ? "Adresse de réception USDT (TRC20)" : "Numéro Mobile Money"}
-                  </Label>
-                  <Input
-                    id="paymentDetails"
-                    value={paymentDetails}
-                    onChange={(e) => setPaymentDetails(e.target.value)}
-                    required
-                    disabled={requestOTPMutation.isPending || !hasSufficientBalance}
-                    placeholder={paymentMethod === "crypto" ? "TXXXxxxXXXxxxXXXxxxXXXxxxXXXxxx" : "+243 812 345 678"}
-                  />
-                  <p className="text-xs text-gray-500">
-                    {paymentMethod === "crypto"
-                      ? "L'adresse doit commencer par 'T' et contenir 34 caractères"
-                      : "Format international requis (ex: +243812345678)"}
-                  </p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={requestOTPMutation.isPending || !paymentMethod || !paymentDetails || !hasSufficientBalance} className="w-full">
+              <Button
+                type="button"
+                onClick={() => handleDetailsSubmit(paymentDetails)}
+                disabled={requestOTPMutation.isPending || !amount || parseFloat(amount) <= 0 || !hasSufficientBalance}
+                className="w-full"
+              >
                 {requestOTPMutation.isPending ? "Envoi en cours..." : "Recevoir le code de vérification"}
               </Button>
-            </DialogFooter>
-          </form>
-        ) : (
-          <form onSubmit={handleStep2Submit}>
-            <DialogHeader>
-              <DialogTitle>Vérification de retrait</DialogTitle>
-              <DialogDescription>
-                Un code de vérification a été envoyé à votre email. Veuillez le saisir ci-dessous pour confirmer votre retrait de {amount} USD.
-              </DialogDescription>
-            </DialogHeader>
+            </div>
+          </div>
+        )}
 
+        {/* Step 3: Vérification OTP */}
+        {step === 'verify_otp' && (
+          <form onSubmit={handleOTPSubmit}>
             <Alert className="bg-yellow-50 border-yellow-200 my-4">
               <Info className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
@@ -360,13 +333,13 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
 
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="otpCode" className="text-right">Code OTP</Label>
-                <Input
+                <label htmlFor="otpCode" className="text-right text-sm font-medium">Code OTP</label>
+                <input
                   id="otpCode"
                   type="text"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   required
                   disabled={verifyOTPMutation.isPending}
                   placeholder="123456"
@@ -375,10 +348,7 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
               </div>
             </div>
             <DialogFooter className="flex justify-between">
-              <Button type="button" variant="outline" onClick={handleBack} disabled={verifyOTPMutation.isPending}>
-                Retour
-              </Button>
-              <Button type="submit" disabled={verifyOTPMutation.isPending || otpCode.length !== 6}>
+              <Button type="submit" disabled={verifyOTPMutation.isPending || otpCode.length !== 6} className="w-full">
                 {verifyOTPMutation.isPending ? "Vérification..." : "Confirmer le retrait"}
               </Button>
             </DialogFooter>

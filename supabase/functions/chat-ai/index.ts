@@ -193,8 +193,12 @@ serve(async (req) => {
             .map((doc: any) => `**${doc.title}**\\n${doc.content}`)
             .join('\\n\\n---\\n\\n')
 
+        const role = message.toLowerCase().includes('qui es-tu') || message.toLowerCase().includes('qui êtes-vous')
+            ? 'l\\'assistant virtuel de Nguma'
+            : 'un conseiller';
+
         // 5. Générer une réponse naturelle avec Gemini (avec contexte enrichi)
-        const prompt = `Tu es ${message.toLowerCase().includes('qui es-tu') || message.toLowerCase().includes('qui êtes-vous') ? 'l\\'assistant virtuel de Nguma' : 'un conseiller'} chez Nguma, une plateforme d'investissement fiable.
+        const prompt = `Tu es ${role} chez Nguma, une plateforme d'investissement fiable.
             ${ userContext }
 
 ** Informations disponibles:**

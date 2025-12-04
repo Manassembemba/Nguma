@@ -18,14 +18,12 @@ interface Props {
 }
 
 export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = false }: Props) => {
-    const [formData, setFormData] = useState<Record<string, any>>({});
-    const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
+    const [proofUrl, setProofUrl] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const { toast } = useToast();
 
     const adminFields = method.fields?.filter(f => !f.is_user_input) || [];
-    const userFields = method.fields?.filter(f => f.is_user_input) || [];
 
     const copyToClipboard = (text: string, fieldKey: string) => {
         navigator.clipboard.writeText(text);
@@ -34,7 +32,7 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
         setTimeout(() => setCopiedField(null), 2000);
     };
 
-    const handleFileUpload = async (fieldKey: string, file: File) => {
+    const handleFileUpload = async (file: File) => {
         setIsUploading(true);
         try {
             const fileExt = file.name.split('.').pop();
@@ -57,8 +55,7 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
                 .from('payment_proofs')
                 .getPublicUrl(fileName);
 
-            setUploadedFiles(prev => ({ ...prev, [fieldKey]: publicUrl }));
-            setFormData(prev => ({ ...prev, [fieldKey]: publicUrl }));
+            setProofUrl(publicUrl);
 
             toast({
                 title: "✅ Fichier uploadé",
@@ -78,98 +75,17 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validation des champs requis
-        const missingFields = userFields
-            .filter(f => f.is_required && !formData[f.field_key])
-            .map(f => f.field_label);
-
-        if (missingFields.length > 0) {
+        // Vérifier que la preuve a été uploadée
+        if (!proofUrl) {
             toast({
                 variant: "destructive",
-                title: "❌ Champs manquants",
-                description: `Veuillez remplir: ${missingFields.join(', ')}`
+                title: "❌ Preuve requise",
+                description: "Veuillez uploader une preuve de paiement."
             });
             return;
         }
 
-        // Validation regex si définie
-        for (const field of userFields) {
-            if (field.validation_regex && formData[field.field_key]) {
-                const regex = new RegExp(field.validation_regex);
-                if (!regex.test(formData[field.field_key])) {
-                    toast({
-                        variant: "destructive",
-                        title: "❌ Format invalide",
-                        description: field.validation_message || `Le format de "${field.field_label}" est invalide.`
-                    });
-                    return;
-                }
-            }
-        }
-
-        onSubmit(formData);
-    };
-
-    const renderField = (field: PaymentMethodField) => {
-        switch (field.field_type) {
-            case 'text':
-            case 'tel':
-            case 'email':
-            case 'number':
-                return (
-                    <Input
-                        type={field.field_type}
-                        value={formData[field.field_key] || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [field.field_key]: e.target.value }))}
-                        placeholder={field.field_placeholder}
-                        required={field.is_required}
-                        disabled={isSubmitting}
-                    />
-                );
-
-            case 'textarea':
-                return (
-                    <Textarea
-                        value={formData[field.field_key] || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [field.field_key]: e.target.value }))}
-                        placeholder={field.field_placeholder}
-                        required={field.is_required}
-                        disabled={isSubmitting}
-                        rows={3}
-                    />
-                );
-
-            case 'file':
-                return (
-                    <div className="space-y-2">
-                        <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUpload(field.field_key, file);
-                            }}
-                            required={field.is_required && !uploadedFiles[field.field_key]}
-                            disabled={isSubmitting || isUploading}
-                            className="cursor-pointer"
-                        />
-                        {uploadedFiles[field.field_key] && (
-                            <div className="flex items-center gap-2 text-sm text-green-600">
-                                <Check className="h-4 w-4" />
-                                <span>Fichier uploadé avec succès</span>
-                            </div>
-                        )}
-                        {isUploading && (
-                            <div className="text-sm text-muted-foreground">
-                                Upload en cours...
-                            </div>
-                        )}
-                    </div>
-                );
-
-            default:
-                return null;
-        }
+        onSubmit({ proof_url: proofUrl });
     };
 
     return (
@@ -219,29 +135,38 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
                 </Card>
             )}
 
-            {/* Champs utilisateur */}
-            {userFields.length > 0 && (
-                <div className="space-y-4">
-                    <div className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                        Vos informations
+            {/* Preuve de paiement */}
+            <div className="space-y-2">
+                <Label htmlFor="proof" className="text-sm font-medium">
+                    Preuve de paiement <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                    id="proof"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                    }}
+                    disabled={isSubmitting || isUploading}
+                    className="cursor-pointer"
+                />
+                {proofUrl && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                        <Check className="h-4 w-4" />
+                        <span>Fichier uploadé avec succès</span>
                     </div>
-                    {userFields.map(field => (
-                        <div key={field.id} className="space-y-2">
-                            <Label htmlFor={field.field_key} className="text-sm font-medium">
-                                {field.field_label}
-                                {field.is_required && <span className="text-destructive ml-1">*</span>}
-                            </Label>
-                            {renderField(field)}
-                            {field.help_text && (
-                                <p className="text-xs text-muted-foreground flex items-start gap-1">
-                                    <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                    <span>{field.help_text}</span>
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
+                )}
+                {isUploading && (
+                    <div className="text-sm text-muted-foreground">
+                        Upload en cours...
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>Téléchargez une capture d'écran ou une photo de votre transaction</span>
+                </p>
+            </div>
 
             {/* Montant (lecture seule) */}
             <div className="space-y-2">

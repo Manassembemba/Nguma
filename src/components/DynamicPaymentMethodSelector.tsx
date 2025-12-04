@@ -120,7 +120,7 @@ export const DynamicPaymentMethodSelector = ({ onSelect, type }: Props) => {
                                                     ⏱️ {method.processing_time}
                                                 </Badge>
                                             )}
-                                            {method.requires_proof && (
+                                            {method.requires_proof && type === 'deposit' && (
                                                 <Badge variant="outline" className="text-xs">
                                                     📸 Preuve requise
                                                 </Badge>

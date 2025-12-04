@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 /**
  * Request OTP code for withdrawal verification
  */
-export const requestWithdrawalOTP = async (amount: number, method: "crypto" | "mobile_money", details: string) => {
+export const requestWithdrawalOTP = async (amount: number, method: string, details: Record<string, any>) => {
     const { data, error } = await supabase.rpc('request_withdrawal_otp', {
-        p_amount: amount,
-        p_method: method,
-        p_payment_details: details
+        amount: amount,
+        method: method,
+        payment_details: details
     } as any);
 
     if (error) throw new Error(error.message);

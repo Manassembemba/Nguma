@@ -4,19 +4,22 @@ import { Resend } from "https://esm.sh/resend@3.2.0";
 // --- TYPES & INTERFACES (Pour la robustesse) ---
 
 interface EmailParams {
-    to: string;
-    name: string;
-    amount?: number;
-    reason?: string;
-    otp_code?: string;
-    email?: string; // Pour les notifs admin
+  to: string;
+  name: string;
+  amount?: number;
+  reason?: string;
+  otp_code?: string;
+  email?: string; // Pour les notifs admin
+  method?: string; // Méthode de paiement
+  proof_url?: string; // URL de la preuve de transfert
+  date?: string; // Date formatée
 }
 
 interface TemplateData {
-    subject: string;
-    text: string;
-    body: string;
-    previewText: string; // Texte invisible qui s'affiche sous l'objet dans Gmail
+  subject: string;
+  text: string;
+  body: string;
+  previewText: string; // Texte invisible qui s'affiche sous l'objet dans Gmail
 }
 
 // --- CONFIGURATION ---
@@ -30,42 +33,42 @@ const resend = new Resend(RESEND_API_KEY);
 // --- HELPERS ---
 
 const formatCurrency = (amount?: number): string => {
-    if (amount === undefined || amount === null) return "0,00 $";
-    return new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2
-    }).format(amount);
+  if (amount === undefined || amount === null) return "0,00 $";
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(amount);
 };
 
 const escapeHtml = (unsafe: string | undefined): string => {
-    if (!unsafe) return '';
-    return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 };
 
 const formatDate = (): string => {
-    return new Date().toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    });
+  return new Date().toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 };
 
 // --- TEMPLATES (Optimisés Anti-Spam) ---
 
 const templates: Record<string, (p: EmailParams) => TemplateData> = {
 
-    // 1. Dépôt Approuvé
-    deposit_approved: (p) => ({
-        subject: `Crédit confirmé sur votre compte`, // Moins agressif que "Statut dépôt"
-        previewText: `Les fonds de ${formatCurrency(p.amount)} sont disponibles.`,
-        text: `Bonjour ${p.name}, votre dépôt de ${formatCurrency(p.amount)} est confirmé.`,
-        body: `
+  // 1. Dépôt Approuvé
+  deposit_approved: (p) => ({
+    subject: `Crédit confirmé sur votre compte`, // Moins agressif que "Statut dépôt"
+    previewText: `Les fonds de ${formatCurrency(p.amount)} sont disponibles.`,
+    text: `Bonjour ${p.name}, votre dépôt de ${formatCurrency(p.amount)} est confirmé.`,
+    body: `
       <div class="status-badge success">Opération validée</div>
       <h2>Fonds disponibles</h2>
       <p class="lead">Votre transaction récente a été traitée avec succès. Le montant a été crédité sur votre balance.</p>
@@ -78,14 +81,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
       </div>
       <div class="cta-buttons"><a href="${SITE_URL}/wallet" class="btn btn-primary">Consulter mon solde</a></div>
     `
-    }),
+  }),
 
-    // 2. Dépôt Rejeté
-    deposit_rejected: (p) => ({
-        subject: `Mise à jour concernant votre transaction`, // Neutre
-        previewText: `Nous ne pouvons pas valider votre opération de ${formatCurrency(p.amount)}.`,
-        text: `Bonjour ${p.name}, votre transaction n'a pas pu aboutir.`,
-        body: `
+  // 2. Dépôt Rejeté
+  deposit_rejected: (p) => ({
+    subject: `Mise à jour concernant votre transaction`, // Neutre
+    previewText: `Nous ne pouvons pas valider votre opération de ${formatCurrency(p.amount)}.`,
+    text: `Bonjour ${p.name}, votre transaction n'a pas pu aboutir.`,
+    body: `
       <div class="status-badge error">Opération non aboutie</div>
       <h2>Information importante</h2>
       <p class="lead">Nous avons analysé votre demande de dépôt. Pour des raisons de sécurité ou de conformité, elle n'a pas pu être validée.</p>
@@ -97,14 +100,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
       </div>
       <div class="cta-buttons"><a href="${SITE_URL}/support" class="btn btn-primary">Contacter le support</a></div>
     `
-    }),
+  }),
 
-    // 3. Dépôt En Attente
-    deposit_pending: (p) => ({
-        subject: `Réception de votre demande`,
-        previewText: `Votre demande de ${formatCurrency(p.amount)} est en cours d'analyse.`,
-        text: `Bonjour ${p.name}, nous analysons votre demande.`,
-        body: `
+  // 3. Dépôt En Attente
+  deposit_pending: (p) => ({
+    subject: `Réception de votre demande`,
+    previewText: `Votre demande de ${formatCurrency(p.amount)} est en cours d'analyse.`,
+    text: `Bonjour ${p.name}, nous analysons votre demande.`,
+    body: `
       <div class="status-badge info">En cours de traitement</div>
       <h2>Demande reçue</h2>
       <p class="lead">Nous avons bien reçu les détails de votre transaction. Nos services procèdent actuellement aux vérifications d'usage.</p>
@@ -115,14 +118,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
         </table>
       </div>
     `
-    }),
+  }),
 
-    // 4. Retrait Approuvé
-    withdrawal_approved: (p) => ({
-        subject: `Validation de votre transfert sortant`,
-        previewText: `Le retrait de ${formatCurrency(p.amount)} a été approuvé.`,
-        text: `Bonjour ${p.name}, votre retrait est validé.`,
-        body: `
+  // 4. Retrait Approuvé
+  withdrawal_approved: (p) => ({
+    subject: `Validation de votre transfert sortant`,
+    previewText: `Le retrait de ${formatCurrency(p.amount)} a été approuvé.`,
+    text: `Bonjour ${p.name}, votre retrait est validé.`,
+    body: `
       <div class="status-badge success">Transfert validé</div>
       <h2>Opération confirmée</h2>
       <p class="lead">Votre demande de retrait a été validée par nos services financiers. Les fonds sont en route vers votre compte de destination.</p>
@@ -133,14 +136,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
         </table>
       </div>
     `
-    }),
+  }),
 
-    // 5. Retrait Rejeté
-    withdrawal_rejected: (p) => ({
-        subject: `Information sur votre demande de retrait`,
-        previewText: `Impossible de traiter le retrait de ${formatCurrency(p.amount)}.`,
-        text: `Bonjour ${p.name}, votre retrait n'a pas pu être traité.`,
-        body: `
+  // 5. Retrait Rejeté
+  withdrawal_rejected: (p) => ({
+    subject: `Information sur votre demande de retrait`,
+    previewText: `Impossible de traiter le retrait de ${formatCurrency(p.amount)}.`,
+    text: `Bonjour ${p.name}, votre retrait n'a pas pu être traité.`,
+    body: `
       <div class="status-badge error">Transfert annulé</div>
       <h2>Action requise</h2>
       <p class="lead">Votre demande de retrait n'a pas pu être finalisée. Aucun montant n'a été débité de votre solde.</p>
@@ -151,14 +154,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
         </table>
       </div>
     `
-    }),
+  }),
 
-    // 6. Retrait En Attente
-    withdrawal_pending: (p) => ({
-        subject: `Demande de retrait enregistrée`,
-        previewText: `Confirmation de votre demande de ${formatCurrency(p.amount)}.`,
-        text: `Bonjour ${p.name}, votre demande est enregistrée.`,
-        body: `
+  // 6. Retrait En Attente
+  withdrawal_pending: (p) => ({
+    subject: `Demande de retrait enregistrée`,
+    previewText: `Confirmation de votre demande de ${formatCurrency(p.amount)}.`,
+    text: `Bonjour ${p.name}, votre demande est enregistrée.`,
+    body: `
       <div class="status-badge info">Vérification en cours</div>
       <h2>Demande enregistrée</h2>
       <p class="lead">Vous avez initié une demande de retrait. Pour votre sécurité, notre équipe va valider cette opération manuellement.</p>
@@ -169,14 +172,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
         </table>
       </div>
     `
-    }),
+  }),
 
-    // 7. Profit Mensuel (ATTENTION SPAM : Vocabulaire changé)
-    monthly_profit: (p) => ({
-        subject: `Relevé mensuel : Nouveau crédit`, // "Profit" supprimé du sujet
-        previewText: `Un montant de ${formatCurrency(p.amount)} a été ajouté à votre solde.`,
-        text: `Bonjour ${p.name}, votre solde a été mis à jour.`,
-        body: `
+  // 7. Profit Mensuel (ATTENTION SPAM : Vocabulaire changé)
+  monthly_profit: (p) => ({
+    subject: `Relevé mensuel : Nouveau crédit`, // "Profit" supprimé du sujet
+    previewText: `Un montant de ${formatCurrency(p.amount)} a été ajouté à votre solde.`,
+    text: `Bonjour ${p.name}, votre solde a été mis à jour.`,
+    body: `
       <div class="status-badge success">Solde mis à jour</div>
       <h2>Relevé mensuel</h2>
       <p class="lead">Le rendement mensuel de votre plan actif a été crédité sur votre compte.</p>
@@ -189,14 +192,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
       </div>
       <div class="cta-buttons"><a href="${SITE_URL}/wallet" class="btn btn-primary">Voir mon tableau de bord</a></div>
     `
-    }),
+  }),
 
-    // 8. Nouvel Investissement (Vocabulaire "Contrat" préféré à "Investissement")
-    new_investment: (p) => ({
-        subject: `Confirmation d'activation de contrat`,
-        previewText: `Votre plan de ${formatCurrency(p.amount)} est maintenant actif.`,
-        text: `Félicitations ${p.name}, votre contrat est actif.`,
-        body: `
+  // 8. Nouvel Investissement (Vocabulaire "Contrat" préféré à "Investissement")
+  new_investment: (p) => ({
+    subject: `Confirmation d'activation de contrat`,
+    previewText: `Votre plan de ${formatCurrency(p.amount)} est maintenant actif.`,
+    text: `Félicitations ${p.name}, votre contrat est actif.`,
+    body: `
       <div class="status-badge success">Contrat Actif</div>
       <h2>Activation confirmée</h2>
       <p class="lead">Votre souscription a bien été prise en compte. Votre capital commence à travailler dès aujourd'hui selon les termes prévus.</p>
@@ -209,14 +212,14 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
       </div>
       <div class="cta-buttons"><a href="${SITE_URL}/dashboard" class="btn btn-primary">Gérer mon contrat</a></div>
     `
-    }),
+  }),
 
-    // 9. OTP Code (Sécurité)
-    withdrawal_otp: (p) => ({
-        subject: `Code de vérification`,
-        previewText: `Votre code de sécurité est ${p.otp_code}.`,
-        text: `Votre code est ${p.otp_code}.`,
-        body: `
+  // 9. OTP Code (Sécurité)
+  withdrawal_otp: (p) => ({
+    subject: `Code de vérification`,
+    previewText: `Votre code de sécurité est ${p.otp_code}.`,
+    text: `Votre code est ${p.otp_code}.`,
+    body: `
       <div class="status-badge info">Sécurité</div>
       <h2>Vérification d'identité</h2>
       <p class="lead">Vous avez initié un retrait de <strong>${formatCurrency(p.amount)}</strong>. Utilisez ce code unique pour valider l'opération.</p>
@@ -228,29 +231,72 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
       
       <p style="font-size: 12px; color: #666;">Si vous n'êtes pas à l'origine de cette demande, changez immédiatement votre mot de passe.</p>
     `
-    }),
+  }),
 
-    // 10. Admin Notifications (Simplifié)
-    new_deposit_request: (p) => ({
-        subject: `[ADMIN] Nouveau Dépôt : ${formatCurrency(p.amount)}`,
-        previewText: `Utilisateur : ${p.name}`,
-        text: `Nouveau dépôt à valider.`,
-        body: `<h2>Admin : Nouveau Dépôt</h2><p>Utilisateur: ${escapeHtml(p.email)}<br>Montant: <strong>${formatCurrency(p.amount)}</strong></p><a href="${SITE_URL}/admin/deposits" class="btn btn-primary">Traiter</a>`
-    }),
+  // 10. Admin Notifications (Simplifié)
+  new_deposit_request: (p) => ({
+    subject: `[ADMIN] Nouveau Dépôt : ${formatCurrency(p.amount)}`,
+    previewText: `Utilisateur : ${p.name}`,
+    text: `Nouveau dépôt à valider.`,
+    body: `<h2>Admin : Nouveau Dépôt</h2><p>Utilisateur: ${escapeHtml(p.email)}<br>Montant: <strong>${formatCurrency(p.amount)}</strong></p><a href="${SITE_URL}/admin/deposits" class="btn btn-primary">Traiter</a>`
+  }),
 
-    new_withdrawal_request: (p) => ({
-        subject: `[ADMIN] Nouveau Retrait : ${formatCurrency(p.amount)}`,
-        previewText: `Utilisateur : ${p.name}`,
-        text: `Nouveau retrait à valider.`,
-        body: `<h2>Admin : Nouveau Retrait</h2><p>Utilisateur: ${escapeHtml(p.email)}<br>Montant: <strong>${formatCurrency(p.amount)}</strong></p><a href="${SITE_URL}/admin/withdrawals" class="btn btn-primary">Traiter</a>`
-    }),
+  new_withdrawal_request: (p) => ({
+    subject: `[ADMIN] Nouveau Retrait : ${formatCurrency(p.amount)}`,
+    previewText: `Utilisateur : ${p.name}`,
+    text: `Nouveau retrait à valider.`,
+    body: `<h2>Admin : Nouveau Retrait</h2><p>Utilisateur: ${escapeHtml(p.email)}<br>Montant: <strong>${formatCurrency(p.amount)}</strong></p><a href="${SITE_URL}/admin/withdrawals" class="btn btn-primary">Traiter</a>`
+  }),
 
-    // 11. Test Template for Mail Tester
-    test_mail_tester: (p) => ({
-        subject: `Email de Test pour Nguma`,
-        previewText: `Ceci est un test de délivrabilité.`,
-        text: `Bonjour ${p.name}, ceci est un e-mail de test envoyé depuis le système Nguma pour vérifier la configuration de l'envoi.`,
-        body: `
+  // 12. Retrait Approuvé avec Preuve (OBLIGATOIRE)
+  withdrawal_approved_with_proof: (p) => ({
+    subject: `Confirmation de transfert - ${formatCurrency(p.amount)}`,
+    previewText: `Votre retrait a été transféré. Preuve jointe.`,
+    text: `Bonjour ${p.name}, votre retrait de ${formatCurrency(p.amount)} a été transféré. Preuve disponible : ${p.proof_url}`,
+    body: `
+      <div class="status-badge success">Transfert Effectué ✅</div>
+      <h2>Opération Confirmée</h2>
+      <p class="lead">Votre demande de retrait a été approuvée et transférée vers votre compte. Vous trouverez ci-dessous la preuve officielle du transfert.</p>
+      
+      <div class="info-card success-card">
+        <h3 style="margin-top:0;">📋 Détails du Transfert</h3>
+        <table class="info-table">
+          <tr><td>Méthode :</td><td><strong>${escapeHtml(p.method || 'N/A')}</strong></td></tr>
+          <tr><td>Montant net :</td><td class="amount-success">${formatCurrency(p.amount)}</td></tr>
+          <tr><td>Date :</td><td>${p.date || formatDate()}</td></tr>
+          <tr><td>Statut :</td><td style="color:#059669;">✓ Envoyé</td></tr>
+        </table>
+      </div>
+
+      <div class="info-card" style="margin-top: 30px; background: #F0FDF4; border-color: #BBF7D0;">
+        <h3 style="margin-top:0; color: #059669;">📑 Preuve de Transfert</h3>
+        <p>Voici la confirmation officielle de votre transfert :</p>
+        <div style="text-align: center; margin: 20px 0; background: white; padding: 15px; border-radius: 8px;">
+          <img src="${p.proof_url}" alt="Preuve de transfert" 
+               style="max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #D1FAE5; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+        </div>
+        <div class="cta-buttons">
+          <a href="${p.proof_url}" download class="btn btn-primary" style="background-color: #059669;">
+            📥 Télécharger la preuve
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #059669; margin-top: 15px; text-align: center;">
+          💡 Conservez cette preuve pour vos archives personnelles.
+        </p>
+      </div>
+      
+      <div class="cta-buttons" style="margin-top: 30px;">
+        <a href="${SITE_URL}/wallet" class="btn btn-primary">Voir mon historique</a>
+      </div>
+    `
+  }),
+
+  // 11. Test Template for Mail Tester
+  test_mail_tester: (p) => ({
+    subject: `Email de Test pour Nguma`,
+    previewText: `Ceci est un test de délivrabilité.`,
+    text: `Bonjour ${p.name}, ceci est un e-mail de test envoyé depuis le système Nguma pour vérifier la configuration de l'envoi.`,
+    body: `
       <div class="status-badge info">Test Technique</div>
       <h2>Vérification du système d'envoi</h2>
       <p class="lead">Cet e-mail a été envoyé pour vérifier la configuration du serveur (SPF, DKIM, DMARC) et la qualité du template HTML.</p>
@@ -259,21 +305,21 @@ const templates: Record<string, (p: EmailParams) => TemplateData> = {
         <p>Merci de vérifier le score sur mail-tester.com.</p>
       </div>
     `
-    })
+  })
 };
 
 // --- HTML GENERATOR (CSS Inliné + Preheader) ---
 
 function generateEmailHtml(content: string, previewText: string): string {
-    // Le "Preheader" est une astuce pour afficher du texte dans la liste des emails sans l'afficher dans le corps
-    const preheaderHtml = `
+  // Le "Preheader" est une astuce pour afficher du texte dans la liste des emails sans l'afficher dans le corps
+  const preheaderHtml = `
     <span style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
       ${previewText}
       &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
     </span>
   `;
 
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -339,87 +385,87 @@ function generateEmailHtml(content: string, previewText: string): string {
 // --- SERVER HANDLER ---
 
 serve(async (req) => {
-    // 1. CORS Pre-flight
-    if (req.method === "OPTIONS") {
-        return new Response("ok", {
-            headers: {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-            },
-        });
+  // 1. CORS Pre-flight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      },
+    });
+  }
+
+  // 2. Env check
+  if (!RESEND_API_KEY) {
+    console.error("CRITICAL: RESEND_API_KEY is missing");
+    return new Response(JSON.stringify({ error: "Server configuration error" }), {
+      status: 500, headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  try {
+    // 3. Parse Body
+    const payload = await req.json();
+    const { template_id, ...params } = payload;
+    const emailParams = params as EmailParams; // Type casting
+
+    // 4. Validation
+    if (!emailParams.to || !emailParams.name || !template_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields (to, name, template_id)" }), {
+        status: 400, headers: { "Content-Type": "application/json" }
+      });
     }
 
-    // 2. Env check
-    if (!RESEND_API_KEY) {
-        console.error("CRITICAL: RESEND_API_KEY is missing");
-        return new Response(JSON.stringify({ error: "Server configuration error" }), {
-            status: 500, headers: { "Content-Type": "application/json" }
-        });
+    // 5. Template Lookup
+    const renderTemplate = templates[template_id];
+    if (!renderTemplate) {
+      return new Response(JSON.stringify({ error: `Invalid template_id: ${template_id}` }), {
+        status: 404, headers: { "Content-Type": "application/json" }
+      });
     }
 
-    try {
-        // 3. Parse Body
-        const payload = await req.json();
-        const { template_id, ...params } = payload;
-        const emailParams = params as EmailParams; // Type casting
+    // 6. Generate Content
+    const { subject, body, text, previewText } = renderTemplate(emailParams);
+    const html = generateEmailHtml(body, previewText);
 
-        // 4. Validation
-        if (!emailParams.to || !emailParams.name || !template_id) {
-            return new Response(JSON.stringify({ error: "Missing required fields (to, name, template_id)" }), {
-                status: 400, headers: { "Content-Type": "application/json" }
-            });
-        }
+    // 7. Send via Resend
+    // Important: Utiliser un sous-domaine si possible (ex: updates@notifications.nguma.org)
+    // Si RESEND_FROM_DOMAIN est vide, fallback sur une valeur sûre
+    const domain = RESEND_FROM_DOMAIN || "nguma.org";
+    const fromAddress = `Nguma <notifications@${domain}>`;
 
-        // 5. Template Lookup
-        const renderTemplate = templates[template_id];
-        if (!renderTemplate) {
-            return new Response(JSON.stringify({ error: `Invalid template_id: ${template_id}` }), {
-                status: 404, headers: { "Content-Type": "application/json" }
-            });
-        }
+    const { data, error } = await resend.emails.send({
+      from: fromAddress,
+      to: [emailParams.to],
+      reply_to: `support@${domain}`,
+      subject: subject,
+      html: html,
+      text: text, // Version texte brut importante pour l'anti-spam
+      tags: [
+        { name: 'category', value: template_id }, // Utile pour les analytics Resend
+        { name: 'app', value: 'nguma' }
+      ],
+      headers: {
+        'List-Unsubscribe': `<${SITE_URL}/settings/notifications>`, // Critique pour Gmail
+        'X-Entity-Ref-ID': crypto.randomUUID()
+      }
+    });
 
-        // 6. Generate Content
-        const { subject, body, text, previewText } = renderTemplate(emailParams);
-        const html = generateEmailHtml(body, previewText);
-
-        // 7. Send via Resend
-        // Important: Utiliser un sous-domaine si possible (ex: updates@notifications.nguma.org)
-        // Si RESEND_FROM_DOMAIN est vide, fallback sur une valeur sûre
-        const domain = RESEND_FROM_DOMAIN || "nguma.org";
-        const fromAddress = `Nguma <notifications@${domain}>`;
-
-        const { data, error } = await resend.emails.send({
-            from: fromAddress,
-            to: [emailParams.to],
-            reply_to: `support@${domain}`,
-            subject: subject,
-            html: html,
-            text: text, // Version texte brut importante pour l'anti-spam
-            tags: [
-                { name: 'category', value: template_id }, // Utile pour les analytics Resend
-                { name: 'app', value: 'nguma' }
-            ],
-            headers: {
-                'List-Unsubscribe': `<${SITE_URL}/settings/notifications>`, // Critique pour Gmail
-                'X-Entity-Ref-ID': crypto.randomUUID()
-            }
-        });
-
-        if (error) {
-            console.error("Resend Error:", error);
-            return new Response(JSON.stringify({ error: error.message }), {
-                status: 500, headers: { "Content-Type": "application/json" }
-            });
-        }
-
-        return new Response(JSON.stringify(data), {
-            status: 200, headers: { "Content-Type": "application/json" }
-        });
-
-    } catch (e: any) {
-        console.error("Worker Error:", e);
-        return new Response(JSON.stringify({ error: e.message || "Internal Server Error" }), {
-            status: 500, headers: { "Content-Type": "application/json" }
-        });
+    if (error) {
+      console.error("Resend Error:", error);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500, headers: { "Content-Type": "application/json" }
+      });
     }
+
+    return new Response(JSON.stringify(data), {
+      status: 200, headers: { "Content-Type": "application/json" }
+    });
+
+  } catch (e: any) {
+    console.error("Worker Error:", e);
+    return new Response(JSON.stringify({ error: e.message || "Internal Server Error" }), {
+      status: 500, headers: { "Content-Type": "application/json" }
+    });
+  }
 });
