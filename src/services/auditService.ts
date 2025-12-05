@@ -23,6 +23,7 @@ export interface AuditLogFilters {
     userId?: string;
     action?: string;
     entityType?: string;
+    entityId?: string;
     startDate?: string;
     endDate?: string;
     limit?: number;
@@ -37,6 +38,7 @@ export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[
             p_user_id: filters?.userId || null,
             p_action: filters?.action || null,
             p_entity_type: filters?.entityType || null,
+            p_entity_id: filters?.entityId || null,
             p_start_date: filters?.startDate || null,
             p_end_date: filters?.endDate || null,
             p_limit: filters?.limit || 100,

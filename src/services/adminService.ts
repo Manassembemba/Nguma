@@ -115,11 +115,27 @@ export const getUserContracts = async (userId: string): Promise<Contract[]> => {
   return (data as unknown as Contract[]) || [];
 };
 
-export const getInvestorsList = async (searchQuery?: string, page: number = 1, pageSize: number = 10) => {
+export interface InvestorFilters {
+  searchQuery?: string;
+  page?: number;
+  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  minInvested?: number;
+  maxInvested?: number;
+}
+
+export const getInvestorsList = async (filters: InvestorFilters = {}) => {
+  const { searchQuery, page = 1, pageSize = 10, dateFrom, dateTo, minInvested, maxInvested } = filters;
+
   const { data, error } = await supabase.rpc('get_investor_list_details', {
-    p_search_query: searchQuery,
+    p_search_query: searchQuery || null,
     p_page_num: page,
     p_page_size: pageSize,
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null,
+    p_min_invested: minInvested || null,
+    p_max_invested: maxInvested || null,
   });
 
   if (error) {

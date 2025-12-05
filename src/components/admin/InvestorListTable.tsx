@@ -1,14 +1,14 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getInvestorsList, activateUser, deactivateUser } from "@/services/adminService";
+import { getInvestorsList, activateUser, deactivateUser, InvestorFilters } from "@/services/adminService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
-import { MoreHorizontal, FileDown, AlertTriangle, CheckCircle, Edit } from "lucide-react";
+import { MoreHorizontal, FileDown, AlertTriangle, CheckCircle, Edit, Filter, X, Calendar } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
@@ -19,6 +19,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 
 type Contract = { status: string; };
 type Wallet = { total_balance: number; invested_balance: number; profit_balance: number; currency: string; };
@@ -30,8 +32,10 @@ export type Investor = {
   email: string;
   phone: string | null;
   banned_until: string | null;
+  created_at?: string;
   wallet: Wallet | null;
   contracts: Contract[] | null;
+  total_invested?: number;
 };
 
 const getInvestorStatus = (contracts: Contract[] | null): "Active" | "Inactive" | "New" => {
@@ -73,9 +77,29 @@ export const InvestorListTable = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Advanced filters state
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minInvested, setMinInvested] = useState("");
+  const [maxInvested, setMaxInvested] = useState("");
+
+  // Build filters object
+  const filters: InvestorFilters = {
+    searchQuery: debouncedSearchQuery || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    minInvested: minInvested ? parseFloat(minInvested) : undefined,
+    maxInvested: maxInvested ? parseFloat(maxInvested) : undefined,
+  };
+
+  const hasAdvancedFilters = dateFrom || dateTo || minInvested || maxInvested;
+
   const { data, isLoading } = useQuery<{ data: Investor[], count: number }>({
-    queryKey: ["investorsList", debouncedSearchQuery, page],
-    queryFn: () => getInvestorsList(debouncedSearchQuery, page, PAGE_SIZE),
+    queryKey: ["investorsList", debouncedSearchQuery, page, dateFrom, dateTo, minInvested, maxInvested],
+    queryFn: () => getInvestorsList(filters),
   });
 
   const investors = data?.data || [];
@@ -96,7 +120,13 @@ export const InvestorListTable = () => {
     onSettled: () => setActivationDialog({ isOpen: false }),
   });
 
-  const handleExport = async () => { /* ... existing export logic ... */ };
+  const clearAdvancedFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+    setMinInvested("");
+    setMaxInvested("");
+    setPage(1);
+  };
 
   const filteredInvestors = investors.filter(investor => {
     if (statusFilter === 'all') return true;
@@ -106,17 +136,142 @@ export const InvestorListTable = () => {
   return (
     <>
       <div className="lg:col-span-2 flex flex-col rounded-lg bg-background-card border border-white/10 p-6">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">Investors</h3>
-          {/* ... header content ... */}
+        {/* Header with Search and Filters */}
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold">Investisseurs ({totalCount})</h3>
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="Active">Actifs</SelectItem>
+                  <SelectItem value="Inactive">Inactifs</SelectItem>
+                  <SelectItem value="New">Nouveaux</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <Input
+              placeholder="Rechercher par nom ou email..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="flex-1"
+            />
+
+            <Popover open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
+              <PopoverTrigger asChild>
+                <Button variant={hasAdvancedFilters ? "default" : "outline"} size="icon">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Filtres avancés</h4>
+                    {hasAdvancedFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearAdvancedFilters}>
+                        <X className="h-4 w-4 mr-1" /> Effacer
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-4 w-4" /> Date d'inscription
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Du</Label>
+                        <Input
+                          type="date"
+                          value={dateFrom}
+                          onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Au</Label>
+                        <Input
+                          type="date"
+                          value={dateTo}
+                          onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Montant investi (USD)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Min</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={minInvested}
+                          onChange={(e) => { setMinInvested(e.target.value); setPage(1); }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Max</Label>
+                        <Input
+                          type="number"
+                          placeholder="∞"
+                          value={maxInvested}
+                          onChange={(e) => { setMaxInvested(e.target.value); setPage(1); }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button className="w-full" onClick={() => setShowAdvancedFilters(false)}>
+                    Appliquer les filtres
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Active filters display */}
+          {hasAdvancedFilters && (
+            <div className="flex flex-wrap gap-2">
+              {dateFrom && (
+                <Badge variant="secondary" className="gap-1">
+                  Depuis: {dateFrom}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setDateFrom("")} />
+                </Badge>
+              )}
+              {dateTo && (
+                <Badge variant="secondary" className="gap-1">
+                  Jusqu'à: {dateTo}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setDateTo("")} />
+                </Badge>
+              )}
+              {minInvested && (
+                <Badge variant="secondary" className="gap-1">
+                  Min: ${minInvested}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setMinInvested("")} />
+                </Badge>
+              )}
+              {maxInvested && (
+                <Badge variant="secondary" className="gap-1">
+                  Max: ${maxInvested}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setMaxInvested("")} />
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
+
         <div className="overflow-x-auto flex-grow">
           <Table>
-            {/* Table Header */}
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Nom</TableHead>
                 <TableHead>Balance</TableHead>
                 <TableHead>PNL %</TableHead>
                 <TableHead>Status</TableHead>
@@ -193,9 +348,30 @@ export const InvestorListTable = () => {
             </TableBody>
           </Table>
         </div>
+
         {/* Pagination */}
-        <div className="flex items-center justify-end space-x-2 py-4">
-          {/* ... pagination content ... */}
+        <div className="flex items-center justify-between py-4">
+          <div className="text-sm text-muted-foreground">
+            Page {page} sur {pageCount || 1} ({totalCount} résultats)
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Précédent
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+              disabled={page >= pageCount}
+            >
+              Suivant
+            </Button>
+          </div>
         </div>
       </div>
 
