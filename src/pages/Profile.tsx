@@ -27,7 +27,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COUNTRIES, getCitiesByCountry, getCountryDialCode } from '@/lib/countries';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadAvatar } from '@/services/avatarService';
 import { PasswordUpdateCard } from '@/components/PasswordUpdateCard';
@@ -36,14 +35,14 @@ const profileSchema = z.object({
   email: z.string().email().optional(),
   first_name: z.string().min(2, { message: "Le prénom est requis." }),
   last_name: z.string().min(2, { message: "Le nom est requis." }),
-  post_nom: z.string().optional(), // Post-nom optionnel
+  post_nom: z.string().optional(),
   phone: z.string()
     .min(10, { message: "Le numéro de téléphone doit contenir au moins 10 chiffres." })
     .regex(
       /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/,
       { message: "Format de téléphone invalide. Ex: +243 123 456 789" }
     ),
-  country: z.string().length(2, { message: "Veuillez sélectionner un pays." }), // Code ISO
+  country: z.string().length(2, { message: "Veuillez sélectionner un pays." }),
   city: z.string().min(2, { message: "La ville est requise." }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
   birth_date: z.date({ required_error: "La date de naissance est requise." }),
@@ -57,13 +56,18 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [wasProfileIncomplete, setWasProfileIncomplete] = useState(false);
+  const [countriesModule, setCountriesModule] = useState<any>(null);
 
-  // Avatar states
+  useEffect(() => {
+    import('@/lib/countries').then(module => {
+      setCountriesModule(module);
+    });
+  }, []);
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -84,7 +88,6 @@ const ProfilePage = () => {
     },
   });
 
-  // Surveiller le pays sélectionné pour mettre à jour les villes
   const selectedCountry = form.watch('country');
 
   useEffect(() => {
@@ -104,31 +107,28 @@ const ProfilePage = () => {
       const isProfileIncomplete = (
         !profile.first_name || profile.first_name.trim() === '' ||
         !profile.last_name || profile.last_name.trim() === '' ||
-        // post_nom maintenant optionnel
         !profile.phone || profile.phone.trim() === '' ||
         !profile.country || profile.country.trim() === '' ||
-        !profile.city || profile.city.trim() === '' || // Nouveau champ
+        !profile.city || profile.city.trim() === '' ||
         !profile.address || profile.address.trim() === '' ||
         !profile.birth_date
       );
       if (isProfileIncomplete) {
         setIsAlertOpen(true);
-        setWasProfileIncomplete(true); // Marquer que le profil était incomplet
+        setWasProfileIncomplete(true);
       }
     }
   }, [profile, form]);
 
-  // Réinitialiser la ville quand le pays change
   useEffect(() => {
-    if (selectedCountry) {
-      // Si le pays change et que la ville actuelle n'est pas dans la nouvelle liste
-      const cities = getCitiesByCountry(selectedCountry);
+    if (selectedCountry && countriesModule) {
+      const cities = countriesModule.getCitiesByCountry(selectedCountry);
       const currentCity = form.getValues('city');
       if (currentCity && !cities.includes(currentCity)) {
-        form.setValue('city', ''); // Réinitialiser la ville
+        form.setValue('city', '');
       }
     }
-  }, [selectedCountry, form]);
+  }, [selectedCountry, form, countriesModule]);
 
   const mutation = useMutation({
     mutationFn: (values: ProfileFormValues) => {
@@ -139,7 +139,6 @@ const ProfilePage = () => {
       return updateProfile(dataToUpdate);
     },
     onSuccess: (updatedProfile) => {
-      // Vérifier si le profil est maintenant complet
       const isNowComplete =
         updatedProfile.first_name && updatedProfile.first_name.trim() !== '' &&
         updatedProfile.last_name && updatedProfile.last_name.trim() !== '' &&
@@ -152,8 +151,6 @@ const ProfilePage = () => {
       queryClient.setQueryData(['profile'], updatedProfile);
       queryClient.invalidateQueries({ queryKey: ['profile'] });
 
-
-      // Si le profil était incomplet et est maintenant complet, rediriger
       if (wasProfileIncomplete && isNowComplete) {
         toast({
           title: "Profil complété !",
@@ -161,7 +158,7 @@ const ProfilePage = () => {
         });
         setTimeout(() => {
           navigate('/dashboard');
-        }, 1500); // Délai de 1.5s pour laisser voir le message
+        }, 1500);
       } else {
         toast({ title: "Succès", description: "Votre profil a été mis à jour." });
       }
@@ -178,17 +175,14 @@ const ProfilePage = () => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validation simple du type de fichier
       if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
         toast({ variant: "destructive", title: "Erreur", description: "Type de fichier non autorisé. Uniquement PNG, JPG, WEBP." });
         return;
       }
-      // Validation de la taille
       if (file.size > 5 * 1024 * 1024) { // 5MB
         toast({ variant: "destructive", title: "Erreur", description: "Fichier trop volumineux. La taille maximale est de 5Mo." });
         return;
       }
-
       setSelectedFile(file);
       setPreview(URL.createObjectURL(file));
     }
@@ -196,14 +190,12 @@ const ProfilePage = () => {
 
   const handleUploadClick = async () => {
     if (!selectedFile || !profile) return;
-
     setIsUploading(true);
     try {
       await uploadAvatar(selectedFile, profile.id);
       toast({ title: "Succès", description: "Votre photo de profil a été mise à jour." });
       setSelectedFile(null);
       setPreview(null);
-      // Invalider la query du profil pour rafraîchir l'avatar partout
       await queryClient.invalidateQueries({ queryKey: ['profile'] });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
@@ -211,7 +203,6 @@ const ProfilePage = () => {
       setIsUploading(false);
     }
   };
-
 
   return (
     <div className="p-8 space-y-8">
@@ -305,9 +296,11 @@ const ProfilePage = () => {
                     <p className="text-sm text-muted-foreground pt-2">L'adresse email ne peut pas être modifiée.</p>
                     <FormMessage />
                   </FormItem>
-                )} />                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">                  <FormField control={form.control} name="first_name" render={({ field }) => (
-                  <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <FormField control={form.control} name="first_name" render={({ field }) => (
+                    <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
                   <FormField control={form.control} name="last_name" render={({ field }) => (
                     <FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -317,13 +310,11 @@ const ProfilePage = () => {
                 )} />
                 <FormField control={form.control} name="birth_date" render={({ field }) => {
                   const [month, setMonth] = useState(field.value ?? new Date());
-
                   useEffect(() => {
                     if (field.value) {
                       setMonth(field.value);
                     }
                   }, [field.value]);
-
                   return (
                     <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
                       <Popover>
@@ -349,14 +340,11 @@ const ProfilePage = () => {
                                 const currentYear = new Date().getFullYear();
                                 const years = Array.from({ length: currentYear - 1919 }, (_, i) => currentYear - i);
                                 const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('fr-FR', { month: 'long' }));
-
                                 return (
                                   <div className="flex justify-center gap-2 mb-4">
                                     <Select
                                       value={String(month.getMonth())}
-                                      onValueChange={(value) => {
-                                        setMonth(currentMonth => set(currentMonth, { month: parseInt(value) }));
-                                      }}
+                                      onValueChange={(value) => setMonth(currentMonth => set(currentMonth, { month: parseInt(value) }))}
                                     >
                                       <SelectTrigger><SelectValue /></SelectTrigger>
                                       <SelectContent>
@@ -367,9 +355,7 @@ const ProfilePage = () => {
                                     </Select>
                                     <Select
                                       value={String(month.getFullYear())}
-                                      onValueChange={(value) => {
-                                        setMonth(currentMonth => set(currentMonth, { year: parseInt(value) }));
-                                      }}
+                                      onValueChange={(value) => setMonth(currentMonth => set(currentMonth, { year: parseInt(value) }))}
                                     >
                                       <SelectTrigger><SelectValue /></SelectTrigger>
                                       <SelectContent style={{ maxHeight: '200px' }}>
@@ -385,8 +371,9 @@ const ProfilePage = () => {
                           />
                         </PopoverContent>
                       </Popover>
-                      <FormMessage /></FormItem>
-                  )
+                      <FormMessage />
+                    </FormItem>
+                  );
                 }} />
                 <FormField control={form.control} name="phone" render={({ field }) => (
                   <FormItem>
@@ -395,7 +382,7 @@ const ProfilePage = () => {
                       <Input
                         {...field}
                         value={field.value || ''}
-                        placeholder={selectedCountry ? `${getCountryDialCode(selectedCountry)} XXX XXX XXX` : "+XXX XXX XXX XXX"}
+                        placeholder={selectedCountry && countriesModule ? `${countriesModule.getCountryDialCode(selectedCountry)} XXX XXX XXX` : "+XXX XXX XXX XXX"}
                       />
                     </FormControl>
                     <FormDescription>Format international recommandé (ex: +243 123 456 789)</FormDescription>
@@ -406,14 +393,14 @@ const ProfilePage = () => {
                 <FormField control={form.control} name="country" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Pays</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!countriesModule}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez un pays" />
+                          <SelectValue placeholder={countriesModule ? "Sélectionnez un pays" : "Chargement..."} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent style={{ maxHeight: '300px' }}>
-                        {COUNTRIES.map((country) => (
+                        {countriesModule && countriesModule.COUNTRIES.map((country: any) => (
                           <SelectItem key={country.code} value={country.code}>
                             {country.name}
                           </SelectItem>
@@ -429,8 +416,8 @@ const ProfilePage = () => {
                     <FormLabel>Ville</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={!selectedCountry}
+                      value={field.value || ''}
+                      disabled={!selectedCountry || !countriesModule}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -438,16 +425,16 @@ const ProfilePage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent style={{ maxHeight: '300px' }}>
-                        {selectedCountry && getCitiesByCountry(selectedCountry).map((city) => (
+                        {selectedCountry && countriesModule && countriesModule.getCitiesByCountry(selectedCountry).map((city: any) => (
                           <SelectItem key={city} value={city}>
                             {city}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedCountry && (
+                    {selectedCountry && countriesModule && (
                       <FormDescription>
-                        {getCitiesByCountry(selectedCountry).includes('Autre') ? "Sélectionnez 'Autre' si votre ville n'est pas listée" : ""}
+                        {countriesModule.getCitiesByCountry(selectedCountry).includes('Autre') ? "Sélectionnez 'Autre' si votre ville n'est pas listée" : ""}
                       </FormDescription>
                     )}
                     <FormMessage />
