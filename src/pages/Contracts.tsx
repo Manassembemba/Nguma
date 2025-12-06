@@ -119,17 +119,16 @@ const ContractsPage = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border-2 border-dashed border-blue-200">
-          <div className="text-6xl mb-4 animate-bounce">💼</div>
-          <h3 className="text-2xl font-semibold mb-2 text-blue-900">
+        <div className="text-center py-12 sm:py-16 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border-2 border-dashed border-slate-700">
+          <div className="text-6xl sm:text-6xl mb-4 animate-bounce">💼</div>
+          <h3 className="text-xl sm:text-2xl font-semibold mb-2 text-white">
             Aucun contrat pour le moment
           </h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Créez votre premier contrat d'investissement et commencez à générer des profits de 15% mensuels
+          <p className="text-sm sm:text-base text-slate-300 mb-6 max-w-md mx-auto px-4">
+            Créez votre premier contrat d'investissement et commencez à générer des profits de 20% mensuels
           </p>
           <NewContractDialog />
-        </div>
-      )}
+        </div>      )}
     </div>
   );
 };
