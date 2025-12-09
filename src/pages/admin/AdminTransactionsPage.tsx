@@ -73,6 +73,10 @@ const AdminTransactionsPage = () => {
             case 'deposit': return 'bg-blue-100 text-blue-800';
             case 'withdrawal': return 'bg-red-100 text-red-800';
             case 'profit': return 'bg-green-100 text-green-800';
+            case 'investment': return 'bg-purple-100 text-purple-800';
+            case 'assurance': return 'bg-orange-100 text-orange-800';
+            case 'refund': return 'bg-yellow-100 text-yellow-800';
+            case 'admin_credit': return 'bg-indigo-100 text-indigo-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     };
@@ -116,6 +120,10 @@ const AdminTransactionsPage = () => {
                                         <SelectItem value="deposit">Dépôts</SelectItem>
                                         <SelectItem value="withdrawal">Retraits</SelectItem>
                                         <SelectItem value="profit">Profits</SelectItem>
+                                        <SelectItem value="investment">Investissements</SelectItem>
+                                        <SelectItem value="assurance">Assurance</SelectItem>
+                                        <SelectItem value="refund">Remboursements</SelectItem>
+                                        <SelectItem value="admin_credit">Crédits Admin</SelectItem>
                                     </SelectContent>
                                 </Select>
 
@@ -202,7 +210,14 @@ const AdminTransactionsPage = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className={getTypeColor(tx.type)}>
-                                                        {tx.type === 'deposit' ? 'Dépôt' : tx.type === 'withdrawal' ? 'Retrait' : tx.type}
+                                                        {tx.type === 'deposit' ? 'Dépôt' :
+                                                         tx.type === 'withdrawal' ? 'Retrait' :
+                                                         tx.type === 'profit' ? 'Profit' :
+                                                         tx.type === 'investment' ? 'Investissement' :
+                                                         tx.type === 'assurance' ? 'Assurance' :
+                                                         tx.type === 'refund' ? 'Remboursement' :
+                                                         tx.type === 'admin_credit' ? 'Crédit Admin' :
+                                                         tx.type}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="font-bold">
