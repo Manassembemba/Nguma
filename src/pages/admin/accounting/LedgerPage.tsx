@@ -1,25 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { getAccountingEntries } from "@/services/accountingService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { Loader2, FileText, Search } from "lucide-react";
+import { Loader2, FileText, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from "date-fns";
+
+const getGroupSummary = (group: any[]) => {
+    if (group.length === 1) {
+        const entry = group[0];
+        const isDebitToAsset = entry.debit_account_name.includes('Banque') || entry.debit_account_name.includes('Crypto');
+        return {
+            description: entry.description,
+            date: entry.transaction_date,
+            netAmount: isDebitToAsset ? entry.amount : -entry.amount,
+        };
+    }
+
+    const contractId = group[0].description.split('#')[1]?.substring(0, 8);
+    const depositEntry = group.find(e => e.description.includes('Dépôt'));
+    if (depositEntry) return { description: `Dépôt (Contrat #${contractId})`, date: depositEntry.transaction_date, netAmount: depositEntry.amount };
+    
+    const capitalEntry = group.find(e => e.description.includes('Allocation de capital'));
+    const feeEntry = group.find(e => e.description.includes('Revenus sur frais'));
+    
+    return {
+        description: `Création du Contrat #${contractId}`,
+        date: group[0].transaction_date,
+        netAmount: -(capitalEntry?.amount || 0) - (feeEntry?.amount || 0),
+    };
+};
 
 const LedgerPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [datePreset, setDatePreset] = useState("all");
+    const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
 
     const { data: entries, isLoading } = useQuery({
         queryKey: ["accountingEntries", dateFrom, dateTo, searchQuery],
         queryFn: () => getAccountingEntries(dateFrom, dateTo, searchQuery),
     });
+
+    const groupedEntries = useMemo(() => {
+        if (!entries) return [];
+        
+        const groups = new Map<string, typeof entries>();
+        
+        entries.forEach(entry => {
+            const groupKey = entry.description.split('#')[1]?.substring(0, 8) || entry.id;
+            
+            if (!groups.has(groupKey)) {
+                groups.set(groupKey, []);
+            }
+            groups.get(groupKey)?.push(entry);
+        });
+        
+        return Array.from(groups.values());
+    }, [entries]);
+
+    const toggleGroup = (groupKey: string) => {
+        setExpandedGroupKeys(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(groupKey)) {
+                newSet.delete(groupKey);
+            } else {
+                newSet.add(groupKey);
+            }
+            return newSet;
+        });
+    };
 
     const handlePresetChange = (value: string) => {
         setDatePreset(value);
@@ -134,23 +189,40 @@ const LedgerPage = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {entries.map((entry) => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell>{new Date(entry.transaction_date).toLocaleDateString()} {new Date(entry.transaction_date).toLocaleTimeString()}</TableCell>
-                                        <TableCell className="font-medium">{entry.description}</TableCell>
-                                        <TableCell>{entry.debit_account_name}</TableCell>
-                                        <TableCell>{entry.credit_account_name}</TableCell>
-                                        <TableCell className="text-right font-bold">
-                                            {formatCurrency(entry.amount)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                <TableRow className="bg-muted/50 font-bold">
-                                    <TableCell colSpan={4} className="text-right">TOTAL</TableCell>
-                                    <TableCell className="text-right text-primary text-lg">
-                                        {formatCurrency(entries.reduce((sum, entry) => sum + Number(entry.amount), 0))}
-                                    </TableCell>
-                                </TableRow>
+                                {groupedEntries.map((group) => {
+                                    const groupKey = group[0].description.split('#')[1]?.substring(0, 8) || group[0].id;
+                                    const isExpanded = expandedGroupKeys.has(groupKey);
+                                    const summary = getGroupSummary(group);
+
+                                    return (
+                                        <React.Fragment key={groupKey}>
+                                            <TableRow className="bg-muted/20 hover:bg-muted/50 cursor-pointer" onClick={() => toggleGroup(groupKey)}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                        {new Date(summary.date).toLocaleDateString()}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-bold text-lg">{summary.description}</TableCell>
+                                                <TableCell colSpan={2}></TableCell>
+                                                <TableCell className={`text-right font-bold text-lg ${summary.netAmount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {formatCurrency(summary.netAmount)}
+                                                </TableCell>
+                                            </TableRow>
+                                            {isExpanded && group.map((entry) => (
+                                                <TableRow key={entry.id} className="bg-card hover:bg-muted/30">
+                                                    <TableCell className="pl-10 text-sm text-muted-foreground">{new Date(entry.transaction_date).toLocaleTimeString()}</TableCell>
+                                                    <TableCell className="pl-6 text-sm">{entry.description}</TableCell>
+                                                    <TableCell className="text-sm">{entry.debit_account_name}</TableCell>
+                                                    <TableCell className="text-sm">{entry.credit_account_name}</TableCell>
+                                                    <TableCell className="text-right text-sm font-mono">
+                                                        {formatCurrency(entry.amount)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     ) : (

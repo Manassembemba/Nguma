@@ -30,6 +30,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadAvatar } from '@/services/avatarService';
 import { PasswordUpdateCard } from '@/components/PasswordUpdateCard';
+import { COUNTRIES, getCountryDialCode } from '@/lib/countries';
+import { supabase } from '@/integrations/supabase/client';
 
 const profileSchema = z.object({
   email: z.string().email().optional(),
@@ -42,10 +44,13 @@ const profileSchema = z.object({
       /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/,
       { message: "Format de téléphone invalide. Ex: +243 123 456 789" }
     ),
-  country: z.string().length(2, { message: "Veuillez sélectionner un pays." }),
-  city: z.string().min(2, { message: "La ville est requise." }),
-  address: z.string().min(5, { message: "L'adresse est requise." }),
-  birth_date: z.date({ required_error: "La date de naissance est requise." }),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  address: z.string().optional(),
+  birth_date: z.date({ required_error: "La date de naissance est requise." })
+    .max(new Date(new Date().setFullYear(new Date().getFullYear() - 18)), {
+      message: "Vous devez avoir au moins 18 ans.",
+    }),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -56,13 +61,9 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [wasProfileIncomplete, setWasProfileIncomplete] = useState(false);
-  const [countriesModule, setCountriesModule] = useState<any>(null);
-
-  useEffect(() => {
-    import('@/lib/countries').then(module => {
-      setCountriesModule(module);
-    });
-  }, []);
+  
+  const [cities, setCities] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -90,6 +91,41 @@ const ProfilePage = () => {
 
   const selectedCountry = form.watch('country');
 
+  const fetchCities = async (countryCode: string) => {
+    if (!countryCode) {
+      setCities([]);
+      return;
+    }
+    setIsLoadingCities(true);
+    form.setValue('city', ''); // Reset city on country change
+    try {
+      const { data, error } = await supabase.functions.invoke('get-cities', {
+        body: { countryCode },
+      });
+      if (error) throw error;
+      setCities(data || []);
+      if (data.length > 0) {
+        // If profile had a city, check if it exists in the new list
+        const profileCity = profile?.city;
+        if (profileCity && data.includes(profileCity)) {
+          form.setValue('city', profileCity);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch cities:", error);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les villes." });
+      setCities(['Autre']);
+    } finally {
+      setIsLoadingCities(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCountry) {
+      fetchCities(selectedCountry);
+    }
+  }, [selectedCountry]);
+  
   useEffect(() => {
     if (profile) {
       form.reset({
@@ -104,13 +140,14 @@ const ProfilePage = () => {
         birth_date: profile.birth_date ? new Date(profile.birth_date) : undefined,
       });
 
+      if (profile.country) {
+        fetchCities(profile.country);
+      }
+
       const isProfileIncomplete = (
         !profile.first_name || profile.first_name.trim() === '' ||
         !profile.last_name || profile.last_name.trim() === '' ||
         !profile.phone || profile.phone.trim() === '' ||
-        !profile.country || profile.country.trim() === '' ||
-        !profile.city || profile.city.trim() === '' ||
-        !profile.address || profile.address.trim() === '' ||
         !profile.birth_date
       );
       if (isProfileIncomplete) {
@@ -118,17 +155,8 @@ const ProfilePage = () => {
         setWasProfileIncomplete(true);
       }
     }
-  }, [profile, form]);
+  }, [profile, form.reset]);
 
-  useEffect(() => {
-    if (selectedCountry && countriesModule) {
-      const cities = countriesModule.getCitiesByCountry(selectedCountry);
-      const currentCity = form.getValues('city');
-      if (currentCity && !cities.includes(currentCity)) {
-        form.setValue('city', '');
-      }
-    }
-  }, [selectedCountry, form, countriesModule]);
 
   const mutation = useMutation({
     mutationFn: (values: ProfileFormValues) => {
@@ -143,15 +171,12 @@ const ProfilePage = () => {
         updatedProfile.first_name && updatedProfile.first_name.trim() !== '' &&
         updatedProfile.last_name && updatedProfile.last_name.trim() !== '' &&
         updatedProfile.phone && updatedProfile.phone.trim() !== '' &&
-        updatedProfile.country && updatedProfile.country.trim() !== '' &&
-        updatedProfile.city && updatedProfile.city.trim() !== '' &&
-        updatedProfile.address && updatedProfile.address.trim() !== '' &&
         updatedProfile.birth_date;
 
       queryClient.setQueryData(['profile'], updatedProfile);
       queryClient.invalidateQueries({ queryKey: ['profile'] });
 
-      if (wasProfileIncomplete && isNowComplete) {
+      if (wasProfileIncomplete) {
         toast({
           title: "Profil complété !",
           description: "Redirection vers votre tableau de bord..."
@@ -306,7 +331,7 @@ const ProfilePage = () => {
                   )} />
                 </div>
                 <FormField control={form.control} name="post_nom" render={({ field }) => (
-                  <FormItem><FormLabel>Post-nom</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Post-nom (Optionnel)</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="birth_date" render={({ field }) => {
                   const [month, setMonth] = useState(field.value ?? new Date());
@@ -333,7 +358,7 @@ const ProfilePage = () => {
                             onSelect={field.onChange}
                             month={month}
                             onMonthChange={setMonth}
-                            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                            disabled={(date) => date > new Date(new Date().setFullYear(new Date().getFullYear() - 18)) || date < new Date("1900-01-01")}
                             initialFocus
                             components={{
                               Caption: () => {
@@ -382,7 +407,7 @@ const ProfilePage = () => {
                       <Input
                         {...field}
                         value={field.value || ''}
-                        placeholder={selectedCountry && countriesModule ? `${countriesModule.getCountryDialCode(selectedCountry)} XXX XXX XXX` : "+XXX XXX XXX XXX"}
+                        placeholder={selectedCountry ? `${getCountryDialCode(selectedCountry)} ...` : "+..."}
                       />
                     </FormControl>
                     <FormDescription>Format international recommandé (ex: +243 123 456 789)</FormDescription>
@@ -392,15 +417,15 @@ const ProfilePage = () => {
 
                 <FormField control={form.control} name="country" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pays</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!countriesModule}>
+                    <FormLabel>Pays (Optionnel)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={countriesModule ? "Sélectionnez un pays" : "Chargement..."} />
+                          <SelectValue placeholder="Sélectionnez un pays" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent style={{ maxHeight: '300px' }}>
-                        {countriesModule && countriesModule.COUNTRIES.map((country: any) => (
+                        {COUNTRIES.map((country) => (
                           <SelectItem key={country.code} value={country.code}>
                             {country.name}
                           </SelectItem>
@@ -413,37 +438,36 @@ const ProfilePage = () => {
 
                 <FormField control={form.control} name="city" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ville</FormLabel>
+                    <FormLabel>Ville (Optionnel)</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value || ''}
-                      disabled={!selectedCountry || !countriesModule}
+                      disabled={!selectedCountry || isLoadingCities}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={selectedCountry ? "Sélectionnez une ville" : "Sélectionnez d'abord un pays"} />
+                          <SelectValue placeholder={
+                            isLoadingCities 
+                              ? "Chargement des villes..." 
+                              : (selectedCountry ? "Sélectionnez une ville" : "Sélectionnez d'abord un pays")
+                          } />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent style={{ maxHeight: '300px' }}>
-                        {selectedCountry && countriesModule && countriesModule.getCitiesByCountry(selectedCountry).map((city: any) => (
+                        {cities.map((city) => (
                           <SelectItem key={city} value={city}>
                             {city}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedCountry && countriesModule && (
-                      <FormDescription>
-                        {countriesModule.getCitiesByCountry(selectedCountry).includes('Autre') ? "Sélectionnez 'Autre' si votre ville n'est pas listée" : ""}
-                      </FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )} />
 
                 <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Adresse</FormLabel>
+                    <FormLabel>Adresse (Optionnel)</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value || ''} placeholder="Rue, avenue, numéro..." />
                     </FormControl>

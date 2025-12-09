@@ -11,7 +11,7 @@ Il existe deux rôles principaux dans l'application :
 *   **Investisseur (Investor) :** Le rôle par défaut pour tout nouvel utilisateur. Les investisseurs peuvent gérer leurs propres investissements et leur profil.
 *   **Administrateur (Admin) :** Un rôle avec des privilèges élevés qui peut superviser et gérer l'ensemble de la plateforme.
 
----
+
 
 ## 3. Fonctionnalités pour l'Investisseur
 
@@ -54,7 +54,7 @@ Il existe deux rôles principaux dans l'application :
 ### 3.7. Notifications
 *   L'utilisateur reçoit des notifications pour les actions importantes : approbation/rejet de dépôts, retraits, remboursements, et versement des profits mensuels.
 
----
+
 
 ## 4. Fonctionnalités pour l'Administrateur
 
@@ -88,7 +88,7 @@ Il existe deux rôles principaux dans l'application :
     *   `monthly_rate`
 *   **Suppression (Delete) :** La suppression est une "suppression logique" effectuée en modifiant le statut du contrat à `cancelled`.
 
----
+
 
 ## 5. Règles Métier Clés à Tester
 

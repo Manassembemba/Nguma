@@ -27,11 +27,8 @@ export const ProfileCompletionGuard = ({ children }: ProfileCompletionGuardProps
 
   const isProfileComplete = profile?.first_name && profile.first_name.trim() !== '' &&
     profile?.last_name && profile.last_name.trim() !== '' &&
-    // post_nom est maintenant optionnel
+    // post_nom, country, city, address sont maintenant optionnels
     profile?.phone && profile.phone.trim() !== '' &&
-    profile?.country && profile.country.trim() !== '' &&
-    profile?.city && profile.city.trim() !== '' && // Nouveau champ requis
-    profile?.address && profile.address.trim() !== '' &&
     profile?.birth_date;
 
   // If profile is not complete and user is not already on the profile page or auth page

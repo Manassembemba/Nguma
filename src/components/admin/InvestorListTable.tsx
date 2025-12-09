@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInvestorsList, activateUser, deactivateUser, InvestorFilters } from "@/services/adminService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
-import { COUNTRIES, getCitiesByCountry, getCountryName, getCountryFlag } from "@/lib/countries";
+import { COUNTRIES, getCountryName, getCountryFlag } from "@/lib/countries";
+import { supabase } from "@/integrations/supabase/client";
 import { MoreHorizontal, FileDown, AlertTriangle, CheckCircle, Edit, Filter, X, Calendar, Phone, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -99,6 +100,34 @@ export const InvestorListTable = () => {
   const [maxInvested, setMaxInvested] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
+
+  // New state for cities filter
+  const [citiesForFilter, setCitiesForFilter] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      if (!country) {
+        setCitiesForFilter([]);
+        return;
+      }
+      setIsLoadingCities(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-cities', {
+          body: { countryCode: country },
+        });
+        if (error) throw error;
+        setCitiesForFilter(data || []);
+      } catch (error) {
+        console.error("Failed to fetch cities for filter:", error);
+        setCitiesForFilter([]);
+      } finally {
+        setIsLoadingCities(false);
+      }
+    };
+
+    fetchCities();
+  }, [country]);
 
   // Build filters object
   const filters: InvestorFilters = {
@@ -313,13 +342,13 @@ export const InvestorListTable = () => {
                         <Select
                           value={city}
                           onValueChange={(value) => { setCity(value); setPage(1); }}
-                          disabled={!country}
+                          disabled={!country || isLoadingCities}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Ville" />
+                            <SelectValue placeholder={isLoadingCities ? "Chargement..." : "Ville"} />
                           </SelectTrigger>
                           <SelectContent className="max-h-[200px]">
-                            {country && getCitiesByCountry(country).map((c) => (
+                            {citiesForFilter.map((c) => (
                               <SelectItem key={c} value={c}>
                                 {c}
                               </SelectItem>

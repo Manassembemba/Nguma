@@ -194,7 +194,7 @@ serve(async (req) => {
             .join('\\n\\n---\\n\\n')
 
         const role = message.toLowerCase().includes('qui es-tu') || message.toLowerCase().includes('qui êtes-vous')
-            ? 'l\\'assistant virtuel de Nguma'
+            ? "l'assistant virtuel de Nguma"
             : 'un conseiller';
 
         // 5. Générer une réponse naturelle avec Gemini (avec contexte enrichi)
@@ -242,9 +242,10 @@ ${ userContext ? 'Utilise le contexte utilisateur pour personnaliser tes répons
         }
         )
 
-if (!generateResponse.ok) {
-    throw new Error('Failed to generate AI response')
-}
+        if (!generateResponse.ok) {
+            const errorBody = await generateResponse.text();
+            throw new Error(`Failed to generate AI response: ${generateResponse.status} ${errorBody}`);
+        }
 
 const generateData = await generateResponse.json()
 

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
+import { Loader2 } from "lucide-react";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
@@ -67,7 +68,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <NotificationProvider>
-          <Suspense fallback={<div>Chargement...</div>}>
+          <Suspense fallback={
+  <div className="flex items-center justify-center h-screen w-full">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
