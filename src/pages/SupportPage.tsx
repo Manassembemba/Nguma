@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatMessageList } from "@/components/ChatMessageList";
 import { ChatMessageInput } from "@/components/ChatMessageInput";
+import { getSettingByKey } from "@/services/settingsService";
 import { getUserConversation, getMessages, sendMessage, markConversationAsRead, subscribeToMessages, updateConversationTitle } from "@/services/chatService";
 import type { ChatMessage } from "@/services/chatService";
 import { uploadChatFile } from "@/services/fileUploadService";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SupportPage() {
     const [conversationId, setConversationId] = useState<string | null>(null);
@@ -15,6 +17,8 @@ export default function SupportPage() {
     const [sending, setSending] = useState(false);
     const [humanRequested, setHumanRequested] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [isActiveUser, setIsActiveUser] = useState(false);
+    const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
     const { toast } = useToast();
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -23,10 +27,32 @@ export default function SupportPage() {
         const init = async () => {
             try {
                 setLoading(true);
+
+                // Check user active status
+                let isActive = false;
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user?.banned_until) {
+                    const bannedUntilDate = new Date(user.banned_until);
+                    const now = new Date();
+                    isActive = bannedUntilDate < now;
+                    setIsActiveUser(isActive);
+                } else {
+                    isActive = true;
+                    setIsActiveUser(true);
+                }
+
+                // If user is active, fetch WhatsApp number
+                if (isActive) {
+                    const setting = await getSettingByKey('support_whatsapp_number');
+                    if (setting && setting.value) {
+                        setWhatsappNumber(setting.value);
+                    }
+                }
+
+                // Initialize chat
                 const convId = await getUserConversation();
                 setConversationId(convId);
 
-                // Charger les messages existants
                 const msgs = await getMessages(convId);
                 setMessages(msgs);
 
@@ -129,6 +155,8 @@ export default function SupportPage() {
         }
     };
 
+    const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/\s/g, '')}` : '';
+
     return (
         <div className="container mx-auto p-6 max-w-4xl">
             <div className="mb-6">
@@ -140,6 +168,29 @@ export default function SupportPage() {
                     Contactez notre équipe de support. Nous sommes là pour vous aider.
                 </p>
             </div>
+
+            {isActiveUser && whatsappNumber && (
+                <Card className="mb-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                                Contact direct :
+                            </p>
+                            <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                    {whatsappNumber} (WhatsApp)
+                                </a>
+                            </p>
+                            <p className="text-xs text-green-700 dark:text-green-300">
+                                Pour des questions urgentes, notre équipe est disponible sur WhatsApp.
+                            </p>
+                        </div>
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="ml-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                            Ouvrir WhatsApp
+                        </a>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card className="h-[calc(100vh-250px)] flex flex-col">
                 <CardHeader className="border-b">

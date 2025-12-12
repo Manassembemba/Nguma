@@ -55,8 +55,8 @@ export const getAccountingStats = async (): Promise<AccountStats> => {
 
 export const getUpcomingProfits = async (startDate?: Date, endDate?: Date): Promise<UpcomingProfit[]> => {
     const { data, error } = await supabase.rpc('get_upcoming_profits', {
-        start_date: startDate?.toISOString(),
-        end_date: endDate?.toISOString(),
+        p_start_date: startDate?.toISOString(),
+        p_end_date: endDate?.toISOString(),
     });
     if (error) throw error;
     return data as UpcomingProfit[];

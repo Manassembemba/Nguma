@@ -49,13 +49,6 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
   const profitBalance = Number(wallet?.profit_balance || 0);
   const maxWithdrawalSetting = Number(settings?.find(s => s.key === 'max_withdrawal_amount')?.value || 10000);
   const maxWithdrawal = profitBalance > 0 ? Math.min(profitBalance, maxWithdrawalSetting) : maxWithdrawalSetting;
-  const feePercent = Number(settings?.find(s => s.key === 'withdrawal_fee_percent')?.value || 0);
-  const feeFixed = Number(settings?.find(s => s.key === 'withdrawal_fee_fixed')?.value || 0);
-
-  // Calculate total fee
-  const calculateFee = (amt: number) => {
-    return (amt * feePercent / 100) + feeFixed;
-  };
 
   // Check if user has sufficient balance
   const hasSufficientBalance = profitBalance >= minWithdrawal;
@@ -249,30 +242,6 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
                 disabled={requestOTPMutation.isPending || !hasSufficientBalance}
               />
             </div>
-
-            {/* Résumé des frais */}
-            {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
-              <Alert className="bg-blue-50 border-blue-200">
-                <Info className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-800">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span>Montant demandé :</span>
-                      <span className="font-medium">{parseFloat(amount).toFixed(2)} USD</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Frais de retrait ({feePercent}% + {feeFixed} USD) :</span>
-                      <span className="font-medium text-red-600">- {calculateFee(parseFloat(amount)).toFixed(2)} USD</span>
-                    </div>
-                    <div className="border-t border-blue-300 pt-1 mt-1"></div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold">Vous recevrez :</span>
-                      <span className="font-bold text-green-700 text-lg">{(parseFloat(amount) - calculateFee(parseFloat(amount))).toFixed(2)} USD</span>
-                    </div>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
 
             {/* Formulaire dynamique pour les champs de paiement */}
             <div className="space-y-4">

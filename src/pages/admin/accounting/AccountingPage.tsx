@@ -1,20 +1,54 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { getAccountingStats, getUpcomingProfits } from "@/services/accountingService";
+import { getContractDashboardStats, getDepositSummary, getWithdrawalSummary } from "@/services/adminService";
 import { StatCard } from "@/components/admin/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
-import { Wallet, TrendingUp, TrendingDown, Landmark, ArrowRight, FileText } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Landmark, ArrowRight, FileText, DollarSign, Handshake, Calendar as CalendarIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DateRange } from "react-day-picker";
+import { format, startOfMonth, startOfWeek } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const AccountingPage = () => {
     const navigate = useNavigate();
+    const today = new Date();
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: startOfMonth(today),
+        to: today,
+    });
 
-    const { data: stats, isLoading: isLoadingStats } = useQuery({
+    // Format dates for the RPC call
+    const dateFrom = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
+    const dateTo = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
+
+    const { data: accountingStats, isLoading: isLoadingAccStats } = useQuery({
         queryKey: ["accountingStats"],
         queryFn: getAccountingStats,
+    });
+
+    const { data: contractStats, isLoading: isLoadingContractStats } = useQuery({
+        queryKey: ['contractDashboardStats'],
+        queryFn: getContractDashboardStats,
+    });
+
+    const { data: depositSummary, isLoading: isLoadingDeposits } = useQuery({
+        queryKey: ['depositSummary', dateFrom, dateTo],
+        queryFn: () => getDepositSummary(dateFrom!, dateTo!),
+        enabled: !!dateFrom && !!dateTo,
+    });
+
+    const { data: withdrawalSummary, isLoading: isLoadingWithdrawals } = useQuery({
+        queryKey: ['withdrawalSummary', dateFrom, dateTo],
+        queryFn: () => getWithdrawalSummary(dateFrom!, dateTo!),
+        enabled: !!dateFrom && !!dateTo,
     });
 
     const { data: upcomingProfits, isLoading: isLoadingProfits } = useQuery({
@@ -28,8 +62,8 @@ const AccountingPage = () => {
         <div className="p-8 space-y-8 neon-grid-bg min-h-screen">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-4xl font-black tracking-tight text-text-primary mb-2">Comptabilité & Trésorerie</h1>
-                    <p className="text-muted-foreground">Vue d'ensemble des comptes et des flux financiers.</p>
+                    <h1 className="text-4xl font-black tracking-tight text-text-primary mb-2">Comptabilité & Gestion</h1>
+                    <p className="text-muted-foreground">Vue d'ensemble des comptes, contrats et flux financiers.</p>
                 </div>
                 <div className="flex gap-3">
                     <button
@@ -47,41 +81,183 @@ const AccountingPage = () => {
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            {isLoadingStats ? (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    {[...Array(3)].map((_, i) => (
-                        <Skeleton key={i} className="h-[120px] rounded-lg" />
-                    ))}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
-                    <StatCard
-                        title="Banque Principale"
-                        value={formatCurrency(stats?.['Banque Principale'] || 0)}
-                        icon={Landmark}
-                        gradient="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-500/20"
-                    />
-                    <StatCard
-                        title="Portefeuille Crypto"
-                        value={formatCurrency(stats?.['Portefeuille Crypto'] || 0)}
-                        icon={Wallet}
-                        gradient="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20"
-                    />
-                    <StatCard
-                        title="Dépôts Clients"
-                        value={formatCurrency(stats?.['Dépôts Clients'] || 0)}
-                        icon={TrendingDown}
-                        gradient="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20"
-                    />
-                    <StatCard
-                        title="Revenus Frais"
-                        value={formatCurrency(stats?.['Revenus Frais'] || 0)}
-                        icon={TrendingUp}
-                        gradient="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20"
-                    />
-                </div>
-            )}
+            {/* Main Stats Cards */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {/* Accounting Balances */}
+                <StatCard
+                    title="Banque Principale"
+                    value={formatCurrency(accountingStats?.['Banque Principale'] || 0)}
+                    icon={Landmark}
+                    isLoading={isLoadingAccStats}
+                    gradient="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-500/20"
+                />
+                <StatCard
+                    title="Portefeuille Crypto"
+                    value={formatCurrency(accountingStats?.['Portefeuille Crypto'] || 0)}
+                    icon={Wallet}
+                    isLoading={isLoadingAccStats}
+                    gradient="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20"
+                />
+                <StatCard
+                    title="Soldes Liquides (Non investis)"
+                    value={formatCurrency(contractStats?.total_liquid_balance)}
+                    icon={Wallet}
+                    isLoading={isLoadingContractStats}
+                    gradient="bg-gradient-to-br from-yellow-500/10 to-red-500/10 border-yellow-500/20"
+                />
+                {/* Contract & Insurance Stats */}
+                <StatCard
+                    title="Contrats Actifs"
+                    value={contractStats?.active_contracts_count?.toString() || '0'}
+                    icon={FileText}
+                    isLoading={isLoadingContractStats}
+                />
+                <StatCard
+                    title="Capital Total Investi"
+                    value={formatCurrency(contractStats?.total_capital_invested)}
+                    icon={TrendingUp}
+                    isLoading={isLoadingContractStats}
+                />
+                <StatCard
+                    title="Total des Frais d'Assurance"
+                    value={formatCurrency(contractStats?.total_insurance_fees_collected)}
+                    icon={Handshake}
+                    isLoading={isLoadingContractStats}
+                />
+            </div>
+
+
+            {/* Deposit Summary Section */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Résumé des Dépôts</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "dd LLL, y", { locale: fr })} -{" "}
+                                                {format(date.to, "dd LLL, y", { locale: fr })}
+                                            </>
+                                        ) : (
+                                            format(date.from, "dd LLL, y", { locale: fr })
+                                        )
+                                    ) : (
+                                        <span>Choisissez une date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                    locale={fr}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={() => setDate({ from: today, to: today })}>Aujourd'hui</Button>
+                        <Button onClick={() => setDate({ from: startOfWeek(today, { locale: fr }), to: today })}>Cette semaine</Button>
+                        <Button onClick={() => setDate({ from: startOfMonth(today), to: today })}>Ce mois-ci</Button>
+                    </div>
+
+                     <div className="grid gap-4 md:grid-cols-2">
+                         <StatCard
+                            title="Montant Total des Dépôts"
+                            value={formatCurrency(depositSummary?.total_deposits)}
+                            icon={DollarSign}
+                            isLoading={isLoadingDeposits}
+                        />
+                        <StatCard
+                            title="Nombre de Dépôts"
+                            value={depositSummary?.deposits_count?.toString() || '0'}
+                            icon={FileText}
+                            isLoading={isLoadingDeposits}
+                        />
+                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Withdrawal Summary Section */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Résumé des Retraits</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date-withdrawal"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "dd LLL, y", { locale: fr })} -{" "}
+                                                {format(date.to, "dd LLL, y", { locale: fr })}
+                                            </>
+                                        ) : (
+                                            format(date.from, "dd LLL, y", { locale: fr })
+                                        )
+                                    ) : (
+                                        <span>Choisissez une date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                    locale={fr}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={() => setDate({ from: today, to: today })}>Aujourd'hui</Button>
+                        <Button onClick={() => setDate({ from: startOfWeek(today, { locale: fr }), to: today })}>Cette semaine</Button>
+                        <Button onClick={() => setDate({ from: startOfMonth(today), to: today })}>Ce mois-ci</Button>
+                    </div>
+
+                     <div className="grid gap-4 md:grid-cols-2">
+                         <StatCard
+                            title="Montant Total des Retraits"
+                            value={formatCurrency(withdrawalSummary?.total_withdrawals)}
+                            icon={DollarSign}
+                            isLoading={isLoadingWithdrawals}
+                        />
+                        <StatCard
+                            title="Nombre de Retraits"
+                            value={withdrawalSummary?.withdrawals_count?.toString() || '0'}
+                            icon={FileText}
+                            isLoading={isLoadingWithdrawals}
+                        />
+                     </div>
+                </CardContent>
+            </Card>
 
             {/* Upcoming Profits Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
