@@ -256,6 +256,30 @@ export const getUserGrowthSummary = async () => {
   return (data as unknown as UserGrowth[]) || [];
 };
 
+export const getContractDashboardStats = async () => {
+    const { data, error } = await supabase.rpc('get_contract_dashboard_stats');
+    if (error) throw new Error("Could not fetch contract dashboard stats.");
+    return data;
+};
+
+export const getDepositSummary = async (dateFrom: string, dateTo: string) => {
+    const { data, error } = await supabase.rpc('get_deposit_summary', {
+        start_date: dateFrom,
+        end_date: dateTo,
+    });
+    if (error) throw new Error("Could not fetch deposit summary.");
+    return data;
+};
+
+export const getWithdrawalSummary = async (dateFrom: string, dateTo: string) => {
+    const { data, error } = await supabase.rpc('get_withdrawal_summary', {
+        start_date: dateFrom,
+        end_date: dateTo,
+    });
+    if (error) throw new Error("Could not fetch withdrawal summary.");
+    return data;
+};
+
 // --- Withdrawal Management ---
 export const getPendingWithdrawals = async () => {
   const { data, error } = await supabase.rpc('get_pending_withdrawals_with_profiles');

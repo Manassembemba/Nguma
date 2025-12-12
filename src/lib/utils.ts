@@ -11,13 +11,14 @@ export function cn(...inputs: ClassValue[]) {
  * @param currency The currency code (e.g., "USD").
  * @returns A formatted currency string.
  */
-export function formatCurrency(amount: number, currency: string = "USD") {
+export function formatCurrency(amount: number | null | undefined, currency: string = "USD") {
+  const value = amount ?? 0; // Convert null or undefined to 0
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 8,
-  }).format(amount);
+  }).format(value);
 }
 
 /**
