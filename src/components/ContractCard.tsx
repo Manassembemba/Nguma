@@ -139,10 +139,10 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-yellow-500 hover:bg-yellow-500/20"
+                className="text-indigo-500 hover:bg-indigo-500/20"
                 disabled={contract.status !== 'active'} // Disable if not active
               >
-                <AlertTriangle className="h-5 w-5" />
+                <Shield className="h-5 w-5" />
               </Button>
             </DialogTrigger>
             <DialogContent>

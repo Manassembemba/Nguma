@@ -87,9 +87,13 @@ const AccountingPage = () => {
                 {/* Accounting Balances - Consolidated */}
                 <StatCard
                     title="Trésorerie Totale (Banque + Crypto)"
-                    value={formatCurrency((accountingStats?.['Banque Principale'] || 0) + (accountingStats?.['Portefeuille Crypto'] || 0))}
+                    value={formatCurrency(
+                        (contractStats?.total_liquid_balance || 0) +
+                        (contractStats?.total_capital_invested || 0) +
+                        (contractStats?.total_insurance_fees_collected || 0)
+                    )}
                     icon={Landmark}
-                    isLoading={isLoadingAccStats}
+                    isLoading={isLoadingContractStats}
                     gradient="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/20"
                 />
                 <StatCard

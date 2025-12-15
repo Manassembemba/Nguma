@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Clock, MoreHorizontal, Edit, TrendingUp, User } from "lucide-react";
+import { Clock, MoreHorizontal, Edit, TrendingUp, User, Shield } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -76,6 +76,12 @@ export const AdminContractCard = ({ contract, onEdit }: AdminContractCardProps) 
                                 <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     Fin proche
+                                </Badge>
+                            )}
+                            {contract.is_insured && (
+                                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20 text-[10px] flex items-center gap-1">
+                                    <Shield className="h-3 w-3" />
+                                    Assuré
                                 </Badge>
                             )}
                         </div>
