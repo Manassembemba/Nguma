@@ -482,3 +482,30 @@ export const adminUpdateContract = async (contractId: string, updates: Record<st
 
   return result;
 };
+
+export const getAdminTransactionHistory = async (
+  searchQuery: string = '',
+  typeFilter: string = 'all',
+  statusFilter: string = 'all',
+  page: number = 1,
+  pageSize: number = 10,
+  dateFrom?: string,
+  dateTo?: string
+) => {
+  const { data, error } = await supabase.rpc('get_admin_transaction_history', {
+    p_search_query: searchQuery || '',
+    p_type_filter: typeFilter || 'all',
+    p_status_filter: statusFilter || 'all',
+    p_page_num: Number(page) || 1,
+    p_page_size: Number(pageSize) || 10,
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null,
+  });
+
+  if (error) {
+    console.error("Error fetching admin transaction history:", error);
+    throw new Error("Could not fetch admin transaction history.");
+  }
+
+  return data;
+};
