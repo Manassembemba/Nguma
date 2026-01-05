@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminGetAllContracts } from "@/services/adminService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, exportToCsv, exportToPdf } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -38,13 +38,13 @@ const AdminContractsPage = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [datePreset, setDatePreset] = useState("all");
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // Default to Grid as per user request
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [isExporting, setIsExporting] = useState(false);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false); // State for edit dialog
-  const [selectedContract, setSelectedContract] = useState<ContractData | null>(null); // State for selected contract
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
 
   const { data: paginatedData, isLoading } = useQuery({
     queryKey: ["allContracts", debouncedSearchQuery, statusFilter, page, dateFrom, dateTo],
@@ -56,7 +56,6 @@ const AdminContractsPage = () => {
   const totalCount = paginatedData?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  // Calculate stats
   const activeContracts = contracts.filter(c => c.status === 'active');
   const totalValue = contracts.reduce((sum, c) => sum + Number(c.amount), 0);
   const totalProfits = contracts.reduce((sum, c) => sum + Number(c.total_profit_paid || 0), 0);
@@ -66,8 +65,8 @@ const AdminContractsPage = () => {
       case 'active': return 'default';
       case 'completed': return 'secondary';
       case 'refunded': return 'destructive';
-      case 'pending_refund': return 'outline'; // Added pending_refund status
-      case 'cancelled': return 'destructive'; // Added cancelled status
+      case 'pending_refund': return 'outline';
+      case 'cancelled': return 'destructive';
       default: return 'outline';
     }
   };
@@ -80,7 +79,6 @@ const AdminContractsPage = () => {
   const handlePresetChange = (value: string) => {
     setDatePreset(value);
     const today = new Date();
-
     switch (value) {
       case "today":
         setDateFrom(format(startOfDay(today), "yyyy-MM-dd"));
@@ -94,11 +92,7 @@ const AdminContractsPage = () => {
         setDateFrom(format(startOfMonth(today), "yyyy-MM-dd"));
         setDateTo(format(endOfDay(today), "yyyy-MM-dd"));
         break;
-      case "custom":
-        setDateFrom("");
-        setDateTo("");
-        break;
-      case "all":
+      default:
         setDateFrom("");
         setDateTo("");
         break;
@@ -106,42 +100,84 @@ const AdminContractsPage = () => {
     setPage(1);
   };
 
-  // Export to CSV function
-  const exportToCSV = async () => {
+  const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      // Fetch all contracts for current filters (using a large page size of 1000 or a dedicated export endpoint)
-      // Since we don't have a dedicated export endpoint yet, we'll fetch page 1 with a huge size or assume the admin service can handle it.
-      // For now, we will use the existing service with a large page limit.
       const { data: allContracts } = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo);
-
-      const headers = ["ID Contrat", "Client", "Email", "Montant", "Devise", "Statut", "Mois Payés", "Durée", "Profits Versés", "Date Début", "Date Fin"];
-      const rows = allContracts.map(c => [
-        c.id,
-        `${c.first_name || ''} ${c.last_name || ''}`.trim(),
-        c.email,
-        c.amount,
-        c.currency,
-        c.status,
-        c.months_paid,
-        c.duration_months,
-        c.total_profit_paid,
-        c.start_date,
-        c.end_date
-      ]);
-
-      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `contrats_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const headers = {
+        id: "ID Contrat",
+        client: "Client",
+        email: "Email",
+        amount: "Montant",
+        currency: "Devise",
+        status: "Statut",
+        months_paid: "Mois Payés",
+        duration_months: "Durée",
+        total_profit_paid: "Profits Versés",
+        start_date: "Date Début",
+        end_date: "Date Fin"
+      };
+      const dataForCsv = allContracts.map(c => ({
+        ...c,
+        client: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+        start_date: format(new Date(c.start_date), "dd/MM/yyyy"),
+        end_date: format(new Date(c.end_date), "dd/MM/yyyy"),
+      }));
+      exportToCsv(dataForCsv, headers, `contrats_${new Date().toISOString().split('T')[0]}.csv`);
       toast({ title: "Export réussi", description: `${allContracts.length} contrats exportés.` });
     } catch (error) {
       console.error("CSV Export failed:", error);
       toast({ variant: "destructive", title: "Erreur", description: "Échec de l'export." });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const { data: allContracts } = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo);
+      const headers = {
+        client: "Client",
+        email: "Email",
+        amount: "Montant",
+        status: "Statut",
+        progress: "Progression",
+        start_date: "Date Début",
+      };
+      const dataForPdf = allContracts.map(c => ({
+        ...c,
+        client: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+        email: c.email,
+        amount: formatCurrency(Number(c.amount), c.currency).replace(/\s/g, ''),
+        status: c.status,
+        progress: `${c.months_paid}/${c.duration_months} mois`,
+        start_date: format(new Date(c.start_date), "dd/MM/yyyy"),
+      }));
+
+      const columnStyles = {
+        0: { cellWidth: 40 }, // client
+        1: { cellWidth: 45 }, // email
+        2: { cellWidth: 25 }, // amount
+        3: { cellWidth: 20 }, // status
+        4: { cellWidth: 25 }, // progress
+        5: { cellWidth: 20 }, // start_date
+      };
+
+      const totalAmount = allContracts.reduce((sum, c) => sum + Number(c.amount), 0);
+      const totalProfit = allContracts.reduce((sum, c) => sum + Number(c.total_profit_paid || 0), 0);
+
+      const summary = [
+        { label: "Total Investi", value: formatCurrency(totalAmount, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
+        { label: "Total Profits", value: formatCurrency(totalProfit, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
+      ];
+
+      exportToPdf(dataForPdf, headers, `contrats_${new Date().toISOString().split('T')[0]}.pdf`, "Liste des Contrats", columnStyles, summary);
+      
+      toast({ title: "Export PDF réussi", description: `${allContracts.length} contrats exportés.` });
+    } catch (error) {
+      console.error("PDF Export failed:", error);
+      toast({ variant: "destructive", title: "Erreur", description: "Échec de l'export PDF." });
     } finally {
       setIsExporting(false);
     }
@@ -293,11 +329,20 @@ const AdminContractsPage = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={exportToCSV}
+            onClick={handleExportCsv}
             disabled={isExporting || totalCount === 0}
           >
             <FileDown className="h-4 w-4 mr-2" />
             {isExporting ? "Export..." : "CSV"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={isExporting || totalCount === 0}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            {isExporting ? "Export..." : "PDF"}
           </Button>
         </div>
       </div>
@@ -310,7 +355,6 @@ const AdminContractsPage = () => {
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/60">
                 <TableHead>Utilisateur</TableHead>
-                <TableHead>ID Contrat</TableHead>
                 <TableHead>Montant</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Progression</TableHead>
@@ -322,7 +366,7 @@ const AdminContractsPage = () => {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(7)].map((_, j) => (
+                    {[...Array(6)].map((_, j) => (
                       <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                     ))}
                   </TableRow>
@@ -333,9 +377,6 @@ const AdminContractsPage = () => {
                     <TableCell>
                       <div className="font-medium">{`${contract.first_name || ''} ${contract.last_name || ''}`.trim()}</div>
                       <div className="text-sm text-muted-foreground">{contract.email}</div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground bg-secondary/30 px-2 py-1 rounded inline-block">
-                      {contract.id.substring(0, 8)}
                     </TableCell>
                     <TableCell className="font-semibold">{formatCurrency(Number(contract.amount), contract.currency)}</TableCell>
                     <TableCell><Badge variant={getStatusVariant(contract.status)} className="capitalize">{contract.status}</Badge></TableCell>
@@ -366,7 +407,7 @@ const AdminContractsPage = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Aucun résultat trouvé.
                   </TableCell>
                 </TableRow>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInvestorsList, exportInvestorsList, activateUser, deactivateUser, InvestorFilters } from "@/services/adminService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, exportToCsv } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -200,32 +200,35 @@ export const InvestorListTable = () => {
   };
 
   // Export to CSV function
-  const exportToCSV = async () => {
+  const handleExportCsv = async () => {
     setIsExporting(true);
     try {
       // Fetch all filtered data for export
       const allInvestors = await exportInvestorsList(filters);
 
-      const headers = ["Nom", "Email", "Téléphone", "Balance", "Investi", "Profits", "Statut", "Date Inscription"];
-      const rows = allInvestors.map(inv => [
-        `${inv.first_name || ''} ${inv.last_name || ''}`.trim() || "N/A",
-        inv.email,
-        inv.phone || "N/A",
-        inv.total_balance || 0,
-        inv.invested_balance || 0,
-        inv.profit_balance || 0,
-        inv.status,
-        inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : "N/A"
-      ]);
+      const headers = {
+        name: "Nom",
+        email: "Email",
+        phone: "Téléphone",
+        total_balance: "Balance",
+        invested_balance: "Investi",
+        profit_balance: "Profits",
+        status: "Statut",
+        created_at: "Date Inscription"
+      };
 
-      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `investisseurs_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const dataForCsv = allInvestors.map(inv => ({
+        ...inv,
+        name: `${inv.first_name || ''} ${inv.last_name || ''}`.trim() || "N/A",
+        phone: inv.phone || "N/A",
+        total_balance: inv.total_balance || 0,
+        invested_balance: inv.invested_balance || 0,
+        profit_balance: inv.profit_balance || 0,
+        created_at: inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : "N/A"
+      }));
+
+      exportToCsv(dataForCsv, headers, `investisseurs_${new Date().toISOString().split('T')[0]}.csv`);
+
       toast({ title: "Export réussi", description: `${allInvestors.length} investisseurs exportés.` });
     } catch (error) {
       console.error("CSV Export failed:", error);
@@ -246,7 +249,7 @@ export const InvestorListTable = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={exportToCSV}
+                onClick={handleExportCsv}
                 disabled={isExporting || investors.length === 0}
               >
                 <FileDown className="h-4 w-4 mr-2" />

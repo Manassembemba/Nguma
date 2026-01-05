@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Download, Search } from 'lucide-react';
+import { exportToCsv } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -54,32 +55,27 @@ export default function LoginAuditPage() {
     });
 
     const handleExportCSV = () => {
-        if (!logs || logs.length === 0) return;
+        if (!logs || logs.length === 0) {
+            alert("Aucun log à exporter.");
+            return;
+        }
 
-        const headers = ['Date', 'Email', 'Statut', 'IP', 'User-Agent', 'Erreur'];
-        const rows = logs.map(log => [
-            format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: fr }),
-            log.email,
-            log.success ? 'Réussi' : 'Échoué',
-            log.ip_address || 'N/A',
-            log.user_agent || 'N/A',
-            log.error_message || 'N/A',
-        ]);
+        const headers = {
+            created_at: "Date",
+            email: "Email",
+            success: "Statut",
+            ip_address: "IP",
+            user_agent: "User-Agent",
+            error_message: "Erreur"
+        };
 
-        const csv = [headers, ...rows]
-            .map(row => row.map(cell => `"${cell}"`).join(','))
-            .join('\n');
+        const dataForCsv = logs.map(log => ({
+            ...log,
+            created_at: format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: fr }),
+            success: log.success ? 'Réussi' : 'Échoué',
+        }));
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-
-        link.setAttribute('href', url);
-        link.setAttribute('download', `login-audit-${Date.now()}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        exportToCsv(dataForCsv, headers, `login-audit-${Date.now()}.csv`);
     };
 
     return (

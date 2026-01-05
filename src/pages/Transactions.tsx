@@ -4,7 +4,7 @@ import { getAllTransactions } from "@/services/transactionService";
 import { getWallet } from "@/services/walletService";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserTransactionsRealtime } from "@/hooks/useRealtimeSync";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, exportToCsv, exportToPdf } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -90,30 +90,47 @@ const TransactionsPage = () => {
     }
   };
 
-  const exportToCsv = async () => {
+  const handleExportCsv = async () => {
     const allFilteredTransactionsResult = await getAllTransactions({ type: transactionType, search: searchQuery });
     const allTransactions = allFilteredTransactionsResult.transactions;
 
-    if (!allTransactions || allTransactions.length === 0) {
-      alert("Aucune transaction à exporter.");
-      return;
-    }
+    const headers = {
+      created_at: "Date",
+      type: "Type",
+      description: "Description",
+      status: "Statut",
+      amount: "Montant",
+      currency: "Devise"
+    };
 
-    const headers = ["Date", "Type", "Description", "Statut", "Montant", "Devise"].join(",");
-    const csvContent = allTransactions.map(tx => {
-      const date = format(new Date(tx.created_at), "dd/MM/yyyy HH:mm");
-      const amount = `${tx.type === 'withdrawal' || tx.type === 'investment' ? "-" : "+"}${Number(tx.amount).toFixed(2)}`;
-      return [date, tx.type, `"${tx.description?.replace(/"/g, '""') || ''}"`, tx.status, amount, tx.currency].join(",");
-    }).join("\n");
+    const dataForCsv = allTransactions.map(tx => ({
+      ...tx,
+      created_at: format(new Date(tx.created_at), "dd/MM/yyyy HH:mm"),
+      amount: `${tx.type === 'withdrawal' || tx.type === 'investment' ? "-" : "+"}${Number(tx.amount).toFixed(2)}`
+    }));
 
-    const fullCsv = `${headers}\n${csvContent}`;
-    const blob = new Blob([fullCsv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "transactions.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(dataForCsv, headers, "transactions.csv");
+  };
+
+  const handleExportPdf = async () => {
+    const allFilteredTransactionsResult = await getAllTransactions({ type: transactionType, search: searchQuery });
+    const allTransactions = allFilteredTransactionsResult.transactions;
+
+    const headers = {
+      created_at: "Date",
+      type: "Type",
+      description: "Description",
+      status: "Statut",
+      amount: "Montant",
+    };
+
+    const dataForPdf = allTransactions.map(tx => ({
+      ...tx,
+      created_at: format(new Date(tx.created_at), "dd/MM/yyyy HH:mm"),
+      amount: `${tx.type === 'withdrawal' || tx.type === 'investment' ? "-" : "+"} ${localFormatCurrency(Number(tx.amount))}`
+    }));
+
+    exportToPdf(dataForPdf, headers, "transactions.pdf", "Historique des Transactions");
   };
 
   return (
@@ -202,7 +219,8 @@ const TransactionsPage = () => {
             <SelectItem value="admin_credit">Crédit Admin</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={exportToCsv}>Exporter en CSV</Button>
+        <Button variant="outline" onClick={handleExportCsv}>Exporter en CSV</Button>
+        <Button variant="outline" onClick={handleExportPdf}>Exporter en PDF</Button>
       </div>
 
       {/* Transactions Table */}
