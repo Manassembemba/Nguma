@@ -47,12 +47,6 @@ const PendingDepositsPage = () => {
         <p className="text-muted-foreground">
           Approuvez ou rejetez les demandes de dépôt des investisseurs
         </p>
-        {!isLoading && deposits.length > 0 && (
-          <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200">
-            <span className="text-sm text-muted-foreground">Demandes en attente:</span>
-            <span className="text-base font-bold text-amber-700">{deposits.length}</span>
-          </div>
-        )}
       </div>
 
       {/* Stats Cards */}
@@ -64,13 +58,13 @@ const PendingDepositsPage = () => {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Nombre Dépôts</div>
-                <Hash className="h-4 w-4 text-blue-600" />
+                <Hash className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-blue-700">
+              <div className="text-2xl font-bold">
                 {allDeposits.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -79,13 +73,13 @@ const PendingDepositsPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Total à Approuver</div>
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-green-700">
+              <div className="text-2xl font-bold">
                 {formatCurrency(totalAmount)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -94,13 +88,13 @@ const PendingDepositsPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Montant Moyen</div>
-                <TrendingUp className="h-4 w-4 text-amber-600" />
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-amber-700">
+              <div className="text-2xl font-bold">
                 {formatCurrency(avgAmount)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -109,13 +103,13 @@ const PendingDepositsPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Plus Ancien</div>
-                <Clock className="h-4 w-4 text-purple-600" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-purple-700">
+              <div className="text-2xl font-bold">
                 {oldestDeposit}
               </div>
               <p className="text-xs text-muted-foreground mt-1">

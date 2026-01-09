@@ -93,3 +93,22 @@ export const requestWithdrawal = async ({ amount, method, details }: { amount: n
   if (result && !result.success) throw new Error(result.error);
   return result;
 };
+
+/**
+ * Transfers funds from profit balance to deposit (total) balance.
+ * @param amount The amount to transfer.
+ * @returns {Promise<any>} The result of the RPC call.
+ */
+export const transferProfitToDeposit = async (amount: number) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Utilisateur non authentifié");
+
+  const { data, error } = await supabase.rpc('transfer_profit_to_deposit' as any, {
+    p_amount: amount
+  });
+
+  if (error) throw new Error(error.message);
+  const result = data as any;
+  if (result && !result.success) throw new Error(result.error);
+  return result;
+};

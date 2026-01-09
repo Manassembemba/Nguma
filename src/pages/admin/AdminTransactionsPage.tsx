@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { getAdminTransactionHistory } from "@/services/adminService";
+import { getAdminTransactionHistory, getTransactionKPIs } from "@/services/adminService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { Loader2, Search, Eye, Filter, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, Search, Eye, Filter, ArrowLeft, ArrowRight, ArrowDownCircle, ArrowUpCircle, RotateCcw, XCircle } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth, endOfDay, startOfDay } from "date-fns";
 
 const AdminTransactionsPage = () => {
@@ -30,8 +30,13 @@ const AdminTransactionsPage = () => {
         queryFn: () => getAdminTransactionHistory(searchQuery, typeFilter, statusFilter, page, pageSize, dateFrom, dateTo),
     });
 
-    const transactions = data?.data || [];
-    const totalCount = data?.count || 0;
+    const { data: kpis, isLoading: isLoadingKPIs } = useQuery({
+        queryKey: ["adminTransactionKPIs", searchQuery, typeFilter, dateFrom, dateTo],
+        queryFn: () => getTransactionKPIs(searchQuery, typeFilter, dateFrom, dateTo),
+    });
+
+    const transactions = (data as any)?.data || [];
+    const totalCount = (data as any)?.count || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,6 +73,16 @@ const AdminTransactionsPage = () => {
         setPage(1);
     };
 
+    const resetFilters = () => {
+        setSearchQuery("");
+        setTypeFilter("all");
+        setStatusFilter("all");
+        setDatePreset("all");
+        setDateFrom("");
+        setDateTo("");
+        setPage(1);
+    };
+
     const getTypeColor = (type: string) => {
         switch (type) {
             case 'deposit': return 'bg-blue-100 text-blue-800';
@@ -91,59 +106,86 @@ const AdminTransactionsPage = () => {
     };
 
     return (
-        <div className="p-8 space-y-8 neon-grid-bg min-h-screen">
+        <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-4xl font-black tracking-tight text-text-primary mb-2">Historique des Transactions</h1>
+                <h1 className="text-3xl font-bold mb-2">Historique des Transactions</h1>
                 <p className="text-muted-foreground">Consultez l'historique complet des dépôts, retraits et profits.</p>
             </div>
 
-            <Card className="bg-card/50 backdrop-blur-sm border-border">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <ArrowDownCircle className="h-4 w-4 text-blue-500" />
+                            Total Dépôts (Période)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.period?.deposits || 0)}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <ArrowUpCircle className="h-4 w-4 text-rose-500" />
+                            Total Retraits (Période)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.period?.withdrawals || 0)}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
                 <CardHeader>
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-                            <div className="relative w-full md:w-96">
-                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                            <div className="relative w-full md:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Rechercher par email, nom ou ID..."
+                                    placeholder="Rechercher..."
                                     value={searchQuery}
                                     onChange={handleSearch}
-                                    className="pl-8"
+                                    className="pl-10"
                                 />
                             </div>
-                            <div className="flex gap-2 w-full md:w-auto flex-wrap justify-end">
-                                <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
-                                    <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tous les types</SelectItem>
-                                        <SelectItem value="deposit">Dépôts</SelectItem>
-                                        <SelectItem value="withdrawal">Retraits</SelectItem>
-                                        <SelectItem value="profit">Profits</SelectItem>
-                                        <SelectItem value="investment">Investissements</SelectItem>
-                                        <SelectItem value="assurance">Assurance</SelectItem>
-                                        <SelectItem value="refund">Remboursements</SelectItem>
-                                        <SelectItem value="admin_credit">Crédits Admin</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                                    <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Statut" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tous les statuts</SelectItem>
-                                        <SelectItem value="completed">Validé</SelectItem>
-                                        <SelectItem value="pending">En attente</SelectItem>
-                                        <SelectItem value="rejected">Rejeté</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
+                                <SelectTrigger className="w-full md:w-[150px]">
+                                    <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous les types</SelectItem>
+                                    <SelectItem value="deposit">Dépôts</SelectItem>
+                                    <SelectItem value="withdrawal">Retraits</SelectItem>
+                                    <SelectItem value="profit">Profits</SelectItem>
+                                    <SelectItem value="investment">Investissements</SelectItem>
+                                    <SelectItem value="refund">Remboursements</SelectItem>
+                                    <SelectItem value="admin_credit">Crédits Admin</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                                <SelectTrigger className="w-full md:w-[150px]">
+                                    <SelectValue placeholder="Statut" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous les statuts</SelectItem>
+                                    <SelectItem value="completed">Validé</SelectItem>
+                                    <SelectItem value="pending">En attente</SelectItem>
+                                    <SelectItem value="rejected">Rejeté</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-4 items-center justify-end">
+                        <div className="flex items-center gap-2">
                             <Select value={datePreset} onValueChange={handlePresetChange}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger className="w-full md:w-[150px]">
                                     <SelectValue placeholder="Période" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -154,28 +196,12 @@ const AdminTransactionsPage = () => {
                                     <SelectItem value="custom">Personnalisé</SelectItem>
                                 </SelectContent>
                             </Select>
-
                             {datePreset === 'custom' && (
-                                <>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">Du:</span>
-                                        <Input
-                                            type="date"
-                                            value={dateFrom}
-                                            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                                            className="w-[150px]"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">Au:</span>
-                                        <Input
-                                            type="date"
-                                            value={dateTo}
-                                            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                                            className="w-[150px]"
-                                        />
-                                    </div>
-                                </>
+                                <div className="flex items-center gap-2">
+                                    <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="w-[130px]" />
+                                    <span>-</span>
+                                    <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="w-[130px]" />
+                                </div>
                             )}
                         </div>
                     </div>
@@ -211,13 +237,13 @@ const AdminTransactionsPage = () => {
                                                 <TableCell>
                                                     <Badge variant="outline" className={getTypeColor(tx.type)}>
                                                         {tx.type === 'deposit' ? 'Dépôt' :
-                                                         tx.type === 'withdrawal' ? 'Retrait' :
-                                                         tx.type === 'profit' ? 'Profit' :
-                                                         tx.type === 'investment' ? 'Investissement' :
-                                                         tx.type === 'assurance' ? 'Assurance' :
-                                                         tx.type === 'refund' ? 'Remboursement' :
-                                                         tx.type === 'admin_credit' ? 'Crédit Admin' :
-                                                         tx.type}
+                                                            tx.type === 'withdrawal' ? 'Retrait' :
+                                                                tx.type === 'profit' ? 'Profit' :
+                                                                    tx.type === 'investment' ? 'Investissement' :
+                                                                        tx.type === 'assurance' ? 'Assurance' :
+                                                                            tx.type === 'refund' ? 'Remboursement' :
+                                                                                tx.type === 'admin_credit' ? 'Crédit Admin' :
+                                                                                    tx.type}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="font-bold">
@@ -318,5 +344,13 @@ const AdminTransactionsPage = () => {
         </div>
     );
 };
+
+const SkeletonLoader = () => (
+    <div className="space-y-3">
+        <div className="h-6 bg-muted/20 animate-pulse rounded"></div>
+        <div className="h-6 bg-muted/20 animate-pulse rounded"></div>
+        <div className="h-8 bg-muted/20 animate-pulse rounded border-t border-muted/10 pt-2"></div>
+    </div>
+);
 
 export default AdminTransactionsPage;

@@ -21,7 +21,7 @@ import {
   accountSuspendedTemplate,
   accountReactivatedTemplate
 } from './categories/admin/admin.ts';
-import { newUserRegisteredAdminTemplate } from './categories/admin/newAdminNotification.ts';
+
 import { newContractAdminTemplate } from './categories/admin/newContractAdmin.ts';
 
 // Import marketing & system templates
@@ -33,11 +33,14 @@ import {
 } from './categories/marketing/marketing.ts';
 import { welcomeNewUserTemplate } from './categories/marketing/welcome.ts';
 
-// Import support templates
 import {
   supportRequestReceivedUserTemplate,
   newSupportRequestAdminTemplate
 } from './categories/support/supportRequest.ts';
+import {
+  chatEscalationAdminTemplate,
+  chatNewMessageAdminTemplate
+} from './categories/support/chatSupport.ts';
 
 // Import refund templates
 import { refundTemplates } from './categories/transactions/refunds.ts';
@@ -79,7 +82,7 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
   new_withdrawal_request: newWithdrawalRequestTemplate,
   account_suspended: accountSuspendedTemplate,
   account_reactivated: accountReactivatedTemplate,
-  new_user_registered_admin: newUserRegisteredAdminTemplate,
+
   new_contract_admin: newContractAdminTemplate,               // ✅ NOUVEAU - Notification admin nouveau contrat
 
   // Marketing & System Templates
@@ -92,6 +95,8 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
   // Support Templates
   support_request_received_user: supportRequestReceivedUserTemplate,
   new_support_request_admin: newSupportRequestAdminTemplate,
+  chat_escalation_admin: chatEscalationAdminTemplate,
+  chat_new_message_admin: chatNewMessageAdminTemplate,
 
   // Refund Templates
   refund_requested: refundTemplates[0],

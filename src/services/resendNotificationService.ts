@@ -2,11 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { getProfile } from '@/services/profileService'; // New import
 
 // Types pour les templates de notification
-export type NotificationTemplate = 
+export type NotificationTemplate =
   | 'deposit_approved'
   | 'deposit_rejected'
   | 'deposit_pending'
-  | 'withdrawal_approved' 
+  | 'withdrawal_approved'
   | 'withdrawal_rejected'
   | 'withdrawal_pending'
   | 'monthly_profit'
@@ -23,9 +23,19 @@ export type NotificationTemplate =
   | '2fa_setup_confirmed'
   | '2fa_disabled_confirmed'
   | 'notification_preferences_updated'
-  | 'new_user_registered_admin' // Ajouté
-  | 'support_request_received_user' // Ajouté
-  | 'new_support_request_admin'; // Ajouté
+  | 'support_request_received_user'
+  | 'new_support_request_admin'
+  | 'welcome_new_user'
+  | 'profile_updated_by_user'
+  | 'profile_updated_by_admin'
+  | 'contract_ended'
+  | 'contract_expiring_soon'
+  | 'reinvestment_confirmed'
+  | 'refund_requested'
+  | 'new_refund_request'
+  | 'refund_approved'
+  | 'refund_rejected'
+  | 'deposit_availability_reminder';
 
 export interface NotificationParams {
   to?: string | string[]; // 'to' devient optionnel, car la RPC peut déduire l'utilisateur courant
@@ -56,6 +66,10 @@ export interface NotificationParams {
   support_request_id?: string;
   subject?: string; // Sujet de la demande de support
   message?: string; // Message de la demande de support
+  // Paramètres pour les remboursements
+  userName?: string;
+  userEmail?: string;
+  totalProfits?: number;
 }
 
 /**
@@ -78,7 +92,7 @@ export const sendResendNotification = async (
     }
 
     // Si la RPC retourne un succès, nous considérons que c'est en file d'attente
-    return { success: true }; 
+    return { success: true };
   } catch (error) {
     console.error('Error in sendResendNotification (RPC call):', error);
     return { success: false, error: (error as Error).message };
@@ -158,7 +172,7 @@ export const updateUserNotificationPreferences = async (
         return { success: false, error: insertError.message };
       }
     }
-    
+
     // --- Send Notification Preferences Updated Confirmation ---
     const profile = await getProfile(); // Fetch profile to get full_name
     if (profile?.email) {

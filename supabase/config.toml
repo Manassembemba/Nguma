@@ -8,3 +8,11 @@ entrypoint = "./functions/send-resend-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-resend-email/*.html" ]
+
+[functions.process-notification-queue]
+verify_jwt = false
+entrypoint = "./functions/process-notification-queue/index.ts"
+
+[functions.cron-contract-reminders]
+verify_jwt = false
+entrypoint = "./functions/cron-contract-reminders/index.ts"

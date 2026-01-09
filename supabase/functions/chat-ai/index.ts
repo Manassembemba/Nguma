@@ -166,6 +166,7 @@ serve(async (req) => {
                     .eq('role', 'admin')
 
                 if (admins && admins.length > 0) {
+                    // Send in-app notifications
                     await supabase.from('notifications').insert(
                         admins.map(admin => ({
                             user_id: admin.user_id,
@@ -175,6 +176,40 @@ serve(async (req) => {
                             link_to: `/admin/support?conversation=${conversationId}`
                         }))
                     )
+
+                    // Get detailled user profile for the email
+                    const { data: userProfile } = await supabase
+                        .from('profiles')
+                        .select('email, first_name, last_name')
+                        .eq('id', conversation.user_id)
+                        .single();
+
+                    const userName = userProfile
+                        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email
+                        : user.email;
+
+                    // Send email notifications via queue
+                    const emailNotifications = admins.map(admin => {
+                        // We need the admin email. Let's fetch them too.
+                        return supabase.rpc('get_user_email_by_id', { p_user_id: admin.user_id })
+                            .then(({ data: adminEmail }) => {
+                                if (!adminEmail) return null;
+                                return supabase.from('notifications_queue').insert({
+                                    template_id: 'chat_escalation_admin',
+                                    recipient_email: adminEmail,
+                                    notification_params: {
+                                        to: adminEmail,
+                                        name: userName,
+                                        email: userProfile?.email || user.email,
+                                        conversationId: conversationId,
+                                        message: message
+                                    },
+                                    priority: 'high'
+                                });
+                            });
+                    });
+
+                    await Promise.allSettled(emailNotifications);
                 }
             }
 
@@ -209,19 +244,19 @@ serve(async (req) => {
 
         // 5. Générer une réponse naturelle avec Gemini (avec contexte enrichi)
         const prompt = `Tu es ${role} chez Nguma, une plateforme d'investissement fiable.
-            ${ userContext }
+            ${userContext}
 
 ** Informations disponibles:**
-            ${ context }
+            ${context}
 
 ** Conversation précédente:**
-            ${ conversationHistory || 'Aucun historique' }
+            ${conversationHistory || 'Aucun historique'}
 
 ** Question de l'utilisateur :** "${message}"
 
             ** Ton rôle:**
                 Tu es un humain, pas un robot.Réponds naturellement comme si tu parlais à un ami qui te fait confiance pour l'aider avec ses investissements.
-${ userContext ? 'Utilise le contexte utilisateur pour personnaliser tes réponses (adapte selon son niveau, son profil de risque, etc.).' : '' }
+${userContext ? 'Utilise le contexte utilisateur pour personnaliser tes réponses (adapte selon son niveau, son profil de risque, etc.).' : ''}
 
 ** Style de réponse:**
             - Parle comme un humain: utilise "je", sois empathique, montre que tu comprends
@@ -237,19 +272,19 @@ ${ userContext ? 'Utilise le contexte utilisateur pour personnaliser tes répons
 
         const generateResponse = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`,
-        {
-            method: 'POST',
+            {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.8, // Plus créatif et naturel
-                    maxOutputTokens: 1000, // Augmenté pour permettre des réponses complètes
-                    topP: 0.95,
-                    topK: 40
-                }
-            })
-        }
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: 0.8, // Plus créatif et naturel
+                        maxOutputTokens: 1000, // Augmenté pour permettre des réponses complètes
+                        topP: 0.95,
+                        topK: 40
+                    }
+                })
+            }
         )
 
         if (!generateResponse.ok) {
@@ -257,58 +292,58 @@ ${ userContext ? 'Utilise le contexte utilisateur pour personnaliser tes répons
             throw new Error(`Failed to generate AI response: ${generateResponse.status} ${errorBody}`);
         }
 
-const generateData = await generateResponse.json()
+        const generateData = await generateResponse.json()
 
-const aiReply = generateData.candidates[0].content.parts[0].text
-let isTruncated = false;
+        const aiReply = generateData.candidates[0].content.parts[0].text
+        let isTruncated = false;
 
-// Gérer MAX_TOKENS (réponse trop longue)
-if (generateData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
-    console.warn('Gemini hit MAX_TOKENS, response was truncated.')
-    aiReply += "\n\n[... La réponse a été tronquée. Veuillez reformuler votre question pour plus de détails ou précisez votre demande.]";
-    isTruncated = true;
-}
+        // Gérer MAX_TOKENS (réponse trop longue)
+        if (generateData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+            console.warn('Gemini hit MAX_TOKENS, response was truncated.')
+            aiReply += "\n\n[... La réponse a été tronquée. Veuillez reformuler votre question pour plus de détails ou précisez votre demande.]";
+            isTruncated = true;
+        }
 
-// Vérifier réponse valide
-if (!aiReply) {
-    console.error('Invalid response:', JSON.stringify(generateData))
-    throw new Error('AI response invalid')
-}
+        // Vérifier réponse valide
+        if (!aiReply) {
+            console.error('Invalid response:', JSON.stringify(generateData))
+            throw new Error('AI response invalid')
+        }
 
-// 6. Enregistrer
-await supabase.from('chat_messages').insert({
-    conversation_id: conversationId,
-    sender_id: '00000000-0000-0000-0000-000000000000',
-    message: aiReply,
-    is_admin: false
-})
+        // 6. Enregistrer
+        await supabase.from('chat_messages').insert({
+            conversation_id: conversationId,
+            sender_id: '00000000-0000-0000-0000-000000000000',
+            message: aiReply,
+            is_admin: false
+        })
 
-await supabase.from('chat_conversations').update({
-    last_message_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-}).eq('id', conversationId)
+        await supabase.from('chat_conversations').update({
+            last_message_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('id', conversationId)
 
-// 7. Tracker les analytics
-const responseTime = Math.floor((Date.now() - startTime) / 1000)
-await supabase.from('chat_analytics').upsert({
-    conversation_id: conversationId,
-    ai_answered: true,
-    escalated_to_admin: false,
-    first_response_time_seconds: responseTime
-}, {
-    onConflict: 'conversation_id'
-})
+        // 7. Tracker les analytics
+        const responseTime = Math.floor((Date.now() - startTime) / 1000)
+        await supabase.from('chat_analytics').upsert({
+            conversation_id: conversationId,
+            ai_answered: true,
+            escalated_to_admin: false,
+            first_response_time_seconds: responseTime
+        }, {
+            onConflict: 'conversation_id'
+        })
 
-return new Response(
-    JSON.stringify({ shouldEscalate: false, reply: aiReply, confidence: bestMatch.similarity, isTruncated }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-)
+        return new Response(
+            JSON.stringify({ shouldEscalate: false, reply: aiReply, confidence: bestMatch.similarity, isTruncated }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
 
     } catch (error) {
-    console.error('Error:', error)
-    return new Response(
-        JSON.stringify({ error: error.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
-}
+        console.error('Error:', error)
+        return new Response(
+            JSON.stringify({ error: error.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+    }
 })

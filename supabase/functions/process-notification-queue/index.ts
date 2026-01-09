@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    
+
     console.log(`[process-notification-queue] Found ${jobs.length} jobs to process.`);
 
     // Mark jobs as 'processing' to prevent another worker from picking them up
@@ -48,13 +48,14 @@ Deno.serve(async (req) => {
       .update({ status: 'processing', processed_at: new Date().toISOString() })
       .in('id', jobIds);
 
-    // 3. Process each job
-    const processingPromises = jobs.map(async (job) => {
+    // 3. Process each job sequentially with a delay to respect Resend's rate limit (2/sec)
+    let processedCount = 0;
+    for (const job of jobs) {
       try {
         const payload = {
           template_id: job.template_id,
           to: job.recipient_email,
-          ...job.notification_params, // Spread the params from the DB (name, amount, etc.)
+          ...job.notification_params,
         };
 
         // Invoke the email sending function
@@ -75,24 +76,26 @@ Deno.serve(async (req) => {
           .update({ status: 'sent' })
           .eq('id', job.id);
 
+        processedCount++;
+
+        // Wait 600ms between calls to stay under 2 requests/sec limit
+        await new Promise(resolve => setTimeout(resolve, 600));
+
       } catch (error) {
         console.error(`[process-notification-queue] Error processing job ${job.id}:`, error.message);
         // If failed, mark job as 'failed' and log the error
         await supabaseAdmin
           .from('notifications_queue')
-          .update({ 
-            status: 'failed', 
+          .update({
+            status: 'failed',
             last_error: error.message,
             retry_attempts: (job.retry_attempts || 0) + 1
           })
           .eq('id', job.id);
       }
-    });
+    }
 
-    // Wait for all processing to complete
-    await Promise.all(processingPromises);
-
-    return new Response(JSON.stringify({ success: true, processed: jobs.length }), {
+    return new Response(JSON.stringify({ success: true, processed: processedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

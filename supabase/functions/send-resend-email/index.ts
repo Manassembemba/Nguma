@@ -39,10 +39,10 @@ serve(async (req) => {
   try {
     // Check for critical environment variables first
     if (!RESEND_API_KEY || !Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-        console.error("CRITICAL: Missing one or more environment variables (RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
-        return errorResponse("Server configuration error", 500);
+      console.error("CRITICAL: Missing one or more environment variables (RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
+      return errorResponse("Server configuration error", 500);
     }
-    
+
     const resend = new Resend(RESEND_API_KEY);
 
     // Authentication
@@ -54,17 +54,9 @@ serve(async (req) => {
     // Parse payload
     const payload = await req.json();
     const { template_id, ...params } = payload;
-    
-    if (!template_id) {
-        return errorResponse("Missing required field: template_id", 400);
-    }
 
-    // --- BATCH PROCESSING ---
-    if (template_id === 'dormant_funds_reminder_batch' && Array.isArray(payload.recipients)) {
-      // ... (Batch processing logic remains the same)
-      return new Response(JSON.stringify({ success: true, message: "Batch processing finished." }), {
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
+    if (!template_id) {
+      return errorResponse("Missing required field: template_id", 400);
     }
 
     // --- SINGLE EMAIL PROCESSING ---
@@ -78,7 +70,7 @@ serve(async (req) => {
 
     const validationErrors = validateTemplateParams(template_id, emailParams, helpers);
     if (validationErrors.length > 0) {
-        return errorResponse(`Validation failed: ${validationErrors.join(', ')}`, 400);
+      return errorResponse(`Validation failed: ${validationErrors.join(', ')}`, 400);
     }
 
     const { subject, text, html } = template.render(emailParams, helpers);
@@ -126,10 +118,10 @@ serve(async (req) => {
     // Safe error serialization
     const errorMessage = e instanceof Error ? e.message : (typeof e === 'string' ? e : "An unexpected error occurred.");
     if (e?.name === 'SyntaxError') { // Specifically for req.json() failures
-        return errorResponse("Invalid JSON in request body", 400);
+      return errorResponse("Invalid JSON in request body", 400);
     }
     if (e?.message === "Unauthorized") { // From authenticateUser
-        return errorResponse("Unauthorized", 401);
+      return errorResponse("Unauthorized", 401);
     }
     return errorResponse(errorMessage, 500);
   }
@@ -147,17 +139,17 @@ async function logEmailError(params: EmailParams, templateId: string, error: str
 
 async function logEmailSuccess(params: EmailParams, templateId: string, subject: string, messageId?: string) {
   if (params.notificationId) {
-     await supabaseAdmin
-        .from('notifications')
-        .update({ status: 'sent', is_read: true, message: `Email envoyé: ${subject}` })
-        .eq('id', params.notificationId);
+    await supabaseAdmin
+      .from('notifications')
+      .update({ status: 'sent', is_read: true, message: `Email envoyé: ${subject}` })
+      .eq('id', params.notificationId);
   } else if (params.userId) {
-      await supabaseAdmin.from('notifications').insert({
-          user_id: params.userId,
-          message: `Email envoyé: ${subject}`,
-          type: 'system',
-          priority: 'low',
-          is_read: true
-        });
+    await supabaseAdmin.from('notifications').insert({
+      user_id: params.userId,
+      message: `Email envoyé: ${subject}`,
+      type: 'system',
+      priority: 'low',
+      is_read: true
+    });
   }
 }

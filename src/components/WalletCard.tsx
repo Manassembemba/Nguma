@@ -40,15 +40,13 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20 shadow-elegant hover:shadow-xl transition-all hover:scale-[1.02] duration-200">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Montant Déposé</CardTitle>
-          <div className="p-2 bg-blue-500/20 rounded-lg">
-            <Wallet className="h-4 w-4 text-blue-600" />
-          </div>
+          <Wallet className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-700">
+          <div className="text-2xl font-bold">
             {formatCurrency(Number(wallet?.total_balance || 0))}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -57,15 +55,13 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 shadow-elegant hover:shadow-xl transition-all hover:scale-[1.02] duration-200">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Investis</CardTitle>
-          <div className="p-2 bg-purple-500/20 rounded-lg">
-            <DollarSign className="h-4 w-4 text-purple-600" />
-          </div>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-purple-700">
+          <div className="text-2xl font-bold">
             {formatCurrency(totalInvested)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -74,15 +70,13 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20 shadow-elegant hover:shadow-xl transition-all hover:scale-[1.02] duration-200">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Profits</CardTitle>
-          <div className="p-2 bg-green-500/20 rounded-lg">
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </div>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-700">
+          <div className="text-2xl font-bold text-green-600">
             +{formatCurrency(totalProfit)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -91,15 +85,13 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20 shadow-elegant hover:shadow-xl transition-all hover:scale-[1.02] duration-200">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Contrats Actifs</CardTitle>
-          <div className="p-2 bg-amber-500/20 rounded-lg">
-            <FileText className="h-4 w-4 text-amber-600" />
-          </div>
+          <FileText className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-amber-700">{activeContracts}</div>
+          <div className="text-2xl font-bold">{activeContracts}</div>
           <p className="text-xs text-muted-foreground mt-1">
             En cours
           </p>

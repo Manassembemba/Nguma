@@ -40,6 +40,8 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
 
   const progress = (contract.months_paid / contract.duration_months) * 100;
   const totalProfitPaid = Number(contract.total_profit_paid) || 0;
+  const monthlyRate = Number(contract.monthly_rate) || 0;
+  const totalEstimatedProfit = Number(contract.amount) * monthlyRate * contract.duration_months;
 
   // Calculate smart badges
   const contractAge = Math.floor((new Date().getTime() - new Date(contract.created_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -60,76 +62,60 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
   };
 
   return (
-    <Card className="shadow-elegant border-border/50 flex flex-col bg-gradient-card relative overflow-hidden">
-      {/* Status indicator - animated dot */}
+    <Card className="shadow-sm border-border/50 flex flex-col relative overflow-hidden">
+      {/* Status indicator */}
       {contract.status === 'active' && (
         <div className="absolute top-3 left-3 z-10">
-          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-green-500" />
         </div>
       )}
 
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1">
-            <CardTitle className="text-lg">Contrat #{contract.id.substring(0, 8)}</CardTitle>
-            {/* Smart Status Badges */}
+            <CardTitle className="text-base">Contrat #{contract.id.substring(0, 8)}</CardTitle>
             <div className="flex flex-wrap gap-1 mt-2">
-
-
               {isEndingSoon && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] py-0">
                   Bientôt terminé
                 </Badge>
               )}
-              {totalProfitPaid > 0 && (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                  ROI: +{((totalProfitPaid / Number(contract.amount)) * 100).toFixed(1)}%
-                </Badge>
-              )}
               {contract.is_insured && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs flex items-center gap-1">
-                        <Shield className="h-3 w-3" />
-                        Assuré
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">Ce contrat bénéficie d'une assurance.  </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] py-0">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Assuré
+                </Badge>
               )}
             </div>
           </div>
-          <Badge variant={getStatusVariant(contract.status)} className="capitalize">{contract.status}</Badge>
+          <Badge variant={getStatusVariant(contract.status)} className="capitalize text-[10px] py-0">{contract.status}</Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow space-y-4">
-        <div className="text-3xl font-bold">{formatCurrency(Number(contract.amount))}</div>
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-muted-foreground">Progression</span>
-            <span className="text-sm font-medium">{contract.months_paid} / {contract.duration_months} mois</span>
+
+      <CardContent className="flex-grow space-y-4 pt-0">
+        <div className="text-2xl font-bold">{formatCurrency(Number(contract.amount))}</div>
+
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground">Progression</span>
+            <span className="font-medium">{contract.months_paid} / {contract.duration_months} mois</span>
           </div>
-          <Progress value={progress} className="w-full" />
+          <Progress value={progress} className="h-2" />
         </div>
 
         {/* Profits versés */}
-        {totalProfitPaid > 0 && (
-          <div className="flex justify-between items-center text-sm bg-green-50 p-2 rounded-lg">
-            <span className="text-muted-foreground">Profits versés</span>
-            <span className="font-semibold text-green-600">
+        <div className="pt-2 border-t border-dashed">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground font-medium">Profits versés</span>
+            <span className="font-bold text-green-600">
               +{formatCurrency(totalProfitPaid)}
             </span>
           </div>
-        )}
+        </div>
 
-        <div className="text-xs text-muted-foreground space-y-1 pt-2">
-          <p>Début: {format(new Date(contract.start_date), "d MMMM yyyy", { locale: fr })}</p>
-          <p>Fin: {format(new Date(contract.end_date), "d MMMM yyyy", { locale: fr })}</p>
+        <div className="text-[10px] text-muted-foreground space-y-0.5 opacity-70">
+          <p>Début: {format(new Date(contract.start_date), "dd/MM/yyyy", { locale: fr })}</p>
+          <p>Fin: {format(new Date(contract.end_date), "dd/MM/yyyy", { locale: fr })}</p>
         </div>
       </CardContent>
       <CardFooter className="absolute bottom-2 right-2 p-0 border-none bg-transparent flex gap-2">

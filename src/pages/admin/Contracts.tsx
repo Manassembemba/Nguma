@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { adminGetAllContracts } from "@/services/adminService";
+import { adminGetAllContracts, getAdminContractKPIs } from "@/services/adminService";
 import { formatCurrency, exportToCsv, exportToPdf } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +14,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationNext, Paginati
 import { useDebounce } from "@/hooks/useDebounce";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight, RotateCcw, Filter, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { EditContractDialog } from "@/components/admin/EditContractDialog";
@@ -46,19 +46,32 @@ const AdminContractsPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
 
-  const { data: paginatedData, isLoading } = useQuery({
+  const { data: paginatedData, isLoading: isLoadingList } = useQuery({
     queryKey: ["allContracts", debouncedSearchQuery, statusFilter, page, dateFrom, dateTo],
     queryFn: () => adminGetAllContracts(debouncedSearchQuery, statusFilter, page, PAGE_SIZE, dateFrom, dateTo),
     placeholderData: { data: [], count: 0 },
   });
 
-  const contracts = paginatedData?.data as ContractData[] || [];
-  const totalCount = paginatedData?.count || 0;
+  const { data: kpis, isLoading: isLoadingKPIs } = useQuery({
+    queryKey: ["adminContractKPIs", debouncedSearchQuery, statusFilter, dateFrom, dateTo],
+    queryFn: () => getAdminContractKPIs(debouncedSearchQuery, statusFilter, dateFrom, dateTo),
+  });
+
+  const typedPaginatedData = paginatedData as unknown as { data: ContractData[], count: number };
+  const contracts = typedPaginatedData?.data || [];
+  const totalCount = typedPaginatedData?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const activeContracts = contracts.filter(c => c.status === 'active');
-  const totalValue = contracts.reduce((sum, c) => sum + Number(c.amount), 0);
-  const totalProfits = contracts.reduce((sum, c) => sum + Number(c.total_profit_paid || 0), 0);
+  const isLoading = isLoadingList || isLoadingKPIs;
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setDatePreset("all");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -103,7 +116,8 @@ const AdminContractsPage = () => {
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      const { data: allContracts } = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo);
+      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo) as any;
+      const allContracts = (rpcResult?.data || []) as ContractData[];
       const headers = {
         id: "ID Contrat",
         client: "Client",
@@ -116,14 +130,14 @@ const AdminContractsPage = () => {
         total_profit_paid: "Profits Versés",
         start_date: "Date Début",
         end_date: "Date Fin"
-      };
+      } as any;
       const dataForCsv = allContracts.map(c => ({
         ...c,
         client: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
         start_date: format(new Date(c.start_date), "dd/MM/yyyy"),
         end_date: format(new Date(c.end_date), "dd/MM/yyyy"),
       }));
-      exportToCsv(dataForCsv, headers, `contrats_${new Date().toISOString().split('T')[0]}.csv`);
+      exportToCsv(dataForCsv as any, headers, `contrats_${new Date().toISOString().split('T')[0]}.csv`);
       toast({ title: "Export réussi", description: `${allContracts.length} contrats exportés.` });
     } catch (error) {
       console.error("CSV Export failed:", error);
@@ -136,7 +150,8 @@ const AdminContractsPage = () => {
   const handleExportPdf = async () => {
     setIsExporting(true);
     try {
-      const { data: allContracts } = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo);
+      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo) as any;
+      const allContracts = (rpcResult?.data || []) as ContractData[];
       const headers = {
         client: "Client",
         email: "Email",
@@ -144,7 +159,7 @@ const AdminContractsPage = () => {
         status: "Statut",
         progress: "Progression",
         start_date: "Date Début",
-      };
+      } as any;
       const dataForPdf = allContracts.map(c => ({
         ...c,
         client: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
@@ -172,8 +187,8 @@ const AdminContractsPage = () => {
         { label: "Total Profits", value: formatCurrency(totalProfit, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
       ];
 
-      exportToPdf(dataForPdf, headers, `contrats_${new Date().toISOString().split('T')[0]}.pdf`, "Liste des Contrats", columnStyles, summary);
-      
+      exportToPdf(dataForPdf as any, headers, `contrats_${new Date().toISOString().split('T')[0]}.pdf`, "Liste des Contrats", columnStyles, summary);
+
       toast({ title: "Export PDF réussi", description: `${allContracts.length} contrats exportés.` });
     } catch (error) {
       console.error("PDF Export failed:", error);
@@ -196,76 +211,67 @@ const AdminContractsPage = () => {
         )}
       </div>
 
-      {/* Stats Cards */}
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-[100px] rounded-lg" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-muted-foreground">Total Contrats</div>
-                <FileText className="h-4 w-4 text-blue-600" />
-              </div>
-              <div className="text-2xl font-bold text-blue-700">
-                {totalCount}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sur la plateforme
-              </p>
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Total Contrats</div>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-bold">
+              {kpis?.total_count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sur la plateforme
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-muted-foreground">Contrats Actifs</div>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </div>
-              <div className="text-2xl font-bold text-green-700">
-                {activeContracts.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                En cours de paiement
-              </p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Contrats Actifs</div>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-bold">
+              {kpis?.active_count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              En cours
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-muted-foreground">Valeur Totale</div>
-                <DollarSign className="h-4 w-4 text-purple-600" />
-              </div>
-              <div className="text-2xl font-bold text-purple-700">
-                {formatCurrency(totalValue)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Tous contrats confondus
-              </p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Valeur Totale</div>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(kpis?.total_investment || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Investissement total
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-muted-foreground">Profits Générés</div>
-                <TrendingUp className="h-4 w-4 text-amber-600" />
-              </div>
-              <div className="text-2xl font-bold text-amber-700">
-                {formatCurrency(totalProfits)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Versés aux investisseurs
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Profits Versés</div>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(kpis?.total_profits_paid || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Déjà distribués
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Control Bar: Filters, View Toggle, Export */}
       <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">

@@ -178,7 +178,7 @@ export const InvestorListTable = () => {
   const activationMutation = useMutation({
     mutationFn: (user: Investor) => {
       const isBanned = user.banned_until && new Date(user.banned_until) > new Date();
-      return isBanned ? activateUser(user.id) : deactivateUser(user.id);
+      return isBanned ? activateUser(user.id) : deactivateUser(user.id, "Action administrative");
     },
     onSuccess: (_, user) => {
       const isBanned = user.banned_until && new Date(user.banned_until) > new Date();
@@ -240,7 +240,7 @@ export const InvestorListTable = () => {
 
   return (
     <>
-      <div className="lg:col-span-2 flex flex-col rounded-lg bg-background-card border border-white/10 p-6">
+      <div className="lg:col-span-2 flex flex-col rounded-lg bg-card border shadow-sm p-6">
         {/* Header with Search and Filters */}
         <div className="flex flex-col gap-4 mb-4">
           <div className="flex justify-between items-center">
@@ -480,6 +480,7 @@ export const InvestorListTable = () => {
                 <TableHead>Nom</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead>Balance</TableHead>
+                <TableHead>Investi</TableHead>
                 <TableHead>Contrats</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -511,7 +512,7 @@ export const InvestorListTable = () => {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{`${investor.first_name || ''} ${investor.last_name || ''}`.trim() || "N/A"}</span>
                           {isBanned && <Badge variant="destructive">Banni</Badge>}
-                          {isNewUser(investor.created_at) && <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white"><Sparkles className="h-3 w-3 mr-1" />Nouveau</Badge>}
+                          {isNewUser(investor.created_at) && <Badge variant="secondary"><Sparkles className="h-3 w-3 mr-1" />Nouveau</Badge>}
                         </div>
                         <div className="text-sm text-muted-foreground">{investor.email}</div>
                       </TableCell>
@@ -526,6 +527,7 @@ export const InvestorListTable = () => {
                         )}
                       </TableCell>
                       <TableCell>{investor.wallet ? formatCurrency(Number(investor.wallet.total_balance), investor.wallet.currency) : 'N/A'}</TableCell>
+                      <TableCell className="font-semibold text-primary">{investor.wallet ? formatCurrency(Number(investor.wallet.invested_balance || 0), investor.wallet.currency) : 'N/A'}</TableCell>
                       <TableCell>
                         {activeContractsCount > 0 ? (
                           <Badge variant="outline" className="bg-primary/10">{activeContractsCount} actif{activeContractsCount > 1 ? 's' : ''}</Badge>
@@ -558,9 +560,9 @@ export const InvestorListTable = () => {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="p-0">
-                    <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg m-4 border border-blue-100">
+                    <div className="text-center py-16 bg-muted/50 rounded-lg m-4 border border-dashed">
                       <div className="text-6xl mb-4">👥</div>
-                      <h3 className="text-2xl font-semibold mb-2 text-blue-900">
+                      <h3 className="text-2xl font-semibold mb-2">
                         Aucun investisseur trouvé
                       </h3>
                       <p className="text-muted-foreground">

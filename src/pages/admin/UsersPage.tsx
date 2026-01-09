@@ -43,13 +43,13 @@ const UsersPage = () => {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Total Investisseurs</div>
-                <Users className="h-4 w-4 text-blue-600" />
+                <Users className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-blue-700">
+              <div className="text-2xl font-bold">
                 {totalInvestors}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -58,13 +58,13 @@ const UsersPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Nouveaux (Ce mois)</div>
-                <UserPlus className="h-4 w-4 text-green-600" />
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-green-700">
+              <div className="text-2xl font-bold text-green-600">
                 +{newUsersThisMonth}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -73,13 +73,13 @@ const UsersPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Investisseurs Actifs</div>
-                <UserCheck className="h-4 w-4 text-purple-600" />
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-purple-700">
+              <div className="text-2xl font-bold">
                 {activeInvestors}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -88,13 +88,13 @@ const UsersPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+          <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Taux de Conversion</div>
-                <UserCheck className="h-4 w-4 text-amber-600" />
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-2xl font-bold text-amber-700">
+              <div className="text-2xl font-bold">
                 {totalInvestors > 0 ? ((activeInvestors / totalInvestors) * 100).toFixed(1) : 0}%
               </div>
               <p className="text-xs text-muted-foreground mt-1">

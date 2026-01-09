@@ -12,6 +12,7 @@ import { NewContractDialog } from "@/components/NewContractDialog";
 import { DepositDialog } from "@/components/DepositDialog";
 import { WithdrawDialog } from "@/components/WithdrawDialog";
 import { ReinvestDialog } from "@/components/ReinvestDialog";
+import { TransferProfitToDepositDialog } from "@/components/TransferProfitToDepositDialog";
 import { UpcomingPayments } from "@/components/UpcomingPayments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -96,9 +97,10 @@ const Dashboard = () => {
             Vue d'ensemble de vos investissements
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <DepositDialog />
           <NewContractDialog />
+          <TransferProfitToDepositDialog wallet={wallet} />
           <ReinvestDialog wallet={wallet} />
           <WithdrawDialog wallet={wallet} />
         </div>
@@ -169,12 +171,12 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 sm:py-16 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border-2 border-dashed border-slate-700">
-            <div className="text-5xl sm:text-6xl mb-4 animate-bounce">📊</div>
-            <h3 className="text-xl sm:text-2xl font-semibold mb-2 text-white">
+          <div className="text-center py-12 bg-muted/50 rounded-lg border-2 border-dashed">
+            <div className="text-4xl mb-4">📊</div>
+            <h3 className="text-lg font-semibold mb-2">
               Commencez votre premier investissement
             </h3>
-            <p className="text-sm sm:text-base text-slate-300 mb-6 max-w-md mx-auto px-4">
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto px-4">
               Créez un contrat pour commencer à générer des profits mensuels de {monthlyRatePercent}%
             </p>
             <NewContractDialog />

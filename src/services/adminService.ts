@@ -39,17 +39,17 @@ export const getTransactionMetadata = async (transactionId: string) => {
 };
 
 export const getSingleTransaction = async (transactionId: string) => {
-    const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('id', transactionId)
-        .single();
-    
-    if (error) {
-        console.error(`Error fetching transaction ${transactionId}:`, error);
-        throw new Error(`Could not fetch transaction ${transactionId}.`);
-    }
-    return data;
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', transactionId)
+    .single();
+
+  if (error) {
+    console.error(`Error fetching transaction ${transactionId}:`, error);
+    throw new Error(`Could not fetch transaction ${transactionId}.`);
+  }
+  return data;
 }
 
 export const approveDeposit = async (transactionId: string) => {
@@ -139,6 +139,7 @@ export interface InvestorFilters {
   maxInvested?: number;
   country?: string; // Gardé pour la compatibilité de type, mais non utilisé dans l'appel
   city?: string;    // Gardé pour la compatibilité de type, mais non utilisé dans l'appel
+  status?: string;
 }
 
 export const getInvestorsList = async (filters: InvestorFilters = {}) => {
@@ -169,7 +170,7 @@ export const getInvestorsList = async (filters: InvestorFilters = {}) => {
 export const exportInvestorsList = async (filters: InvestorFilters = {}) => {
   const { searchQuery, dateFrom, dateTo, minInvested, maxInvested, country, city, status } = filters;
 
-  const { data, error } = await supabase.rpc('export_investor_list', {
+  const { data, error } = await supabase.rpc('export_investor_list' as any, {
     p_search_query: searchQuery || null,
     p_date_from: dateFrom || null,
     p_date_to: dateTo || null,
@@ -202,44 +203,6 @@ export const creditUser = async ({ userId, amount, reason }: { userId: string; a
     throw new Error(result.error || "An unknown error occurred during the transaction.");
   }
 
-  // If the RPC was successful, proceed with email notification
-  if (result.success) {
-    try {
-      // 1. Fetch the user's profile to get their email and name
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !userProfile) {
-        throw new Error(`Could not fetch profile for user ${userId} to send email.`);
-      }
-
-      // 2. Determine if it's a credit or debit and choose the template
-      const isCredit = amount > 0;
-      const templateId = isCredit ? 'admin_manual_credit' : 'admin_manual_debit';
-      const emailAmount = isCredit ? amount : -amount; // Ensure amount is positive for email
-
-      const fullName = `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim();
-
-      // 3. Send the email notification
-      await sendEmailNotification({
-        template_id: templateId,
-        to: userProfile.email,
-        name: fullName || 'Cher investisseur',
-        amount: emailAmount,
-        reason: reason,
-        userId: userId,
-      });
-
-    } catch (emailError) {
-      // Log the email error but don't break the flow.
-      // The primary action (crediting) was successful.
-      console.error("Credit/debit action succeeded, but failed to send email notification:", emailError);
-    }
-  }
-
   return result;
 };
 
@@ -250,30 +213,6 @@ export const deactivateUser = async (userId: string, reason: string) => {
   const result = data as { success: boolean; error?: string };
   if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
 
-  if (result.success) {
-    try {
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !userProfile) throw new Error(`Could not fetch profile for user ${userId} to send email.`);
-
-      const fullName = `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim();
-
-      await sendEmailNotification({
-        template_id: 'account_suspended',
-        to: userProfile.email,
-        name: fullName || 'Cher investisseur',
-        reason: reason,
-        userId: userId,
-      });
-    } catch (emailError) {
-      console.error("Deactivation action succeeded, but failed to send email notification:", emailError);
-    }
-  }
-
   return result;
 };
 
@@ -283,29 +222,6 @@ export const activateUser = async (userId: string) => {
 
   const result = data as { success: boolean; error?: string };
   if (result && !result.success) throw new Error(result.error || "An unknown error occurred.");
-
-  if (result.success) {
-    try {
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !userProfile) throw new Error(`Could not fetch profile for user ${userId} to send email.`);
-
-      const fullName = `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim();
-
-      await sendEmailNotification({
-        template_id: 'account_reactivated',
-        to: userProfile.email,
-        name: fullName || 'Cher investisseur',
-        userId: userId,
-      });
-    } catch (emailError) {
-      console.error("Activation action succeeded, but failed to send email notification:", emailError);
-    }
-  }
 
   return result;
 };
@@ -522,4 +438,54 @@ export const getAdminTransactionHistory = async (
   }
 
   return data;
+};
+
+export const getTransactionKPIs = async (
+  searchQuery: string = '',
+  typeFilter: string = 'all',
+  dateFrom: string = '',
+  dateTo: string = ''
+) => {
+  const { data, error } = await supabase.rpc('get_transaction_kpis' as any, {
+    p_search_query: searchQuery || null,
+    p_type_filter: typeFilter || 'all',
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null
+  });
+  if (error) {
+    console.error("Error fetching transaction KPIs:", error);
+    throw new Error("Could not fetch transaction KPIs.");
+  }
+  return data as {
+    today: { deposits: number; withdrawals: number };
+    week: { deposits: number; withdrawals: number };
+    month: { deposits: number; withdrawals: number };
+    period: { deposits: number; withdrawals: number };
+  };
+};
+
+export const getAdminContractKPIs = async (
+  searchQuery: string = '',
+  statusFilter: string = 'all',
+  dateFrom: string = '',
+  dateTo: string = ''
+) => {
+  const { data, error } = await supabase.rpc('get_admin_contract_kpis' as any, {
+    p_search_query: searchQuery || null,
+    p_status_filter: statusFilter || 'all',
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null
+  });
+
+  if (error) {
+    console.error("Error fetching contract KPIs:", error);
+    throw new Error("Could not fetch contract KPIs.");
+  }
+
+  return data as {
+    total_count: number;
+    active_count: number;
+    total_investment: number;
+    total_profits_paid: number;
+  };
 };

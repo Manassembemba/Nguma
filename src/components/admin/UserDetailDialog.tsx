@@ -35,7 +35,7 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
-
+  Shield,
   Clock,
   BellRing,
   Send,
@@ -144,6 +144,20 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
   const activeContracts = contracts?.filter((c: any) => c.status === "active") || [];
   const totalInvested = activeContracts.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
 
+  // Calculate profile completion status
+  const isProfileComplete =
+    profile?.first_name && profile?.first_name.trim() !== '' &&
+    profile?.last_name && profile?.last_name.trim() !== '' &&
+    profile?.phone && profile?.phone.trim() !== '' &&
+    profile?.birth_date;
+
+  // Calculate total profits generated from contracts
+  const totalProfitsGenerated = contracts?.reduce((sum: number, c: any) => sum + Number(c.total_profit_paid || 0), 0) || 0;
+
+  // Calculate total profits withdrawn (completed withdrawals)
+  const totalProfitsWithdrawn = transactions?.filter((tx: any) => tx.type === 'withdrawal' && tx.status === 'completed')
+    .reduce((sum: number, tx: any) => sum + Number(tx.amount), 0) || 0;
+
   return (
     <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
@@ -223,8 +237,8 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
                   <span>Inscrit le {profile?.created_at ? formatDate(profile.created_at) : "N/A"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Badge variant={profile?.is_profile_complete ? "default" : "secondary"}>
-                    {profile?.is_profile_complete ? "Profil complet" : "Profil incomplet"}
+                  <Badge variant={isProfileComplete ? "default" : "secondary"}>
+                    {isProfileComplete ? "Profil complet" : "Profil incomplet"}
                   </Badge>
                 </div>
                 {profile?.banned_until && new Date(profile.banned_until) > new Date() && (
@@ -235,18 +249,22 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
-              <p className="text-2xl font-bold text-blue-700">{activeContracts.length}</p>
-              <p className="text-xs text-muted-foreground">Contrats actifs</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+              <p className="text-xl font-bold text-blue-700">{activeContracts.length}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Contrats actifs</p>
             </div>
-            <div className="text-center p-4 rounded-lg bg-green-50 border border-green-100">
-              <p className="text-2xl font-bold text-green-700">{formatCurrency(totalInvested, wallet?.currency)}</p>
-              <p className="text-xs text-muted-foreground">Total investi</p>
+            <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
+              <p className="text-xl font-bold text-green-700">{formatCurrency(totalInvested, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total investi</p>
             </div>
-            <div className="text-center p-4 rounded-lg bg-purple-50 border border-purple-100">
-              <p className="text-2xl font-bold text-purple-700">{formatCurrency(Number(wallet?.profit_balance || 0), wallet?.currency)}</p>
-              <p className="text-xs text-muted-foreground">Profits générés</p>
+            <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
+              <p className="text-xl font-bold text-purple-700">{formatCurrency(Number(wallet?.profit_balance || 0), wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profit actuel</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-orange-50 border border-orange-100">
+              <p className="text-xl font-bold text-orange-700">{formatCurrency(totalProfitsWithdrawn, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profits retirés</p>
             </div>
           </div>
         </TabsContent>
@@ -271,44 +289,69 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
 
         {/* CONTRACTS TAB */}
         <TabsContent value="contracts" className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 rounded bg-muted/50 border">
+              <p className="text-[10px] text-muted-foreground uppercase">Total Investi</p>
+              <p className="text-lg font-bold">{formatCurrency(totalInvested, wallet?.currency)}</p>
+            </div>
+            <div className="p-3 rounded bg-muted/50 border">
+              <p className="text-[10px] text-muted-foreground uppercase">Profits</p>
+              <p className="text-lg font-bold text-green-600">+{formatCurrency(totalProfitsGenerated, wallet?.currency)}</p>
+            </div>
+            <div className="p-3 rounded bg-muted/50 border">
+              <p className="text-[10px] text-muted-foreground uppercase">Actifs</p>
+              <p className="text-lg font-bold">{activeContracts.length}</p>
+            </div>
+          </div>
+
           {contracts && contracts.length > 0 ? (
             <div className="space-y-3">
               {contracts.map((contract: any) => {
                 const progress = (contract.months_paid / contract.duration_months) * 100;
+
                 return (
-                  <div key={contract.id} className="p-4 rounded-lg border bg-card">
-                    <div className="flex justify-between items-start mb-2">
+                  <div key={contract.id} className="p-4 rounded border bg-card/50 relative">
+                    <div className="flex justify-between items-start mb-3">
                       <div>
-                        <span className="font-medium">Contrat #{contract.id.substring(0, 8)}</span>
-                        <p className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold">Contrat #{contract.id.substring(0, 8)}</span>
+                          {contract.is_insured && (
+                            <Badge variant="outline" className="text-[10px] py-0 h-4">
+                              <Shield className="h-2.5 w-2.5 mr-0.5" />
+                              Assuré
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
                           {formatDate(contract.start_date)} → {formatDate(contract.end_date)}
                         </p>
                       </div>
                       <div className="text-right">
                         {getStatusBadge(contract.status)}
-                        <p className="text-lg font-bold mt-1">{formatCurrency(Number(contract.amount), wallet?.currency)}</p>
+                        <p className="text-base font-bold mt-1">{formatCurrency(Number(contract.amount), wallet?.currency)}</p>
                       </div>
                     </div>
-                    <div className="mt-3">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Progression</span>
-                        <span>{contract.months_paid}/{contract.duration_months} mois</span>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-muted-foreground">Progression</span>
+                        <span>{contract.months_paid} / {contract.duration_months} mois</span>
                       </div>
-                      <Progress value={progress} className="h-2" />
+                      <Progress value={progress} className="h-1.5" />
                     </div>
-                    {contract.total_profit_paid > 0 && (
-                      <p className="text-sm text-green-600 mt-2">
-                        Profits versés: +{formatCurrency(Number(contract.total_profit_paid), wallet?.currency)}
-                      </p>
-                    )}
+
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-dotted">
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-tight">Profits versés</span>
+                      <span className="text-sm font-semibold text-green-600">+{formatCurrency(Number(contract.total_profit_paid || 0), wallet?.currency)}</span>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              Aucun contrat
+            <div className="text-center py-12 bg-muted/30 rounded-xl border-2 border-dashed">
+              <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
+              <p className="text-muted-foreground font-medium">Aucun contrat trouvé</p>
             </div>
           )}
         </TabsContent>

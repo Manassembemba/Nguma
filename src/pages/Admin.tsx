@@ -16,27 +16,18 @@ const StatCard = ({
   title,
   value,
   icon: Icon,
-  gradient,
-  glowing = false,
-  glowingColor = 'green'
 }: {
   title: string;
   value: string;
   icon?: React.ElementType;
-  gradient: string;
-  glowing?: boolean;
-  glowingColor?: 'green' | 'red';
 }) => {
-  const glowClass = glowing ? (glowingColor === 'green' ? 'glowing-border-green' : 'glowing-border-red') : '';
-  const valueColor = glowing ? (glowingColor === 'green' ? 'text-green-700' : 'text-red-700') : 'text-text-primary';
-
   return (
-    <div className={`flex min-w-[158px] flex-1 flex-col gap-2 rounded-lg p-6 border ${gradient} hover:scale-[1.02] transition-all duration-300 ${glowClass}`}>
+    <div className="flex flex-col gap-1 rounded-lg p-6 border bg-card shadow-sm">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm font-medium leading-normal">{title}</p>
-        {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
+        <p className="text-muted-foreground text-sm font-medium">{title}</p>
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
       </div>
-      <p className={`tracking-light text-2xl font-bold leading-tight ${valueColor}`}>{value}</p>
+      <p className="text-2xl font-bold">{value}</p>
     </div>
   );
 };
@@ -78,49 +69,40 @@ const AdminPage = () => {
 
 
   return (
-    <div className="p-8 neon-grid-bg">
-      {/* PageHeading */}
-      <div className="flex flex-wrap justify-between items-center gap-3 pb-4">
-        <p className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">Tableau de Bord Administrateur</p>
+    <div className="p-8 space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold">Tableau de Bord Administrateur</h1>
+        <p className="text-muted-foreground">Vue d'ensemble de la plateforme</p>
       </div>
 
-      {/* Stats with Loading States */}
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5 py-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-[100px] rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5 py-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Investisseurs"
             value={stats?.total_investors?.toLocaleString() || '0'}
             icon={Users}
-            gradient="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20"
           />
           <StatCard
             title="Fonds Sous Gestion"
             value={formatCurrency(stats?.funds_under_management || 0)}
             icon={DollarSign}
-            gradient="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20"
           />
           <StatCard
             title="Profit Total"
             value={formatCurrency(stats?.total_profit || 0)}
             icon={TrendingUp}
-            gradient="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20"
-            glowing={true}
-            glowingColor="green"
           />
           <div className="cursor-pointer" onClick={() => navigate('/admin/deposits')}>
             <StatCard
               title="Dépôts en Attente"
               value={formatCurrency(stats?.pending_deposits || 0)}
               icon={ArrowDownCircle}
-              gradient="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20"
-              glowing={true}
-              glowingColor="red"
             />
           </div>
           <div className="cursor-pointer" onClick={() => navigate('/admin/withdrawals')}>
@@ -128,9 +110,6 @@ const AdminPage = () => {
               title="Retraits en Attente"
               value={formatCurrency(stats?.pending_withdrawals || 0)}
               icon={ArrowUpCircle}
-              gradient="bg-gradient-to-br from-red-500/10 to-rose-500/10 border-red-500/20"
-              glowing={true}
-              glowingColor="red"
             />
           </div>
         </div>
