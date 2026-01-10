@@ -470,7 +470,7 @@ export const getAdminContractKPIs = async (
   dateFrom: string = '',
   dateTo: string = ''
 ) => {
-  const { data, error } = await supabase.rpc('get_admin_contract_kpis' as any, {
+  const { data, error } = await supabase.rpc('get_admin_contract_kpis_enriched' as any, {
     p_search_query: searchQuery || null,
     p_status_filter: statusFilter || 'all',
     p_date_from: dateFrom || null,
@@ -487,5 +487,7 @@ export const getAdminContractKPIs = async (
     active_count: number;
     total_investment: number;
     total_profits_paid: number;
+    total_profits_available: number;
+    total_profits_withdrawn: number;
   };
 };

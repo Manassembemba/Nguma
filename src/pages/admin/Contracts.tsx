@@ -211,7 +211,7 @@ const AdminContractsPage = () => {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -268,6 +268,36 @@ const AdminContractsPage = () => {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Déjà distribués
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Profits Disponibles</div>
+              <TrendingUp className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="text-2xl font-bold text-orange-700">
+              {formatCurrency(kpis?.total_profits_available || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Non retirés
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Profits Retirés</div>
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold text-blue-700">
+              {formatCurrency(kpis?.total_profits_withdrawn || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Déjà retirés
             </p>
           </CardContent>
         </Card>
