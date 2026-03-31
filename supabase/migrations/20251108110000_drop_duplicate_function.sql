@@ -1,1 +1,0 @@
-DROP FUNCTION IF EXISTS get_contracts_for_user(p_user_id UUID);
