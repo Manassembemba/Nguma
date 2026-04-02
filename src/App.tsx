@@ -2,8 +2,9 @@ import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
@@ -12,6 +13,7 @@ import { isRecoveryFlow, clearNavigationState } from "@/services/navigationServi
 import { useNavigationState } from "@/hooks/useNavigationState";
 import { getMaintenanceMode } from "@/services/maintenanceService";
 import { supabase } from "@/integrations/supabase/client";
+import { getProfile } from "@/services/profileService";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
@@ -41,7 +43,6 @@ const Setup2FA = lazy(() => import("./pages/Setup2FA"));
 const LoginAuditPage = lazy(() => import("./pages/admin/LoginAuditPage"));
 const SupportPage = lazy(() => import("./pages/SupportPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
-const AdminKnowledgePage = lazy(() => import("./pages/admin/AdminKnowledgePage"));
 const AdminTransactionsPage = lazy(() => import("./pages/admin/AdminTransactionsPage"));
 const AccountingPage = lazy(() => import("./pages/admin/accounting/AccountingPage"));
 const PaymentSchedulerPage = lazy(() => import("./pages/admin/accounting/PaymentSchedulerPage"));
@@ -55,62 +56,33 @@ const queryClient = new QueryClient();
 
 // MaintenanceGuard component to protect routes
 const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
-  const [isMaintenance, setIsMaintenance] = React.useState<boolean | null>(null);
-  const [isAdmin, setIsAdmin] = React.useState(false); // Default to false
+  const { data: isMaintenance, isLoading: maintenanceLoading } = useQuery({
+    queryKey: ['maintenance_mode'],
+    queryFn: getMaintenanceMode,
+    staleTime: 1000 * 60, // 1 minute
+  });
 
-  React.useEffect(() => {
-    const checkStatus = async () => {
-      // Fetch maintenance status
-      const maintenanceStatus = await getMaintenanceMode();
-      setIsMaintenance(maintenanceStatus);
-      console.log("MaintenanceGuard: Maintenance mode status fetched:", maintenanceStatus);
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+    enabled: !!isMaintenance,
+    staleTime: 1000 * 60 * 5,
+  });
 
-      // Fetch user role only if maintenance mode is active
-      if (maintenanceStatus) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: roleData, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (error) {
-            console.error("MaintenanceGuard: Error fetching user role:", error);
-            setIsAdmin(false); // Assume not admin if error fetching role
-          } else {
-            const isAdminUser = roleData?.role === 'admin';
-            setIsAdmin(isAdminUser);
-            console.log("MaintenanceGuard: Admin check:", isAdminUser, "for user ID:", user.id);
-          }
-        } else {
-          setIsAdmin(false); // No user logged in, so not an admin
-          console.log("MaintenanceGuard: No user logged in, assuming not admin.");
-        }
-      } else {
-        setIsAdmin(false); // If maintenance is off, admin status doesn't matter for redirect logic
-        console.log("MaintenanceGuard: Maintenance mode is off, admin check skipped.");
-      }
-    };
-    checkStatus();
-  }, []);
+  const isAdmin = profile?.user_roles?.some((r: any) => r.role === 'admin') || false;
 
-  // Show loader while checking status
-  if (isMaintenance === null) {
+  if (maintenanceLoading) {
     return (
-      <div className="flex items-center justify-center h-screen w-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-screen w-full bg-[#0b141a]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#00a884]" />
       </div>
     );
   }
 
-  // Redirect to maintenance page if maintenance is ON and user is NOT admin
   if (isMaintenance && !isAdmin) {
-    console.log("MaintenanceGuard: Redirecting to MaintenancePage.");
     return <MaintenancePage />;
   }
 
-  // Otherwise, render the children (the application)
   return <>{children}</>;
 };
 
@@ -129,14 +101,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
   </SidebarProvider>
 );
 
-/**
- * AppInitializer - Initialize application state and handle navigation redirects
- * 
- * This component:
- * 1. Forces application to start on index ("/") on initial mount/refresh
- * 2. Skips redirect for password recovery flows
- * 3. Clears saved navigation state on app initialization
- */
 const AppInitializer = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -144,27 +108,10 @@ const AppInitializer = () => {
   const { clearState } = useNavigationState();
 
   React.useEffect(() => {
-    // Only run once on initial mount
     if (hasInitializedRef.current) return;
-    
-    const hash = window.location.hash;
-    // Clear any saved navigation state on fresh app load
     clearState();
-
-    // Redirect to index if there's a hash but it's not the root and it's not a known route
-    // We keep this light to avoid breaking legitimate navigations
-    if (hash && hash !== '#/' && hash !== '#') {
-      const knownRoutes = ['/auth', '/dashboard', '/contracts', '/transactions', '/profile', '/admin', '/terms', '/how-it-works'];
-      const currentPath = hash.replace('#', '').split('?')[0];
-      
-      if (!knownRoutes.some(route => currentPath === route || currentPath.startsWith(route + '/'))) {
-        console.log("AppInitializer: Redirecting unknown hash to index:", hash);
-        navigate('/', { replace: true });
-      }
-    }
-
     hasInitializedRef.current = true;
-  }, [navigate, location.pathname, clearState]);
+  }, [clearState]);
 
   return null;
 };
@@ -174,16 +121,16 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <HashRouter>
+      <BrowserRouter>
         <AppInitializer />
         <InstallPWA />
         <NotificationProvider>
           <Suspense fallback={
-            <div className="flex items-center justify-center h-screen w-full">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-screen w-full bg-[#0b141a]">
+              <Loader2 className="h-8 w-8 animate-spin text-[#00a884]" />
             </div>
           }>
-            <MaintenanceGuard> {/* MaintenanceGuard now wraps all routes */}
+            <MaintenanceGuard>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
@@ -231,7 +178,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/settings/notifications" // New route for notification settings
+                  path="/settings/notifications"
                   element={
                     <ProtectedRoute>
                       <AppLayout>
@@ -331,16 +278,6 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/admin/knowledge"
-                  element={
-                    <AdminRoute>
-                      <AppLayout>
-                        <AdminKnowledgePage />
-                      </AppLayout>
-                    </AdminRoute>
-                  }
-                />
-                <Route
                   path="/admin/transactions"
                   element={
                     <AdminRoute>
@@ -392,13 +329,12 @@ const App = () => (
                 />
                 <Route path="/logout" element={<Logout />} />
                 <Route path="/update-password" element={<UpdatePassword />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </MaintenanceGuard>
           </Suspense>
         </NotificationProvider>
-      </HashRouter>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

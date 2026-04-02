@@ -34,7 +34,6 @@ export interface SearchResult {
  */
 export const getUserConversation = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('get_or_create_user_conversation');
-
     if (error) throw new Error(error.message);
     return data as string;
 };
@@ -58,50 +57,20 @@ export const getUserConversations = async (): Promise<ChatConversation[]> => {
 
 /**
  * Crée une nouvelle conversation pour l'utilisateur
- * La nouvelle conversation devient automatiquement active et l'ancienne est désactivée
  */
 export const createNewConversation = async (title?: string): Promise<string> => {
     const { data, error } = await supabase.rpc('create_new_conversation', {
         p_title: title || null
     });
-
     if (error) throw new Error(error.message);
     return data as string;
 };
 
 /**
- * Met à jour le titre d'une conversation (génération automatique depuis le 1er message)
- */
-export const updateConversationTitle = async (conversationId: string): Promise<void> => {
-    // Récupérer le premier message de la conversation
-    const { data: messages } = await supabase
-        .from('chat_messages')
-        .select('message')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
-        .limit(1);
-
-    if (!messages || messages.length === 0) return;
-
-    // Générer un titre court (6 premiers mots)
-    const firstMessage = messages[0].message;
-    const words = firstMessage.split(' ').slice(0, 6).join(' ');
-    const title = words.length < firstMessage.length ? words + '...' : words;
-
-    // Mettre à jour
-    const { error } = await supabase
-        .from('chat_conversations')
-        .update({ title })
-        .eq('id', conversationId);
-
-    if (error) throw new Error(error.message);
-};
-
-/**
- * Récupère toutes les conversations pour les admins
+ * Récupère toutes les conversations pour les admins (Version Robuste sans jointure problématique)
  */
 export const getAdminConversations = async (status?: 'open' | 'closed'): Promise<AdminConversation[]> => {
-    // 1. Get conversations
+    // 1. Récupérer les conversations
     let query = supabase
         .from('chat_conversations')
         .select('*')
@@ -112,28 +81,26 @@ export const getAdminConversations = async (status?: 'open' | 'closed'): Promise
     }
 
     const { data: conversations, error } = await query;
-
     if (error) throw new Error(error.message);
-    if (!conversations) return [];
+    if (!conversations || conversations.length === 0) return [];
 
-    // 2. Enrich with user details and last message
-    const enrichedConversations: AdminConversation[] = await Promise.all(conversations.map(async (conv) => {
-        // Get user profile
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', conv.user_id)
-            .single();
+    // 2. Récupérer les IDs d'utilisateurs uniques
+    const userIds = [...new Set(conversations.map(c => c.user_id))];
 
-        // Get last message
-        const { data: messages } = await supabase
-            .from('chat_messages')
-            .select('message')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+    // 3. Récupérer les profils correspondants
+    const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
 
-        const lastMessage = messages && messages.length > 0 ? messages[0].message : null;
+    const profileMap = (profiles || []).reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+    }, {} as Record<string, any>);
+
+    // 4. Fusionner les données
+    return conversations.map(conv => {
+        const profile = profileMap[conv.user_id];
         const fullName = profile
             ? (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.email)
             : 'Utilisateur inconnu';
@@ -142,31 +109,36 @@ export const getAdminConversations = async (status?: 'open' | 'closed'): Promise
             id: conv.id,
             user_id: conv.user_id,
             user_email: profile?.email || 'Email inconnu',
-            user_full_name: fullName || 'Inconnu',
+            user_full_name: fullName,
             subject: conv.subject || 'Support',
             status: conv.status || 'open',
             last_message_at: conv.last_message_at,
             admin_unread_count: conv.admin_unread_count || 0,
-            created_at: conv.created_at || new Date().toISOString(),
-            last_message_preview: lastMessage
+            created_at: conv.created_at,
+            last_message_preview: conv.last_message_preview
         };
-    }));
-
-    return enrichedConversations;
+    });
 };
 
 /**
- * Récupère les messages d'une conversation
+ * Récupère les messages d'une conversation avec pagination
  */
-export const getMessages = async (conversationId: string): Promise<ChatMessage[]> => {
+export const getMessages = async (
+    conversationId: string, 
+    limit: number = 20, 
+    offset: number = 0
+): Promise<ChatMessage[]> => {
     const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false }) // On récupère du plus récent au plus ancien pour l'offset
+        .range(offset, offset + limit - 1);
 
     if (error) throw new Error(error.message);
-    return data || [];
+    
+    // On remet les messages dans l'ordre chronologique pour l'affichage
+    return (data || []).reverse();
 };
 
 /**
@@ -174,25 +146,26 @@ export const getMessages = async (conversationId: string): Promise<ChatMessage[]
  */
 export const sendMessage = async (conversationId: string, message: string): Promise<string> => {
     const trimmedMessage = message.trim();
+    if (!trimmedMessage) throw new Error('Le message ne peut pas être vide');
 
-    if (!trimmedMessage) {
-        throw new Error('Le message ne peut pas être vide');
+    // SÉCURITÉ : Bloquer les tentatives d'injection de scripts (XSS)
+    const dangerousPatterns = [/<script/i, /javascript:/i, /on\w+=/i, /<iframe/i];
+    if (dangerousPatterns.some(pattern => dangerousPatterns.some(p => p.test(trimmedMessage)))) {
+        throw new Error('Contenu non autorisé détecté par le système de sécurité.');
     }
 
-    // 1. Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // 2. Check if user is admin
+    // Vérifier si admin
     const { data: roles } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin');
-
     const isAdmin = roles && roles.length > 0;
 
-    // 3. Insert message
+    // Insertion du message
     const { data: messageData, error: messageError } = await supabase
         .from('chat_messages')
         .insert({
@@ -205,127 +178,6 @@ export const sendMessage = async (conversationId: string, message: string): Prom
         .single();
 
     if (messageError) throw new Error(messageError.message);
-
-    // 4. Update conversation
-    // First get current counts to increment them safely
-    const { data: conversation } = await supabase
-        .from('chat_conversations')
-        .select('user_unread_count, admin_unread_count, user_id')
-        .eq('id', conversationId)
-        .single();
-
-    if (conversation) {
-        const updates: any = {
-            last_message_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            status: 'open'
-        };
-
-        if (isAdmin) {
-            updates.user_unread_count = (conversation.user_unread_count || 0) + 1;
-        } else {
-            updates.admin_unread_count = (conversation.admin_unread_count || 0) + 1;
-        }
-
-        await supabase
-            .from('chat_conversations')
-            .update(updates)
-            .eq('id', conversationId);
-
-        // 5. Create Notification
-        if (isAdmin) {
-            // Get user info to send email
-            const { data: userProfile } = await supabase
-                .from('profiles')
-                .select('email, first_name, last_name')
-                .eq('id', conversation.user_id)
-                .single();
-
-            // Notify User (In app)
-            await supabase.from('notifications').insert({
-                user_id: conversation.user_id,
-                type: 'support',
-                priority: 'high',
-                message: "Nouveau message de support de l'administration",
-                link_to: '/support'
-            });
-
-            // Notify User (Email)
-            if (userProfile && userProfile.email) {
-                const userName = userProfile.first_name && userProfile.last_name 
-                    ? `${userProfile.first_name} ${userProfile.last_name}` 
-                    : userProfile.email;
-                    
-                await supabase.from('notifications_queue' as any).insert({
-                    recipient_email: userProfile.email,
-                    template_id: 'chat_new_message_user',
-                    notification_params: {
-                        name: userName,
-                        conversationId: conversationId,
-                        message: trimmedMessage
-                    }
-                });
-            }
-        } else {
-            // Notify Admins
-            // Get sender name
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('first_name, last_name, email')
-                .eq('id', user.id)
-                .single();
-
-            const senderName = profile
-                ? (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.email)
-                : user.email;
-
-            // Get all admin IDs
-            const { data: admins } = await supabase
-                .from('user_roles')
-                .select('user_id')
-                .eq('role', 'admin');
-
-            if (admins && admins.length > 0) {
-                // In app notifications
-                const notifications = admins.map(admin => ({
-                    user_id: admin.user_id,
-                    type: 'support',
-                    priority: 'medium',
-                    message: `Nouveau message de support de ${senderName}`,
-                    link_to: `/admin/support?conversation=${conversationId}`
-                }));
-
-                await supabase.from('notifications').insert(notifications);
-
-                // Fetch admins emails
-                const adminIds = admins.map(a => a.user_id);
-                const { data: adminProfiles } = await supabase
-                    .from('profiles')
-                    .select('email')
-                    .in('id', adminIds);
-
-                // Email notifications
-                if (adminProfiles && adminProfiles.length > 0) {
-                    const emailQueues = adminProfiles
-                        .filter(p => p.email)
-                        .map(p => ({
-                            recipient_email: p.email,
-                            template_id: 'chat_new_message_admin',
-                            notification_params: {
-                                name: senderName,
-                                email: profile?.email || user.email,
-                                conversationId: conversationId,
-                                message: trimmedMessage
-                            }
-                        }));
-                    if (emailQueues.length > 0) {
-                        await supabase.from('notifications_queue' as any).insert(emailQueues);
-                    }
-                }
-            }
-        }
-    }
-
     return messageData.id;
 };
 
@@ -333,40 +185,34 @@ export const sendMessage = async (conversationId: string, message: string): Prom
  * Marque une conversation comme lue
  */
 export const markConversationAsRead = async (conversationId: string): Promise<void> => {
-    const { error } = await supabase.rpc('mark_conversation_as_read', {
-        p_conversation_id: conversationId
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin');
+    const isAdmin = roles && roles.length > 0;
+
+    const { error } = await supabase.rpc('mark_chat_as_read', {
+        p_conversation_id: conversationId,
+        p_is_admin: isAdmin
     });
 
-    if (error) throw new Error(error.message);
+    if (error) console.error('Error marking as read:', error.message);
 };
 
 /**
  * Ferme une conversation (admin seulement)
  */
 export const closeConversation = async (conversationId: string): Promise<void> => {
-    const { error } = await supabase.rpc('close_conversation', {
-        p_conversation_id: conversationId
-    });
+    const { error } = await supabase
+        .from('chat_conversations')
+        .update({ status: 'closed' })
+        .eq('id', conversationId);
 
     if (error) throw new Error(error.message);
-};
-
-/**
- * Récupère les détails d'une conversation
- */
-export const getConversationDetails = async (conversationId: string): Promise<ChatConversation | null> => {
-    const { data, error } = await supabase
-        .from('chat_conversations')
-        .select('*')
-        .eq('id', conversationId)
-        .single();
-
-    if (error) {
-        console.error('Error fetching conversation:', error.message);
-        return null;
-    }
-
-    return data;
 };
 
 /**
@@ -398,13 +244,53 @@ export const subscribeToMessages = (
 };
 
 /**
+ * Gère le statut "Typing" via Supabase Presence
+ */
+export const setupTypingIndicator = (
+    conversationId: string,
+    onTypingChange: (users: string[]) => void
+) => {
+    const channel = supabase.channel(`typing:${conversationId}`);
+
+    channel
+        .on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            const typingUsers = Object.values(state)
+                .flat()
+                .filter((p: any) => p.isTyping)
+                .map((p: any) => p.user_id);
+            onTypingChange(typingUsers);
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await channel.track({ user_id: user.id, isTyping: false });
+                }
+            }
+        });
+
+    const setTyping = async (isTyping: boolean) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await channel.track({ user_id: user.id, isTyping });
+        }
+    };
+
+    return {
+        unsubscribe: () => supabase.removeChannel(channel),
+        setTyping
+    };
+};
+
+/**
  * Souscrit aux changements de conversations (Realtime) - Pour admin
  */
 export const subscribeToConversations = (
     callback: (conversation: ChatConversation) => void
 ) => {
     const channel = supabase
-        .channel('chat_conversations')
+        .channel('chat_conversations_changes')
         .on(
             'postgres_changes',
             {
@@ -426,39 +312,31 @@ export const subscribeToConversations = (
 };
 
 /**
- * Récupère le nombre de messages non lus pour l'utilisateur
+ * Supprime un message de chat (Admin seulement)
  */
-export const getUnreadCount = async (): Promise<number> => {
-    try {
-        const conversationId = await getUserConversation();
-        const details = await getConversationDetails(conversationId);
-        return details?.user_unread_count || 0;
-    } catch (error) {
-        console.error('Error getting unread count:', error);
-        return 0;
-    }
+export const deleteChatMessage = async (messageId: string): Promise<void> => {
+    const { data, error } = await supabase.rpc('delete_chat_message', {
+        p_message_id: messageId
+    });
+
+    if (error) throw new Error(error.message);
+    if (data && data.success === false) throw new Error(data.error);
 };
 
 /**
- * Récupère le nombre total de messages non lus pour tous les admins
+ * Met à jour le titre d'une conversation
  */
-export const getAdminUnreadCount = async (): Promise<number> => {
-    const { data, error } = await supabase
+export const updateConversationTitle = async (conversationId: string, title: string): Promise<void> => {
+    const { error } = await supabase
         .from('chat_conversations')
-        .select('admin_unread_count')
-        .eq('status', 'open');
+        .update({ subject: title })
+        .eq('id', conversationId);
 
-    if (error) {
-        console.error('Error getting admin unread count:', error.message);
-        return 0;
-    }
-
-    return (data || []).reduce((sum, conv) => sum + (conv.admin_unread_count || 0), 0);
+    if (error) throw new Error(error.message);
 };
 
 /**
  * Bascule vers une conversation existante (la rend active)
- * @param conversationId ID de la conversation
  */
 export const switchToConversation = async (conversationId: string): Promise<void> => {
     const { error } = await supabase.rpc('switch_to_conversation', {
@@ -469,68 +347,20 @@ export const switchToConversation = async (conversationId: string): Promise<void
 };
 
 /**
- * Recherche dans les messages de l'utilisateur (full-text)
- * @param query Texte à rechercher
- * @param limit Nombre maximum de résultats
- * @returns Résultats de recherche triés par pertinence
+ * Récupère le nombre de messages non lus pour l'utilisateur
  */
-export const searchMessages = async (query: string, limit: number = 50): Promise<SearchResult[]> => {
-    if (!query.trim()) return [];
-
-    const { data, error } = await supabase.rpc('search_chat_messages', {
-        p_query: query.trim(),
-        p_limit: limit
-    });
-
-    if (error) {
-        console.error('Error searching messages:', error);
-        throw new Error(error.message);
-    }
-
-    return data as SearchResult[] || [];
-};
-
-/**
- * Enregistre les métriques analytics pour une conversation
- * @param conversationId ID de la conversation
- * @param analytics Données analytics
- */
-export const trackAnalytics = async (
-    conversationId: string,
-    analytics: Partial<Omit<ChatAnalytics, 'id' | 'conversation_id' | 'created_at'>>
-): Promise<void> => {
-    const { error } = await supabase
-        .from('chat_analytics')
-        .upsert({
-            conversation_id: conversationId,
-            ...analytics
-        }, {
-            onConflict: 'conversation_id'
-        });
-
-    if (error) {
-        console.error('Error tracking analytics:', error);
-        // Ne pas throw l'erreur pour ne pas bloquer le flux principal
+export const getUnreadCount = async (): Promise<number> => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return 0;
+        const { data, error } = await supabase
+            .from('chat_conversations')
+            .select('user_unread_count')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .single();
+        return data?.user_unread_count || 0;
+    } catch (error) {
+        return 0;
     }
 };
-
-/**
- * Récupère les analytics d'une conversation
- * @param conversationId ID de la conversation
- * @returns Données analytics ou null
- */
-export const getConversationAnalytics = async (conversationId: string): Promise<ChatAnalytics | null> => {
-    const { data, error } = await supabase
-        .from('chat_analytics')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .single();
-
-    if (error) {
-        console.error('Error fetching analytics:', error);
-        return null;
-    }
-
-    return data;
-};
-

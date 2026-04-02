@@ -31,7 +31,6 @@ const adminItems = [
   { title: "Gestion Contrats", url: "/admin/contracts", icon: FileText },
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
   { title: "Support Chat", url: "/admin/support", icon: MessageCircle },
-  { title: "Base de Connaissances", url: "/admin/knowledge", icon: BookOpen },
   { title: "Comptabilité", url: "/admin/accounting", icon: Wallet },
   { title: "Paramètres", url: "/admin/settings", icon: Settings },
 ];

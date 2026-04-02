@@ -5,37 +5,42 @@ import { sendEmailNotification } from "./notificationOrchestrationService"; // I
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
 /**
- * Fetches the profile for the currently authenticated user.
+ * Fetches the profile for the currently authenticated user with roles.
  */
-export const getProfile = async (): Promise<Profile | null> => {
-  const userPromise = supabase.auth.getUser();
-  
-  // Timeout for getUser call
-  const timeoutPromise = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error("Timeout getting auth user")), 10000)
-  );
+export const getProfile = async (): Promise<any | null> => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  let user: any;
-  try {
-    const result = await Promise.race([userPromise, timeoutPromise]) as any;
-    user = result.data?.user;
-  } catch (err) {
-    throw err;
-  }
-  
-  if (!user) {
-    throw new Error("User not authenticated.");
+  if (authError || !user) {
+    throw new Error("Utilisateur non authentifié.");
   }
 
-  const { data, error } = await supabase
+  // Fetch profile first
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) {
-    throw new Error("Could not fetch profile data.");
+  if (profileError) {
+    console.error("Error fetching profile:", profileError);
+    throw new Error("Impossible de charger les données du profil.");
   }
+
+  // Fetch user roles separately (foreign key is on auth.users, not profiles)
+  const { data: roles, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
+
+  if (rolesError) {
+    console.error("Error fetching user roles:", rolesError);
+  }
+
+  // Combine profile with roles
+  const data = profile ? {
+    ...profile,
+    user_roles: roles || []
+  } : null;
 
   // Si le profil existe déjà, le retourner
   if (data) {

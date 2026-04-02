@@ -1,27 +1,46 @@
-import { useState, KeyboardEvent, useRef, ChangeEvent, DragEvent } from "react";
+import { useState, KeyboardEvent, useRef, ChangeEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Lock, Paperclip, X } from "lucide-react";
-import { formatFileSize } from "@/services/fileUploadService";
+import { Send, Paperclip, X, Smile, Mic } from "lucide-react";
 
 interface ChatMessageInputProps {
     onSend: (message: string, files?: File[]) => void;
+    onTyping?: (isTyping: boolean) => void;
     disabled?: boolean;
     aiOnlyMode?: boolean;
 }
 
-export function ChatMessageInput({ onSend, disabled, aiOnlyMode = false }: ChatMessageInputProps) {
+export function ChatMessageInput({ onSend, onTyping, disabled, aiOnlyMode = false }: ChatMessageInputProps) {
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [isDragging, setIsDragging] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!onTyping) return;
+        if (message.length > 0) {
+            onTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => onTyping(false), 2000);
+        } else {
+            onTyping(false);
+        }
+        return () => { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); };
+    }, [message, onTyping]);
 
     const handleSend = () => {
         if ((!message.trim() && selectedFiles.length === 0) || disabled || aiOnlyMode) return;
+        
+        const dangerousPatterns = [/<script/i, /javascript:/i, /on\w+=/i, /<iframe/i];
+        if (dangerousPatterns.some(p => p.test(message))) {
+            alert("Sécurité : Le contenu de ce message n'est pas autorisé.");
+            return;
+        }
 
         onSend(message, selectedFiles);
         setMessage("");
         setSelectedFiles([]);
+        if (onTyping) onTyping(false);
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -34,7 +53,6 @@ export function ChatMessageInput({ onSend, disabled, aiOnlyMode = false }: ChatM
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         setSelectedFiles(prev => [...prev, ...files]);
-        // Reset input
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -42,53 +60,15 @@ export function ChatMessageInput({ onSend, disabled, aiOnlyMode = false }: ChatM
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(false);
-
-        const files = Array.from(e.dataTransfer.files);
-        setSelectedFiles(prev => [...prev, ...files]);
-    };
-
-    const isInputDisabled = disabled || aiOnlyMode;
-
     return (
-        <div className="border-t p-4">
-            {aiOnlyMode && (
-                <div className="mb-3 p-3 bg-muted rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
-                    <Lock className="h-4 w-4" />
-                    <span>💡 Choisissez une suggestion ci-dessus ou demandez à parler à un conseiller</span>
-                </div>
-            )}
-
-            {/* Preview des fichiers sélectionnés */}
+        <div className="bg-[#202c33] px-4 py-2.5 flex flex-col gap-2 border-t border-[#222d34]">
             {selectedFiles.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mb-1 animate-in slide-in-from-bottom-2">
                     {selectedFiles.map((file, index) => (
-                        <div
-                            key={index}
-                            className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg text-sm"
-                        >
-                            <Paperclip className="h-4 w-4" />
-                            <span className="truncate max-w-[150px]">{file.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                                ({formatFileSize(file.size)})
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => removeFile(index)}
-                                className="ml-1 p-1 hover:bg-destructive/10 rounded"
-                            >
+                        <div key={index} className="flex items-center gap-2 px-2 py-1 bg-[#2a3942] rounded-md border border-[#313d45] text-xs text-[#e9edef] shadow-sm">
+                            <Paperclip className="h-3 w-3 text-[#8696a0]" />
+                            <span className="truncate max-w-[100px]">{file.name}</span>
+                            <button onClick={() => removeFile(index)} className="text-[#8696a0] hover:text-[#f15c5c]">
                                 <X className="h-3 w-3" />
                             </button>
                         </div>
@@ -96,69 +76,47 @@ export function ChatMessageInput({ onSend, disabled, aiOnlyMode = false }: ChatM
                 </div>
             )}
 
-            <div
-                className={`relative flex items-end gap-1.5 p-1.5 bg-muted/40 dark:bg-muted/10 border border-border/50 rounded-[1.75rem] focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all duration-200 ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-            >
-                {/* Bouton d'attach fichier */}
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isInputDisabled}
-                    className="h-10 w-10 flex-shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 mb-0.5 ml-0.5 transition-colors"
-                >
-                    <Paperclip className="h-[18px] w-[18px]" />
-                </Button>
+            <div className="flex items-end gap-2">
+                <div className="flex gap-0.5 pb-0.5">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-[#aebac1] hover:bg-[#374248] rounded-full h-10 w-10"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <Paperclip className="h-6.5 w-6.5" />
+                    </Button>
+                </div>
 
-                <Textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={
-                        isDragging
-                            ? "📎 Déposez vos fichiers ici..."
-                            : aiOnlyMode
-                                ? "Zone de texte désactivée (utilisez les suggestions)"
-                                : "Votre message..."
-                    }
-                    className={`min-h-[44px] max-h-[120px] py-3 px-1 bg-transparent border-0 focus-visible:ring-0 resize-none shadow-none text-[15px] leading-relaxed ${aiOnlyMode ? 'cursor-not-allowed opacity-60' : ''}`}
-                    disabled={isInputDisabled}
-                />
+                <div className="flex-1 bg-[#2a3942] rounded-lg min-h-[42px] max-h-[150px] flex items-center px-3 transition-all">
+                    <Textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={aiOnlyMode ? "Sélectionnez une suggestion" : "Taper un message"}
+                        className="flex-1 bg-transparent border-0 focus-visible:ring-0 resize-none py-2.5 text-[#e9edef] text-[15px] placeholder:text-[#8696a0] min-h-[42px] max-h-[150px] custom-scrollbar"
+                        disabled={disabled || aiOnlyMode}
+                    />
+                </div>
 
-                {/* Bouton d'envoi */}
-                <Button
-                    onClick={handleSend}
-                    disabled={isInputDisabled || (!message.trim() && selectedFiles.length === 0)}
-                    size="icon"
-                    className={`h-10 w-10 flex-shrink-0 rounded-full transition-all duration-300 mb-0.5 mr-0.5 ${
-                        isInputDisabled || (!message.trim() && selectedFiles.length === 0)
-                            ? 'bg-muted text-muted-foreground'
-                            : 'bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
-                    }`}
-                >
-                    <Send className="h-[18px] w-[18px] ml-0.5" />
-                </Button>
+                <div className="pb-0.5">
+                    {(!message.trim() && selectedFiles.length === 0) ? (
+                        <Button variant="ghost" size="icon" className="text-[#aebac1] hover:bg-[#374248] rounded-full h-10 w-10">
+                            <Mic className="h-6.5 w-6.5" />
+                        </Button>
+                    ) : (
+                        <Button 
+                            onClick={handleSend}
+                            disabled={disabled || aiOnlyMode}
+                            className="bg-[#00a884] hover:bg-[#008f6a] text-[#111b21] rounded-full h-11 w-11 shadow-md flex-shrink-0 transition-all active:scale-95"
+                        >
+                            <Send className="h-5 w-5 ml-0.5" />
+                        </Button>
+                    )}
+                </div>
             </div>
 
-            <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                multiple
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                onChange={handleFileChange}
-            />
-
-            {!aiOnlyMode && (
-                <p className="text-xs text-muted-foreground mt-2">
-                    Appuyez sur <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> pour envoyer
-                    • <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Shift+Enter</kbd> pour nouvelle ligne
-                </p>
-            )}
+            <input ref={fileInputRef} type="file" className="hidden" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleFileChange} />
         </div>
     );
 }

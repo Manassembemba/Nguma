@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { 
+    X, Menu, Search, MoreVertical, MessageCircle, CheckCircle, Loader2,
+    Archive, Trash2, History
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatMessageList } from "@/components/ChatMessageList";
 import { ChatMessageInput } from "@/components/ChatMessageInput";
 import {
@@ -18,316 +22,288 @@ import {
 import type { AdminConversation, ChatMessage } from "@/services/chatService";
 import { uploadChatFile } from "@/services/fileUploadService";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageCircle, CheckCircle, XCircle } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+
+const MESSAGES_PER_PAGE = 20;
 
 export default function AdminSupportPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [conversations, setConversations] = useState<AdminConversation[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [currentAdminId, setCurrentAdminId] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
     const [sending, setSending] = useState(false);
     const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | undefined>('open');
+    const [searchQuery, setSearchQuery] = useState("");
     const { toast } = useToast();
+    
     const unsubscribeMessagesRef = useRef<(() => void) | null>(null);
     const unsubscribeConversationsRef = useRef<(() => void) | null>(null);
 
+    // Initialisation
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user) setCurrentAdminId(data.user.id);
+        });
+    }, []);
+
     // Charger les conversations
-    const loadConversations = async () => {
+    const loadConversations = async (isInitial = false) => {
         try {
+            if (isInitial) setLoading(true);
             const convs = await getAdminConversations(statusFilter);
             setConversations(convs);
-
-            // Si une conversation est passée en paramètre URL, la sélectionner
+            
             const convIdFromUrl = searchParams.get('conversation');
-            if (convIdFromUrl && convs.some(c => c.id === convIdFromUrl)) {
+            if (isInitial && convIdFromUrl && convs.some(c => c.id === convIdFromUrl)) {
                 setSelectedConversation(convIdFromUrl);
             }
         } catch (error) {
             console.error('Error loading conversations:', error);
-            toast({
-                title: "Erreur",
-                description: "Impossible de charger les conversations.",
-                variant: "destructive"
-            });
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
 
-    // Initialiser
     useEffect(() => {
-        loadConversations();
-
-        // S'abonner aux changements de conversations (Realtime)
-        unsubscribeConversationsRef.current = subscribeToConversations(() => {
-            loadConversations();
-        });
-
-        return () => {
-            if (unsubscribeConversationsRef.current) {
-                unsubscribeConversationsRef.current();
-            }
-        };
+        loadConversations(true);
+        unsubscribeConversationsRef.current = subscribeToConversations(() => loadConversations(false));
+        return () => unsubscribeConversationsRef.current?.();
     }, [statusFilter]);
 
-    // Charger les messages quand une conversation est sélectionnée
+    // Charger les messages initiaux
     useEffect(() => {
-        if (!selectedConversation) return;
+        if (!selectedConversation) {
+            setMessages([]);
+            setHasMore(false);
+            return;
+        }
 
-        const loadMessages = async () => {
+        const fetchInitialMessages = async () => {
             try {
                 setLoadingMessages(true);
-                const msgs = await getMessages(selectedConversation);
+                const msgs = await getMessages(selectedConversation, MESSAGES_PER_PAGE, 0);
                 setMessages(msgs);
+                setHasMore(msgs.length === MESSAGES_PER_PAGE);
+                
+                markConversationAsRead(selectedConversation).catch(() => {});
 
-                // Marquer comme lu
-                await markConversationAsRead(selectedConversation);
-
-                // S'abonner aux nouveaux messages
-                if (unsubscribeMessagesRef.current) {
-                    unsubscribeMessagesRef.current();
-                }
-
+                // Souscription Realtime
+                unsubscribeMessagesRef.current?.();
                 unsubscribeMessagesRef.current = subscribeToMessages(selectedConversation, (newMessage) => {
-                    setMessages(prev => [...prev, newMessage]);
-                    markConversationAsRead(selectedConversation).catch(console.error);
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === newMessage.id)) return prev;
+                        return [...prev, newMessage];
+                    });
+                    if (!newMessage.is_admin) markConversationAsRead(selectedConversation).catch(() => {});
                 });
             } catch (error) {
                 console.error('Error loading messages:', error);
-                toast({
-                    title: "Erreur",
-                    description: "Impossible de charger les messages.",
-                    variant: "destructive"
-                });
             } finally {
                 setLoadingMessages(false);
             }
         };
 
-        loadMessages();
+        fetchInitialMessages();
+        return () => unsubscribeMessagesRef.current?.();
+    }, [selectedConversation]);
 
-        return () => {
-            if (unsubscribeMessagesRef.current) {
-                unsubscribeMessagesRef.current();
+    // Charger plus de messages (Pagination)
+    const handleLoadMore = async () => {
+        if (!selectedConversation || loadingMore || !hasMore) return;
+
+        try {
+            setLoadingMore(true);
+            const offset = messages.length;
+            const olderMsgs = await getMessages(selectedConversation, MESSAGES_PER_PAGE, offset);
+            
+            if (olderMsgs.length > 0) {
+                setMessages(prev => [...olderMsgs, ...prev]);
+                setHasMore(olderMsgs.length === MESSAGES_PER_PAGE);
+            } else {
+                setHasMore(false);
             }
-        };
-    }, [selectedConversation, toast]);
+        } catch (error) {
+            console.error('Error loading more messages:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    const handleSelectConversation = (id: string) => {
+        if (id === selectedConversation) return;
+        setMessages([]); 
+        setSelectedConversation(id);
+    };
 
     const handleSendMessage = async (message: string, files?: File[]) => {
         if (!selectedConversation || (!message.trim() && (!files || files.length === 0))) return;
-
         try {
             setSending(true);
-
-            // Envoyer le message
             const messageId = await sendMessage(selectedConversation, message);
-
-            // Upload des fichiers si présents
             if (files && files.length > 0) {
-                for (const file of files) {
-                    try {
-                        await uploadChatFile(file, messageId);
-                    } catch (fileError) {
-                        console.error('File upload error:', fileError);
-                        toast({
-                            title: "Avertissement",
-                            description: `Impossible d'uploader ${file.name}`,
-                            variant: "destructive"
-                        });
-                    }
-                }
+                for (const file of files) await uploadChatFile(file, messageId);
             }
         } catch (error) {
-            console.error('Error sending message:', error);
-            toast({
-                title: "Erreur",
-                description: "Impossible d'envoyer le message.",
-                variant: "destructive"
-            });
-        } finally {
-            setSending(false);
-        }
+            toast({ title: "Erreur", description: "Impossible d'envoyer.", variant: "destructive" });
+        } finally { setSending(false); }
     };
 
     const handleCloseConversation = async () => {
         if (!selectedConversation) return;
-
         try {
             await closeConversation(selectedConversation);
-            toast({
-                title: "Conversation fermée",
-                description: "La conversation a été fermée avec succès."
-            });
-            loadConversations();
+            toast({ title: "Fermé", description: "Discussion classée." });
+            loadConversations(false);
             setSelectedConversation(null);
         } catch (error) {
-            console.error('Error closing conversation:', error);
-            toast({
-                title: "Erreur",
-                description: "Impossible de fermer la conversation.",
-                variant: "destructive"
-            });
+            toast({ title: "Erreur", description: "Action impossible.", variant: "destructive" });
         }
     };
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return "";
+        const date = new Date(dateStr);
+        if (isToday(date)) return format(date, "HH:mm");
+        if (isYesterday(date)) return "Hier";
+        return format(date, "dd/MM/yy");
+    };
+
+    const filteredConversations = conversations.filter(c => 
+        c.user_full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.user_email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const selectedConvData = conversations.find(c => c.id === selectedConversation);
 
     return (
-        <div className="container mx-auto p-6">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                    <MessageCircle className="h-8 w-8" />
-                    Support Chat
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                    Gérez les conversations de support avec les utilisateurs
-                </p>
+        <div className="fixed inset-0 top-[64px] left-0 md:left-[280px] bg-[#0b141a] z-0 flex overflow-hidden">
+            {/* Sidebar WhatsApp Style */}
+            <div className="w-full md:w-80 lg:w-[400px] flex flex-col bg-[#111b21] border-r border-[#222d34] z-20 flex-shrink-0">
+                {/* Header Sidebar */}
+                <div className="h-[60px] flex-shrink-0 bg-[#202c33] px-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <MessageCircle className="text-[#00a884] h-6 w-6" />
+                        <h1 className="font-bold text-[#e9edef] text-lg">Support</h1>
+                    </div>
+                    <div className="flex gap-1 text-[#aebac1]">
+                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-[#374248]"><Archive className="h-5 w-5" /></Button>
+                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-[#374248]"><MoreVertical className="h-5 w-5" /></Button>
+                    </div>
+                </div>
+
+                {/* Recherche & Filtres */}
+                <div className="p-2 space-y-2 bg-[#111b21]">
+                    <div className="relative bg-[#202c33] rounded-lg px-3 flex items-center h-9">
+                        <Search className="h-4 w-4 text-[#8696a0] mr-3" />
+                        <Input 
+                            placeholder="Chercher un client" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-full border-0 bg-transparent focus-visible:ring-0 px-0 text-sm text-[#e9edef] placeholder:text-[#8696a0]"
+                        />
+                    </div>
+                    <Tabs value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? undefined : v as 'open' | 'closed')}>
+                        <TabsList className="grid w-full grid-cols-3 h-8 p-1 bg-[#202c33]">
+                            <TabsTrigger value="all" className="text-[10px] uppercase font-bold text-[#aebac1] data-[state=active]:bg-[#374248] data-[state=active]:text-[#e9edef]">Tous</TabsTrigger>
+                            <TabsTrigger value="open" className="text-[10px] uppercase font-bold text-[#aebac1] data-[state=active]:bg-[#374248] data-[state=active]:text-[#e9edef]">Ouverts</TabsTrigger>
+                            <TabsTrigger value="closed" className="text-[10px] uppercase font-bold text-[#aebac1] data-[state=active]:bg-[#374248] data-[state=active]:text-[#e9edef]">Clos</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+
+                {/* Liste des conversations */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-[#00a884]" /></div>
+                    ) : filteredConversations.length === 0 ? (
+                        <div className="p-12 text-center text-[#8696a0] text-sm italic">Aucun message.</div>
+                    ) : (
+                        filteredConversations.map((conv) => (
+                            <div
+                                key={conv.id}
+                                onClick={() => handleSelectConversation(conv.id)}
+                                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-[#222d34]/30 hover:bg-[#202c33] ${
+                                    selectedConversation === conv.id ? "bg-[#2a3942]" : ""
+                                }`}
+                            >
+                                <Avatar className="h-12 w-12 border border-[#313d45]">
+                                    <AvatarFallback className="bg-[#00a884]/10 text-[#00a884] font-bold">{conv.user_full_name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-baseline">
+                                        <h3 className="text-[15px] font-medium text-[#e9edef] truncate">{conv.user_full_name}</h3>
+                                        <span className={`text-[11px] ${conv.admin_unread_count > 0 ? "text-[#00a884] font-bold" : "text-[#8696a0]"}`}>{formatDate(conv.last_message_at)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-0.5">
+                                        <p className="text-[13px] text-[#8696a0] truncate pr-4">{conv.last_message_preview || "..."}</p>
+                                        {conv.admin_unread_count > 0 && (
+                                            <Badge className="bg-[#00a884] text-[#111b21] rounded-full px-1.5 h-5 min-w-[20px] border-none font-bold text-[10px]">{conv.admin_unread_count}</Badge>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-6 h-[calc(100vh-220px)]">
-                {/* Liste des conversations */}
-                <Card className="col-span-4 flex flex-col">
-                    <CardHeader className="border-b">
-                        <CardTitle className="text-lg">Conversations</CardTitle>
-                        <CardDescription>
-                            {conversations.length} conversation{conversations.length > 1 ? 's' : ''}
-                        </CardDescription>
-                    </CardHeader>
-
-                    <div className="p-4 border-b">
-                        <Tabs value={statusFilter || 'all'} onValueChange={(v) => {
-                            setStatusFilter(v === 'all' ? undefined : v as 'open' | 'closed');
-                            setSelectedConversation(null);
-                        }}>
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="all">Toutes</TabsTrigger>
-                                <TabsTrigger value="open">Ouvertes</TabsTrigger>
-                                <TabsTrigger value="closed">Fermées</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    </div>
-
-                    <CardContent className="flex-1 p-0 overflow-hidden">
-                        {loading ? (
-                            <div className="flex items-center justify-center h-full">
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : conversations.length === 0 ? (
-                            <div className="flex items-center justify-center h-full text-center p-6">
-                                <div className="text-muted-foreground">
-                                    <p className="font-medium">Aucune conversation</p>
-                                    <p className="text-sm mt-1">Les conversations apparaîtront ici</p>
+            {/* Zone de Chat */}
+            <div className="flex-1 flex flex-col min-w-0 bg-[#0b141a] relative">
+                {selectedConversation && selectedConvData ? (
+                    <>
+                        <div className="h-[60px] flex-shrink-0 bg-[#202c33] px-4 flex items-center justify-between border-b border-[#222d34] z-10 shadow-md">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <Avatar className="h-10 w-10 border border-[#313d45]">
+                                    <AvatarFallback className="bg-[#00a884]/10 text-[#00a884] font-bold">{selectedConvData.user_full_name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col truncate">
+                                    <h2 className="text-[15px] font-medium text-[#e9edef] truncate">{selectedConvData.user_full_name}</h2>
+                                    <span className="text-[11px] text-[#00a884] font-normal">Discussion active</span>
                                 </div>
                             </div>
-                        ) : (
-                            <ScrollArea className="h-full">
-                                <div className="p-2">
-                                    {conversations.map((conv) => (
-                                        <button
-                                            key={conv.id}
-                                            onClick={() => setSelectedConversation(conv.id)}
-                                            className={`w-full p-3 rounded-lg mb-2 text-left transition-colors ${selectedConversation === conv.id
-                                                ? 'bg-primary/10 border-2 border-primary'
-                                                : 'hover:bg-muted border-2 border-transparent'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="font-medium text-sm">{conv.user_full_name}</span>
-                                                {conv.admin_unread_count > 0 && (
-                                                    <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center p-1">
-                                                        {conv.admin_unread_count}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mb-1">{conv.user_email}</p>
-                                            {conv.last_message_preview && (
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {conv.last_message_preview}
-                                                </p>
-                                            )}
-                                            <div className="flex items-center justify-between mt-2">
-                                                <Badge variant={conv.status === 'open' ? 'default' : 'secondary'} className="text-xs">
-                                                    {conv.status === 'open' ? 'Ouvert' : 'Fermé'}
-                                                </Badge>
-                                                {conv.last_message_at && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {formatDistanceToNow(new Date(conv.last_message_at), {
-                                                            addSuffix: true,
-                                                            locale: fr
-                                                        })}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Zone de conversation */}
-                <Card className="col-span-8 flex flex-col">
-                    {selectedConversation && selectedConvData ? (
-                        <>
-                            <CardHeader className="border-b">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-lg">{selectedConvData.user_full_name}</CardTitle>
-                                        <CardDescription>{selectedConvData.user_email}</CardDescription>
-                                    </div>
-                                    {selectedConvData.status === 'open' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleCloseConversation}
-                                        >
-                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                            Fermer
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardHeader>
-
-                            <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
-                                {loadingMessages ? (
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <ChatMessageList messages={messages} />
-                                        {selectedConvData.status === 'open' && (
-                                            <ChatMessageInput
-                                                onSend={handleSendMessage}
-                                                disabled={sending}
-                                            />
-                                        )}
-                                        {selectedConvData.status === 'closed' && (
-                                            <div className="border-t p-4 text-center text-muted-foreground">
-                                                <XCircle className="h-6 w-6 mx-auto mb-2" />
-                                                <p className="text-sm">Cette conversation est fermée</p>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </CardContent>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center text-center">
-                            <div className="text-muted-foreground">
-                                <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                <p className="font-medium">Sélectionnez une conversation</p>
-                                <p className="text-sm mt-1">Choisissez une conversation pour voir les messages</p>
+                            <div className="flex items-center gap-1 text-[#aebac1]">
+                                <Button variant="ghost" size="icon" onClick={handleCloseConversation} className="rounded-full hover:bg-[#374248]" title="Clôturer"><CheckCircle className="h-5 w-5" /></Button>
                             </div>
                         </div>
-                    )}
-                </Card>
+
+                        <div className="flex-1 overflow-hidden relative">
+                            {loadingMessages && <div className="absolute inset-0 bg-[#0b141a]/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-[#00a884]" /></div>}
+                            <ChatMessageList 
+                                messages={messages} 
+                                currentUserId={currentAdminId} 
+                                onLoadMore={handleLoadMore}
+                                hasMore={hasMore}
+                                loadingMore={loadingMore}
+                            />
+                        </div>
+
+                        <div className="bg-[#202c33]">
+                            {selectedConvData.status === 'open' ? (
+                                <ChatMessageInput onSend={handleSendMessage} disabled={sending} />
+                            ) : (
+                                <div className="p-4 text-center text-sm font-medium text-[#8696a0] bg-[#111b21]">
+                                    Cette conversation est clôturée.
+                                </div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-[#0b141a]">
+                        <div className="w-64 h-64 bg-[#202c33] rounded-full flex items-center justify-center mb-8 shadow-inner">
+                            <MessageCircle className="h-32 w-32 text-[#3b4a54]" />
+                        </div>
+                        <h2 className="text-3xl font-light text-[#e9edef] mb-2 tracking-tight">Support Nguma</h2>
+                        <p className="text-[#8696a0] max-w-sm mt-4 text-sm leading-relaxed">Sélectionnez une discussion pour commencer.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
