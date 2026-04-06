@@ -79,9 +79,9 @@ BEGIN
   VALUES (current_user_id, 'deposit', deposit_amount, COALESCE(user_currency, 'USD'), 'pending', deposit_method, 'Demande de dépôt via ' || deposit_method, p_payment_reference, p_payment_phone_number, p_proof_url)
   RETURNING id INTO v_transaction_id;
 
-  -- FIXED: 'message' not 'description'
+  -- FIXED: use valid type 'transaction' 
   INSERT INTO public.notifications (user_id, message, type, reference_id)
-  VALUES (current_user_id, 'Votre demande de dépôt de ' || deposit_amount || ' USD est en attente.', 'deposit_pending', v_transaction_id);
+  VALUES (current_user_id, 'Votre demande de dépôt de ' || deposit_amount || ' USD est en attente.', 'transaction', v_transaction_id);
 
   PERFORM public.notify_all_admins('Nouveau dépôt de ' || deposit_amount || ' USD par ' || profile_data.email, '/admin/deposits');
 
@@ -163,9 +163,9 @@ BEGIN
 
     PERFORM public.notify_all_admins('Nouveau retrait de ' || withdraw_amount || ' USD par ' || user_profile.email, '/admin/withdrawals');
 
-    -- FIXED: 'message' not 'description'
+    -- FIXED: 'message' not 'description', valid type 'transaction'
     INSERT INTO public.notifications (user_id, message, type, reference_id)
-    VALUES (v_user_id, 'Votre demande de retrait de ' || withdraw_amount || ' USD est en attente.', 'withdrawal_pending', new_transaction_id);
+    VALUES (v_user_id, 'Votre demande de retrait de ' || withdraw_amount || ' USD est en attente.', 'transaction', new_transaction_id);
 
     RETURN json_build_object('success', true, 'message', 'Demande de retrait créée.', 'transaction_id', new_transaction_id);
 EXCEPTION WHEN OTHERS THEN
@@ -249,9 +249,9 @@ BEGIN
 
     PERFORM public.notify_admins_new_contract(new_contract_id, current_user_id, investment_amount, contract_duration_months, (current_monthly_rate * 100));
 
-    -- FIXED: 'message' not 'description'
+    -- FIXED: 'message' not 'description', valid type 'contract'
     INSERT INTO public.notifications (user_id, message, type, reference_id)
-    VALUES (current_user_id, 'Votre contrat d''investissement de ' || investment_amount || ' USD a été créé.', 'contract_created', new_contract_id);
+    VALUES (current_user_id, 'Votre contrat d''investissement de ' || investment_amount || ' USD a été créé.', 'contract', new_contract_id);
 
     RETURN jsonb_build_object('success', true, 'contract_id', new_contract_id);
 EXCEPTION WHEN OTHERS THEN
@@ -329,9 +329,9 @@ BEGIN
 
     PERFORM public.notify_admins_new_contract(new_contract_id, current_user_id, reinvestment_amount, contract_duration_months, (current_monthly_rate * 100));
 
-    -- FIXED: 'message' not 'description'
+    -- FIXED: 'message' not 'description', valid type 'contract'
     INSERT INTO public.notifications (user_id, message, type, reference_id)
-    VALUES (current_user_id, 'Votre réinvestissement de ' || reinvestment_amount || ' USD a été effectué.', 'reinvestment_confirmed', new_contract_id);
+    VALUES (current_user_id, 'Votre réinvestissement de ' || reinvestment_amount || ' USD a été effectué.', 'contract', new_contract_id);
 
     RETURN jsonb_build_object('success', true, 'contract_id', new_contract_id);
 EXCEPTION WHEN OTHERS THEN

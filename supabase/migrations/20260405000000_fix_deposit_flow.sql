@@ -156,10 +156,9 @@ BEGIN
   RETURNING id INTO v_transaction_id;
 
   -- 9. Create notification for user
-  INSERT INTO public.notifications (user_id, title, description, type, reference_id)
+  INSERT INTO public.notifications (user_id, message, type, reference_id)
   VALUES (
     current_user_id,
-    'Demande de dépôt créée',
     'Votre demande de dépôt de ' || deposit_amount || ' USD est en attente d''approbation.',
     'deposit_pending',
     v_transaction_id
@@ -168,10 +167,7 @@ BEGIN
   -- 10. Notify all admins
   PERFORM public.notify_all_admins(
     'Nouvelle demande de dépôt de ' || deposit_amount || ' USD par ' || profile_data.email,
-    '/admin/deposits',
-    'admin',
-    'high',
-    v_transaction_id
+    '/admin/deposits'
   );
 
   RETURN jsonb_build_object(
@@ -296,10 +292,9 @@ BEGIN
     );
 
     -- Notify user
-    INSERT INTO public.notifications (user_id, title, description, type, reference_id)
+    INSERT INTO public.notifications (user_id, message, type, reference_id)
     VALUES (
         v_user_id,
-        'Demande de retrait créée',
         'Votre demande de retrait de ' || withdraw_amount || ' USD est en attente d''approbation.',
         'withdrawal_pending',
         new_transaction_id
@@ -459,10 +454,9 @@ BEGIN
     );
 
     -- Notify user in-app
-    INSERT INTO public.notifications (user_id, title, description, type, reference_id)
+    INSERT INTO public.notifications (user_id, message, type, reference_id)
     VALUES (
         current_user_id,
-        'Contrat créé avec succès',
         'Votre contrat d''investissement de ' || investment_amount || ' USD a été créé.',
         'contract_created',
         new_contract_id
@@ -602,10 +596,9 @@ BEGIN
     );
 
     -- Notify user in-app
-    INSERT INTO public.notifications (user_id, title, description, type, reference_id)
+    INSERT INTO public.notifications (user_id, message, type, reference_id)
     VALUES (
         current_user_id,
-        'Réinvestissement réussi',
         'Votre réinvestissement de ' || reinvestment_amount || ' USD a été effectué.',
         'reinvestment_confirmed',
         new_contract_id
