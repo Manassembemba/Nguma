@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import { uploadFile } from "@/utils/fileUpload";
 
-const BUCKET_NAME = 'chat-attachments';
+const BUCKET_NAME = 'chat_attachments';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // Types autorisés
@@ -34,12 +35,18 @@ export const uploadChatFile = async (file: File, messageId: string): Promise<str
     }
 
     try {
-        // Créer un nom de fichier unique
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${messageId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        // Upload using centralized utility (includes user folder)
+        // We append messageId to the filename for organization
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Utilisateur non authentifié");
 
-        // Upload vers Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(7);
+        // Structure: userId/messageId_timestamp_random.ext
+        const fileName = `${user.id}/${messageId}_${timestamp}_${random}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
             .from(BUCKET_NAME)
             .upload(fileName, file, {
                 cacheControl: '3600',
@@ -47,11 +54,9 @@ export const uploadChatFile = async (file: File, messageId: string): Promise<str
             });
 
         if (uploadError) {
-            console.error('Upload error:', uploadError);
             throw new Error(`Erreur lors de l'upload: ${uploadError.message}`);
         }
 
-        // Obtenir l'URL publique
         const { data: urlData } = supabase.storage
             .from(BUCKET_NAME)
             .getPublicUrl(fileName);

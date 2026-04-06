@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentMethod, PaymentMethodField } from '@/services/paymentMethodsService';
-import { supabase } from '@/integrations/supabase/client';
+import { uploadPaymentProof } from '@/utils/fileUpload';
 import { Copy, Check, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -35,26 +35,7 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
     const handleFileUpload = async (file: File) => {
         setIsUploading(true);
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from('payment_proofs')
-                .upload(fileName, file);
-
-            if (uploadError) {
-                toast({
-                    variant: "destructive",
-                    title: "Erreur d'upload",
-                    description: uploadError.message
-                });
-                return;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('payment_proofs')
-                .getPublicUrl(fileName);
-
+            const publicUrl = await uploadPaymentProof(file);
             setProofUrl(publicUrl);
 
             toast({
@@ -64,7 +45,7 @@ export const DynamicPaymentForm = ({ method, amount, onSubmit, isSubmitting = fa
         } catch (error: any) {
             toast({
                 variant: "destructive",
-                title: "Erreur",
+                title: "Erreur d'upload",
                 description: error.message
             });
         } finally {

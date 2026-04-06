@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { uploadFile } from "@/utils/fileUpload";
 
 /**
  * Upload a proof of transfer image to Supabase Storage
@@ -19,30 +20,8 @@ export const uploadWithdrawalProof = async (file: File, transactionId: string): 
         throw new Error('Fichier trop volumineux. Taille maximale: 5MB.');
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${transactionId}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
-    // Upload to storage
-    const { data, error } = await supabase.storage
-        .from('withdrawal-proofs')
-        .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-        });
-
-    if (error) {
-        console.error('Upload error:', error);
-        throw new Error(`Erreur d'upload: ${error.message}`);
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-        .from('withdrawal-proofs')
-        .getPublicUrl(filePath);
-
-    return publicUrl;
+    // Upload using the centralized utility (includes user folder)
+    return uploadFile('withdrawal-proofs', file);
 };
 
 /**
