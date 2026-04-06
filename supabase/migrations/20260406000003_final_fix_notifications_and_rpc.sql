@@ -34,15 +34,43 @@ DO $$
 DECLARE
     func_record RECORD;
 BEGIN
-    FOR func_record IN 
-        SELECT oid::regprocedure as func_name 
-        FROM pg_proc 
+    FOR func_record IN
+        SELECT oid::regprocedure as func_name
+        FROM pg_proc
         WHERE proname IN ('request_deposit', 'approve_deposit', 'user_withdraw', 'calculate_monthly_profits', 'create_new_contract', 'reinvest_from_profit')
           AND pronamespace = 'public'::regnamespace
     LOOP
         EXECUTE 'DROP FUNCTION ' || func_record.func_name;
     END LOOP;
 END $$;
+
+-- 3b. Recreate notify_all_admins (canonical version)
+DROP FUNCTION IF EXISTS public.notify_all_admins(text, text);
+DROP FUNCTION IF EXISTS public.notify_all_admins(text, text, uuid);
+DROP FUNCTION IF EXISTS public.notify_all_admins(text, text, text, text);
+
+CREATE OR REPLACE FUNCTION public.notify_all_admins(
+  message_text TEXT,
+  link TEXT DEFAULT NULL,
+  notification_type TEXT DEFAULT 'admin',
+  notification_priority TEXT DEFAULT 'medium',
+  ref_id UUID DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  admin_record RECORD;
+BEGIN
+  FOR admin_record IN
+    SELECT user_id FROM public.user_roles WHERE role = 'admin'
+  LOOP
+    INSERT INTO public.notifications (user_id, message, link_to, type, priority, reference_id)
+    VALUES (admin_record.user_id, message_text, link, notification_type, notification_priority, ref_id);
+  END LOOP;
+END;
+$$;
 
 -- 4. RESTORE REQUEST_DEPOSIT (Exact Signature for Frontend)
 CREATE OR REPLACE FUNCTION public.request_deposit(
