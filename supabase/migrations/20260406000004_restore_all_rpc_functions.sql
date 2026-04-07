@@ -64,10 +64,27 @@ DECLARE
   admin_record RECORD;
 BEGIN
   FOR admin_record IN
-    SELECT user_id FROM public.user_roles WHERE role = 'admin'
+    SELECT ur.user_id, p.email, p.first_name 
+    FROM public.user_roles ur
+    JOIN public.profiles p ON p.id = ur.user_id
+    WHERE ur.role = 'admin'
   LOOP
+    -- 1. Notification In-App
     INSERT INTO public.notifications (user_id, message, link_to, type, priority, reference_id)
     VALUES (admin_record.user_id, message_text, link, notification_type, notification_priority, ref_id);
+
+    -- 2. Notification Email (Queue)
+    INSERT INTO public.notifications_queue (template_id, recipient_user_id, recipient_email, notification_params)
+    VALUES (
+        'admin_alert',
+        admin_record.user_id,
+        admin_record.email,
+        jsonb_build_object(
+            'message', message_text,
+            'link', link,
+            'type', notification_type
+        )
+    );
   END LOOP;
 END;
 $$;
@@ -93,6 +110,7 @@ DECLARE
   v_deposit_enabled BOOLEAN;
   v_period_start TIMESTAMPTZ;
   v_period_end TIMESTAMPTZ;
+  admin_record RECORD; -- Variable de boucle ajoutée
 BEGIN
   IF current_user_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Non authentifié'); END IF;
 
@@ -115,12 +133,59 @@ BEGIN
   VALUES (current_user_id, 'deposit', deposit_amount, COALESCE(user_currency, 'USD'), 'pending', deposit_method, p_proof_url, p_payment_reference, p_payment_phone_number)
   RETURNING id INTO v_transaction_id;
 
-  -- In-App Notification
+  -- In-App Notification (User)
   INSERT INTO public.notifications (user_id, message, type, reference_id, priority)
   VALUES (current_user_id, 'Demande de dépôt de ' || deposit_amount || ' USD reçue.', 'transaction', v_transaction_id, 'medium');
 
-  -- Admin Notification
-  PERFORM public.notify_all_admins('Nouveau dépôt de ' || deposit_amount || ' USD par ' || profile_data.email, '/admin/deposits');
+  -- Email Notification (User Queue)
+  IF profile_data.email IS NOT NULL THEN
+    INSERT INTO public.notifications_queue (template_id, recipient_user_id, recipient_email, notification_params)
+    VALUES (
+        'deposit_pending',
+        current_user_id,
+        profile_data.email,
+        jsonb_build_object(
+            'name', COALESCE(profile_data.first_name, 'Investisseur'),
+            'amount', deposit_amount,
+            'method', deposit_method
+        )
+    );
+  END IF;
+
+  -- Admin Notification (Email Queue)
+  FOR admin_record IN
+    SELECT ur.user_id, p.email, p.first_name, p.last_name 
+    FROM public.user_roles ur
+    JOIN public.profiles p ON p.id = ur.user_id
+    WHERE ur.role = 'admin'
+  LOOP
+    -- In-App Notification (Admin)
+    INSERT INTO public.notifications (user_id, message, link_to, type, priority, reference_id)
+    VALUES (
+      admin_record.user_id, 
+      'Nouveau dépôt de ' || deposit_amount || ' USD par ' || COALESCE(profile_data.email, auth.jwt()->>'email'), 
+      '/admin/deposits', 
+      'admin_deposit', 
+      'high', 
+      v_transaction_id
+    );
+
+    -- Email Notification (Admin Queue)
+    INSERT INTO public.notifications_queue (template_id, recipient_user_id, recipient_email, notification_params)
+    VALUES (
+        'new_deposit_request',
+        admin_record.user_id,
+        admin_record.email,
+        jsonb_build_object(
+            'amount', deposit_amount,
+            'email', COALESCE(profile_data.email, auth.jwt()->>'email'),
+            'userName', COALESCE(profile_data.first_name || ' ' || profile_data.last_name, 'Investisseur'),
+            'transactionId', v_transaction_id,
+            'paymentMethod', deposit_method,
+            'proofUrl', p_proof_url
+        )
+    );
+  END LOOP;
 
   RETURN jsonb_build_object('success', true, 'transaction_id', v_transaction_id);
 END;
@@ -140,21 +205,76 @@ AS $$
 DECLARE
     v_user_id UUID := auth.uid();
     new_transaction_id uuid;
+    v_profile record;
+    admin_record record;
 BEGIN
-    -- [LOGIQUE SIMPLIFIÉE POUR RESTAURATION RAPIDE]
+    -- [LOGIQUE CORRIGÉE : RETRAIT UNIQUEMENT SUR LES PROFITS]
     UPDATE public.wallets SET 
-        total_balance = total_balance - withdraw_amount,
+        profit_balance = profit_balance - withdraw_amount,
         locked_balance = COALESCE(locked_balance, 0) + withdraw_amount
-    WHERE user_id = v_user_id AND (total_balance - COALESCE(locked_balance, 0)) >= withdraw_amount;
+    WHERE user_id = v_user_id AND profit_balance >= withdraw_amount;
 
-    IF NOT FOUND THEN RETURN json_build_object('success', false, 'error', 'Solde insuffisant'); END IF;
+    IF NOT FOUND THEN RETURN json_build_object('success', false, 'error', 'Solde de profit insuffisant. Vous ne pouvez retirer que vos profits.'); END IF;
+
+    SELECT * INTO v_profile FROM public.profiles WHERE id = v_user_id;
 
     INSERT INTO public.transactions (user_id, type, amount, status, method, payment_details)
     VALUES (v_user_id, 'withdrawal', withdraw_amount, 'pending', withdraw_method, p_payment_details)
     RETURNING id INTO new_transaction_id;
 
+    -- In-App Notification (User)
     INSERT INTO public.notifications (user_id, message, type, reference_id)
-    VALUES (v_user_id, 'Demande de retrait de ' || withdraw_amount || ' USD en attente.', 'transaction', new_transaction_id);
+    VALUES (v_user_id, 'Demande de retrait de ' || withdraw_amount || ' USD en attente (déduit de vos profits).', 'transaction', new_transaction_id);
+
+    -- Email Notification (User Queue)
+    IF v_profile.email IS NOT NULL THEN
+        INSERT INTO public.notifications_queue (template_id, recipient_user_id, recipient_email, notification_params)
+        VALUES (
+            'withdrawal_pending',
+            v_user_id,
+            v_profile.email,
+            jsonb_build_object(
+                'name', COALESCE(v_profile.first_name, 'Investisseur'),
+                'amount', withdraw_amount,
+                'method', withdraw_method
+            )
+        );
+    END IF;
+
+    -- Admin Notifications (In-App + Email Queue)
+    FOR admin_record IN
+        SELECT ur.user_id, p.email, p.first_name 
+        FROM public.user_roles ur
+        JOIN public.profiles p ON p.id = ur.user_id
+        WHERE ur.role = 'admin'
+    LOOP
+        -- In-App (Admin)
+        INSERT INTO public.notifications (user_id, message, link_to, type, priority, reference_id)
+        VALUES (
+            admin_record.user_id, 
+            'Nouveau retrait de ' || withdraw_amount || ' USD par ' || COALESCE(v_profile.email, auth.jwt()->>'email'), 
+            '/admin/withdrawals', 
+            'admin_withdrawal', 
+            'high', 
+            new_transaction_id
+        );
+
+        -- Email (Admin Queue)
+        INSERT INTO public.notifications_queue (template_id, recipient_user_id, recipient_email, notification_params)
+        VALUES (
+            'new_withdrawal_request',
+            admin_record.user_id,
+            admin_record.email,
+            jsonb_build_object(
+                'amount', withdraw_amount,
+                'email', COALESCE(v_profile.email, auth.jwt()->>'email'),
+                'userName', COALESCE(v_profile.first_name || ' ' || v_profile.last_name, 'Investisseur'),
+                'transactionId', new_transaction_id,
+                'withdrawalMethod', withdraw_method,
+                'recipientName', COALESCE(p_payment_details->>'recipient_name', p_payment_details->>'account_name', 'Non spécifié')
+            )
+        );
+    END LOOP;
 
     RETURN json_build_object('success', true, 'transaction_id', new_transaction_id);
 END;

@@ -225,7 +225,17 @@ export const PendingWithdrawals = () => {
                                 ) : withdrawals && withdrawals.length > 0 ? (
                                     withdrawals.map((w: any) => {
                                         const metadata = metadataCache[w.id] || [];
-                                        const formattedDetails = formatPaymentDetails(metadata);
+                                        
+                                        // Fallback to payment_details if metadata is empty
+                                        let displayMetadata = metadata;
+                                        if (displayMetadata.length === 0 && w.payment_details) {
+                                            displayMetadata = Object.entries(w.payment_details).map(([key, value]) => ({
+                                                field_key: key,
+                                                field_value: String(value)
+                                            }));
+                                        }
+
+                                        const formattedDetails = formatPaymentDetails(displayMetadata);
 
                                         return (
                                             <TableRow key={w.id}>
@@ -242,12 +252,12 @@ export const PendingWithdrawals = () => {
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-mono text-sm">{formattedDetails}</span>
-                                                        {metadata.length > 0 && (
+                                                        {displayMetadata.length > 0 && (
                                                             <>
                                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(formattedDetails, "Détails")}>
                                                                     <Copy className="h-3 w-3" />
                                                                 </Button>
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openDetailsDialog(metadata)}>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openDetailsDialog(displayMetadata)}>
                                                                     <Eye className="h-3 w-3" />
                                                                 </Button>
                                                             </>
@@ -317,7 +327,17 @@ export const PendingWithdrawals = () => {
                                     {/* Afficher les détails de paiement ici aussi */}
                                     <div className="text-muted-foreground">Destination :</div>
                                     <div className="font-mono text-xs break-all">
-                                        {formatPaymentDetails(metadataCache[selectedWithdrawal.id] || [])}
+                                        {(() => {
+                                            const metadata = metadataCache[selectedWithdrawal.id] || [];
+                                            let displayMetadata = metadata;
+                                            if (displayMetadata.length === 0 && selectedWithdrawal.payment_details) {
+                                                displayMetadata = Object.entries(selectedWithdrawal.payment_details).map(([key, value]) => ({
+                                                    field_key: key,
+                                                    field_value: String(value)
+                                                }));
+                                            }
+                                            return formatPaymentDetails(displayMetadata);
+                                        })()}
                                     </div>
                                 </div>
                             </div>
