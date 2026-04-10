@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, ArrowRight, CheckCircle2, Loader2, KeyRound } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const passwordSchema = z.object({
   password: z.string()
@@ -126,79 +127,83 @@ export function PasswordUpdateCard() {
     }
   };
 
+  const cardCls = "border-none shadow-premium bg-white dark:bg-zinc-950 rounded-[2rem] overflow-hidden";
+  const inputCls = "rounded-xl h-11 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 focus:ring-primary";
+
   return (
-    <Card className="max-w-2xl border-primary/20 shadow-lg overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b border-primary/10">
+    <Card className={cardCls}>
+      <CardHeader className="border-b border-zinc-100 dark:border-zinc-900">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
-            <Lock className="h-5 w-5 text-primary" />
+            <KeyRound className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-xl">Sécurité du Compte</CardTitle>
+            <CardTitle className="text-lg font-bold">Sécurité du Compte</CardTitle>
             <CardDescription>Mise à jour sécurisée du mot de passe</CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="p-6">
         {currentStep === 'initial' && (
-          <div className="space-y-4 py-4 text-center animate-in fade-in zoom-in duration-300">
-            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-              <ShieldCheck className="w-8 h-8 text-primary" />
+          <div className="space-y-6 py-4 text-center animate-in fade-in zoom-in duration-500">
+            <div className="mx-auto w-20 h-20 bg-primary/5 dark:bg-primary/10 rounded-full flex items-center justify-center mb-2 shadow-inner">
+              <ShieldCheck className="w-10 h-10 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="font-semibold text-lg">Vérification requise</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Pour modifier votre mot de passe, nous devons d'abord confirmer votre identité via un code envoyé sur votre adresse email.
+              <h3 className="font-black text-xl tracking-tight">Vérification requise</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto font-medium">
+                Pour modifier votre mot de passe, nous devons d'abord confirmer votre identité via un code envoyé par email.
               </p>
             </div>
             <Button 
               onClick={sendOtpRequest} 
-              className="w-full sm:w-auto px-8" 
+              className="w-full sm:w-auto px-12 h-12 rounded-xl font-bold shadow-premium bg-primary hover:bg-primary/90" 
               disabled={isLoading}
             >
               {isLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Envoi...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Envoi en cours...</>
               ) : (
-                <><ArrowRight className="mr-2 w-4 h-4" /> Commencer la vérification</>
+                <><ArrowRight className="mr-2 w-4 h-4 font-black" /> Commencer la vérification</>
               )}
             </Button>
           </div>
         )}
 
         {currentStep === 'otp' && (
-          <div className="space-y-6 py-4 animate-in slide-in-from-right-4 duration-300">
-            <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-lg flex items-start gap-3 border border-amber-200 dark:border-amber-900/30">
-              <Mail className="w-5 h-5 text-amber-600 mt-0.5" />
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="bg-amber-500/5 dark:bg-amber-500/10 p-4 rounded-2xl flex items-start gap-3 border border-amber-500/20">
+              <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">Code de vérification envoyé</p>
-                <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
-                  Veuillez entrer le code à 6 chiffres que vous avez reçu par email.
+                <p className="text-sm font-black text-amber-800 dark:text-amber-400 uppercase tracking-tight">Code de sécurité envoyé</p>
+                <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 font-medium leading-relaxed">
+                  Vérifiez votre boîte mail. Le code à 6 chiffres expire dans 10 minutes.
                 </p>
               </div>
             </div>
             
             <div className="space-y-3">
-              <label className="text-sm font-medium">Saisissez votre code</label>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Saisissez votre code</label>
               <Input
                 type="text"
                 maxLength={6}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="000000"
-                className="text-center text-3xl tracking-[0.4em] font-mono h-16 border-primary/30"
+                className="text-center text-4xl tracking-[0.5em] font-black h-20 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 focus:border-primary transition-all"
               />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
                 onClick={validateOtpFormat} 
-                className="flex-1"
+                className="flex-1 h-12 rounded-xl font-bold shadow-premium"
                 disabled={isLoading || otpCode.length !== 6}
               >
-                Suivant
+                Vérifier le code
               </Button>
               <Button 
-                variant="ghost" 
+                variant="outline" 
+                className="h-12 rounded-xl font-bold border-zinc-200 dark:border-zinc-800"
                 onClick={() => setCurrentStep('initial')} 
                 disabled={isLoading}
               >
@@ -209,10 +214,10 @@ export function PasswordUpdateCard() {
         )}
 
         {currentStep === 'password' && (
-          <div className="space-y-6 py-2 animate-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 bg-green-50 dark:bg-green-950/20 p-3 rounded-md border border-green-200 dark:border-green-900/30">
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="text-sm font-medium">Identité vérifiée (Code: {otpCode})</span>
+              <span className="text-sm font-bold">Identité vérifiée avec succès</span>
             </div>
 
             <Form {...form}>
@@ -222,26 +227,27 @@ export function PasswordUpdateCard() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nouveau mot de passe</FormLabel>
+                      <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Nouveau mot de passe</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
+                            className={inputCls}
                             {...field}
                           />
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="absolute inset-y-0 right-0 h-full px-3 text-gray-500 hover:bg-transparent"
+                            className="absolute inset-y-0 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                         </div>
                       </FormControl>
-                      <FormDescription>Minimum 8 caractères, une majuscule et un symbole.</FormDescription>
+                      <FormDescription className="text-[10px] font-medium">Doit inclure une majuscule et un symbole.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -251,19 +257,20 @@ export function PasswordUpdateCard() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirmer le mot de passe</FormLabel>
+                      <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Confirmer le mot de passe</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showConfirmPassword ? "text" : "password"}
                             placeholder="••••••••"
+                            className={inputCls}
                             {...field}
                           />
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="absolute inset-y-0 right-0 h-full px-3 text-gray-500 hover:bg-transparent"
+                            className="absolute inset-y-0 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           >
                             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -275,14 +282,15 @@ export function PasswordUpdateCard() {
                   )}
                 />
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <Button type="submit" className="flex-1" disabled={isLoading}>
+                  <Button type="submit" className="flex-1 h-12 rounded-xl font-bold shadow-premium bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</>
-                    ) : "Valider le changement"}
+                    ) : "Définir le nouveau mot de passe"}
                   </Button>
                   <Button 
                     type="button" 
                     variant="ghost" 
+                    className="h-12 rounded-xl font-bold"
                     onClick={() => setCurrentStep('otp')} 
                     disabled={isLoading}
                   >

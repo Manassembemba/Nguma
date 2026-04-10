@@ -51,6 +51,7 @@ const NotificationSettings = lazy(() => import("./pages/NotificationSettings").t
 const MaintenancePage = lazy(() => import("./pages/Maintenance").then(module => ({ default: module.MaintenancePage }))); // Import MaintenancePage
 import { ChatButton } from "./components/ChatButton";
 import InstallPWA from "./components/InstallPWA";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 
 const queryClient = new QueryClient();
 
@@ -91,11 +92,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
     <ProfileCompletionGuard>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 pb-16 md:pb-0">
           <AppHeader />
           <main className="flex-1">{children}</main>
         </div>
         <ChatButton />
+        <MobileBottomNav />
       </div>
     </ProfileCompletionGuard>
   </SidebarProvider>

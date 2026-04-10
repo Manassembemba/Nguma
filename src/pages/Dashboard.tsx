@@ -8,12 +8,11 @@ import { WalletCard } from "@/components/WalletCard";
 import { TransactionTable } from "@/components/TransactionTable";
 import { ContractCard } from "@/components/ContractCard";
 import { ProfitChart } from "@/components/ProfitChart";
-import { NewContractDialog } from "@/components/NewContractDialog";
-import { DepositDialog } from "@/components/DepositDialog";
-import { WithdrawDialog } from "@/components/WithdrawDialog";
-import { ReinvestDialog } from "@/components/ReinvestDialog";
-import { TransferProfitToDepositDialog } from "@/components/TransferProfitToDepositDialog";
+import { DashboardActions } from "@/components/DashboardActions";
 import { UpcomingPayments } from "@/components/UpcomingPayments";
+import { NewContractDialog } from "@/components/NewContractDialog";
+import { Button } from "@/components/ui/button";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
@@ -97,17 +96,7 @@ const Dashboard = () => {
             Bienvenue sur votre espace personnel Nguma.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 md:gap-3">
-          <DepositDialog />
-          <NewContractDialog />
-          <div className="col-span-2 sm:contents grid grid-cols-2 gap-2">
-            <TransferProfitToDepositDialog wallet={wallet} />
-            <ReinvestDialog wallet={wallet} />
-            <div className="col-span-2 sm:contents">
-              <WithdrawDialog wallet={wallet} />
-            </div>
-          </div>
-        </div>
+        <DashboardActions wallet={wallet} />
       </div>
 
       {/* Wallet Cards with Loading State */}
@@ -123,6 +112,24 @@ const Dashboard = () => {
             <WalletCard wallet={wallet} contracts={contracts} />
           </div>
         )}
+      </div>
+
+      {/* Main Stats & Performance Section */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          {isLoadingProfits ? (
+            <Skeleton className="h-[400px] w-full rounded-3xl" />
+          ) : (
+            <ProfitChart profits={profits} />
+          )}
+        </div>
+        <div className="lg:col-span-1">
+          {isLoadingTransactions ? (
+            <Skeleton className="h-[400px] w-full rounded-3xl" />
+          ) : (
+            <UpcomingPayments contracts={activeContracts} />
+          )}
+        </div>
       </div>
 
       {/* Contracts Section with Enhanced Empty State */}
@@ -151,18 +158,33 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 md:py-24 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-border/60 shadow-elegant transition-all duration-500 hover:border-primary/40 group">
-            <div className="relative mx-auto w-20 h-20 md:w-24 md:h-24 mb-6">
-              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-20 group-hover:opacity-40 transition-opacity"></div>
-              <div className="relative flex items-center justify-center w-full h-full bg-primary/10 rounded-full text-4xl md:text-5xl">📊</div>
+          <div className="relative overflow-hidden p-8 md:p-16 bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-premium text-center space-y-8 group">
+            {/* Background decoration */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-700" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
+
+            <div className="relative mx-auto w-24 h-24 md:w-32 md:h-32">
+              <div className="absolute inset-0 bg-primary/20 rounded-full animate-pulse-slow"></div>
+              <div className="relative flex items-center justify-center w-full h-full bg-white dark:bg-zinc-800 rounded-full shadow-elegant border border-zinc-100 dark:border-zinc-700 text-5xl">
+                🚀
+              </div>
             </div>
-            <h3 className="text-lg md:text-xl font-bold mb-2 tracking-tight">
-              Aucun contrat actif
-            </h3>
-            <p className="text-sm md:text-base text-muted-foreground mb-8 max-w-sm mx-auto px-6 leading-relaxed">
-              Propulsez vos revenus en créant votre premier contrat dès aujourd'hui et générez jusqu'à <span className="text-primary font-bold">{monthlyRatePercent}%</span> de profit mensuel.
-            </p>
-            <NewContractDialog />
+            
+            <div className="max-w-md mx-auto space-y-3 relative z-10">
+              <h3 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground">
+                Prêt à faire fructifier votre capital ?
+              </h3>
+              <p className="text-sm md:text-base text-muted-foreground font-medium leading-relaxed">
+                Rejoignez des centaines d'investisseurs et commencez à générer jusqu'à <span className="text-emerald-600 dark:text-emerald-400 font-bold underline underline-offset-4 decoration-emerald-500/30">{monthlyRatePercent}% de profit mensuel</span> avec nos contrats sécurisés.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 relative z-10">
+              <NewContractDialog />
+              <Button variant="link" className="text-muted-foreground hover:text-primary transition-colors font-bold uppercase tracking-widest text-[10px]" asChild>
+                <a href="/how-it-works">Découvrir le fonctionnement</a>
+              </Button>
+            </div>
           </div>
         )}
       </div>
