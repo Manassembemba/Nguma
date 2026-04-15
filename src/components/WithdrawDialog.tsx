@@ -24,10 +24,15 @@ type Step = "select_method" | "enter_details" | "verify_otp";
 
 interface WithdrawDialogProps {
   wallet: WalletData | undefined;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
-export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpenChange, showTrigger = true }: WithdrawDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = propOpen !== undefined ? propOpen : internalOpen;
+  const setOpen = propOnOpenChange !== undefined ? propOnOpenChange : setInternalOpen;
   const [step, setStep] = useState<Step>("select_method");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [amount, setAmount] = useState("");
@@ -181,9 +186,11 @@ export const WithdrawDialog = ({ wallet }: WithdrawDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
-      <DialogTrigger asChild>
-        <Button variant="destructive">Retirer</Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="destructive">Retirer</Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           {step !== 'select_method' && (

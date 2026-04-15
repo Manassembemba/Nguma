@@ -30,10 +30,15 @@ type WalletData = Database['public']['Tables']['wallets']['Row'];
 
 interface ReinvestDialogProps {
   wallet: WalletData | undefined;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
-export const ReinvestDialog = ({ wallet }: ReinvestDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const ReinvestDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpenChange, showTrigger = true }: ReinvestDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = propOpen !== undefined ? propOpen : internalOpen;
+  const setOpen = propOnOpenChange !== undefined ? propOnOpenChange : setInternalOpen;
   const [amount, setAmount] = useState("");
   const [isTermsAccepted, setIsTermsAccepted] = useState(false);
   const [isInsured, setIsInsured] = useState(false);
@@ -121,9 +126,11 @@ export const ReinvestDialog = ({ wallet }: ReinvestDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default">Réinvestir les Profits</Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="default">Réinvestir les Profits</Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

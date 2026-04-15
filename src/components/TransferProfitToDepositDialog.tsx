@@ -22,10 +22,20 @@ type WalletData = Database['public']['Tables']['wallets']['Row'];
 
 interface TransferProfitToDepositDialogProps {
     wallet: WalletData | undefined;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    showTrigger?: boolean;
 }
 
-export const TransferProfitToDepositDialog = ({ wallet }: TransferProfitToDepositDialogProps) => {
-    const [open, setOpen] = useState(false);
+export const TransferProfitToDepositDialog = ({ 
+    wallet, 
+    open: propOpen, 
+    onOpenChange: propOnOpenChange, 
+    showTrigger = true 
+}: TransferProfitToDepositDialogProps) => {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = propOpen !== undefined ? propOpen : internalOpen;
+    const setOpen = propOnOpenChange !== undefined ? propOnOpenChange : setInternalOpen;
     const [amount, setAmount] = useState("");
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -68,12 +78,14 @@ export const TransferProfitToDepositDialog = ({ wallet }: TransferProfitToDeposi
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                    <ArrowRightLeft className="h-4 w-4" />
-                    Transférer
-                </Button>
-            </DialogTrigger>
+            {showTrigger && (
+                <DialogTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                        <ArrowRightLeft className="h-4 w-4" />
+                        Transférer
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-md">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
