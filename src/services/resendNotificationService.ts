@@ -3,6 +3,8 @@ import { getProfile } from '@/services/profileService'; // New import
 
 // Types pour les templates de notification
 export type NotificationTemplate =
+  | 'admin_broadcast'
+  | 'chat_escalation_admin'
   | 'deposit_approved'
   | 'deposit_rejected'
   | 'deposit_pending'

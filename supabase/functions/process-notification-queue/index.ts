@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 );
 
 // The maximum number of notifications to process in a single run
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 25;
 
 Deno.serve(async (req) => {
   try {
@@ -21,16 +21,13 @@ Deno.serve(async (req) => {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
-    // 2. Fetch a batch of pending notifications and mark them as 'processing'
+    // 2. Fetch and LOCK a batch of pending notifications atomically
+    // This prevents race conditions where multiple instances pick up the same jobs
     const { data: jobs, error: fetchError } = await supabaseAdmin
-      .from('notifications_queue')
-      .select('*')
-      .eq('status', 'pending')
-      .limit(BATCH_SIZE)
-      .order('created_at', { ascending: true });
+      .rpc('fetch_and_lock_notifications', { p_batch_size: BATCH_SIZE });
 
     if (fetchError) {
-      throw new Error(`Failed to fetch jobs: ${fetchError.message}`);
+      throw new Error(`Failed to fetch and lock jobs: ${fetchError.message}`);
     }
 
     if (!jobs || jobs.length === 0) {
@@ -39,14 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[process-notification-queue] Found ${jobs.length} jobs to process.`);
-
-    // Mark jobs as 'processing' to prevent another worker from picking them up
-    const jobIds = jobs.map(job => job.id);
-    await supabaseAdmin
-      .from('notifications_queue')
-      .update({ status: 'processing', processed_at: new Date().toISOString() })
-      .in('id', jobIds);
+    console.log(`[process-notification-queue] Locked ${jobs.length} jobs for processing.`);
 
     // 3. Process each job sequentially with a delay to respect Resend's rate limit (2/sec)
     let processedCount = 0;

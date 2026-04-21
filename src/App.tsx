@@ -44,6 +44,7 @@ const LoginAuditPage = lazy(() => import("./pages/admin/LoginAuditPage"));
 const SupportPage = lazy(() => import("./pages/SupportPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
 const AdminTransactionsPage = lazy(() => import("./pages/admin/AdminTransactionsPage"));
+const AdminEmailBroadcast = lazy(() => import("./pages/admin/AdminEmailBroadcast").then(module => ({ default: module.AdminEmailBroadcast })));
 const AccountingPage = lazy(() => import("./pages/admin/accounting/AccountingPage"));
 const PaymentSchedulerPage = lazy(() => import("./pages/admin/accounting/PaymentSchedulerPage"));
 const LedgerPage = lazy(() => import("./pages/admin/accounting/LedgerPage"));
@@ -285,6 +286,16 @@ const App = () => (
                     <AdminRoute>
                       <AppLayout>
                         <AdminTransactionsPage />
+                      </AppLayout>
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/broadcast"
+                  element={
+                    <AdminRoute>
+                      <AppLayout>
+                        <AdminEmailBroadcast />
                       </AppLayout>
                     </AdminRoute>
                   }

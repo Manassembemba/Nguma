@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users, MessageCircle, BookOpen } from "lucide-react";
+import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users, MessageCircle, BookOpen, Mail } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +30,7 @@ const adminItems = [
 
   { title: "Gestion Contrats", url: "/admin/contracts", icon: FileText },
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
+  { title: "Diffusion Email", url: "/admin/broadcast", icon: Mail },
   { title: "Support Chat", url: "/admin/support", icon: MessageCircle },
   { title: "Comptabilité", url: "/admin/accounting", icon: Wallet },
   { title: "Paramètres", url: "/admin/settings", icon: Settings },
