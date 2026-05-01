@@ -308,14 +308,16 @@ export const getAdminDashboardStats = async () => {
   const { data, error } = await supabase.rpc('get_admin_stats');
   if (error) throw new Error("Could not fetch admin dashboard stats.");
 
-  // The RPC returns a direct JSON object with stats, not a wrapper
   return data as {
     total_investors: number;
     active_investors: number;
     funds_under_management: number;
-    total_profit: number;
+    total_profit_distributed: number;
+    total_wallet_profits: number;
+    total_debt_to_recover: number;
     pending_deposits: number;
     pending_withdrawals: number;
+    cash_on_hand: number;
   };
 };
 

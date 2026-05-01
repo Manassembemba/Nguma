@@ -8,7 +8,7 @@ import { CashFlowChart } from "@/components/admin/CashFlowChart";
 import { UserGrowthChart } from "@/components/admin/UserGrowthChart";
 import { InvestorListTable } from "@/components/admin/InvestorListTable";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, DollarSign, TrendingUp, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Users, DollarSign, TrendingUp, ArrowDownCircle, ArrowUpCircle, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -76,41 +76,58 @@ const AdminPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
             <Skeleton key={i} className="h-[100px] rounded-lg" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <StatCard
-            title="Investisseurs"
-            value={stats?.total_investors?.toLocaleString() || '0'}
-            icon={Users}
-          />
-          <StatCard
-            title="Fonds Sous Gestion"
-            value={formatCurrency(stats?.funds_under_management || 0)}
-            icon={DollarSign}
-          />
-          <StatCard
-            title="Profit Total"
-            value={formatCurrency(stats?.total_profit || 0)}
-            icon={TrendingUp}
-          />
-          <div className="cursor-pointer" onClick={() => navigate('/admin/deposits')}>
+        <div className="space-y-6">
+          {/* Main Financial KPIs */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard
-              title="Dépôts en Attente"
-              value={formatCurrency(stats?.pending_deposits || 0)}
-              icon={ArrowDownCircle}
+              title="Fonds Sous Gestion"
+              value={formatCurrency(stats?.funds_under_management || 0)}
+              icon={DollarSign}
             />
-          </div>
-          <div className="cursor-pointer" onClick={() => navigate('/admin/withdrawals')}>
             <StatCard
-              title="Retraits en Attente"
-              value={formatCurrency(stats?.pending_withdrawals || 0)}
+              title="Dette Virtuelle Totale"
+              value={formatCurrency(stats?.total_debt_to_recover || 0)}
               icon={ArrowUpCircle}
             />
+            <StatCard
+              title="Profits en Wallet"
+              value={formatCurrency(stats?.total_wallet_profits || 0)}
+              icon={TrendingUp}
+            />
+          </div>
+
+          {/* Operational KPIs */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Investisseurs"
+              value={stats?.total_investors?.toLocaleString() || '0'}
+              icon={Users}
+            />
+            <StatCard
+              title="Profits Distribués"
+              value={formatCurrency(stats?.total_profit_distributed || 0)}
+              icon={TrendingUp}
+            />
+            <div className="cursor-pointer" onClick={() => navigate('/admin/deposits')}>
+              <StatCard
+                title="Dépôts en Attente"
+                value={formatCurrency(stats?.pending_deposits || 0)}
+                icon={ArrowDownCircle}
+              />
+            </div>
+            <div className="cursor-pointer" onClick={() => navigate('/admin/withdrawals')}>
+              <StatCard
+                title="Retraits en Attente"
+                value={formatCurrency(stats?.pending_withdrawals || 0)}
+                icon={ArrowUpCircle}
+              />
+            </div>
           </div>
         </div>
       )}

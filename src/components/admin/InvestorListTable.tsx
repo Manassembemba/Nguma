@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 
 type Contract = { status: string; };
-type Wallet = { total_balance: number; invested_balance: number; profit_balance: number; currency: string; };
+type Wallet = { total_balance: number; invested_balance: number; profit_balance: number; debt_balance?: number; currency: string; };
 export type Investor = {
   id: string;
   first_name: string | null;
@@ -526,7 +526,22 @@ export const InvestorListTable = () => {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{investor.wallet ? formatCurrency(Number(investor.wallet.total_balance), investor.wallet.currency) : 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {investor.wallet ? formatCurrency(Number(investor.wallet.total_balance), investor.wallet.currency) : 'N/A'}
+                          {Number(investor.wallet?.debt_balance || 0) > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <AlertTriangle className="h-4 w-4 text-red-500 cursor-help" />
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-2 text-xs">
+                                <p className="font-bold text-red-600 mb-1">Dette Virtuelle Détectée</p>
+                                <p>Cet utilisateur doit <strong>{formatCurrency(Number(investor.wallet?.debt_balance), investor.wallet?.currency)}</strong> à la plateforme (recouvrement sur prochains profits).</p>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-semibold text-primary">{investor.wallet ? formatCurrency(Number(investor.wallet.invested_balance || 0), investor.wallet.currency) : 'N/A'}</TableCell>
                       <TableCell>
                         {activeContractsCount > 0 ? (
