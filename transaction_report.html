@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport d'Audit Financier Nguma - Erreurs de Réconciliation</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 20px; }
+        h1 { color: #2c3e50; text-align: center; }
+        .summary { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .summary p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #34495e; color: white; font-weight: bold; }
+        tr:hover { background-color: #f1f1f1; }
+        .status-ok { color: #27ae60; font-weight: bold; }
+        .status-surplus { color: #e74c3c; font-weight: bold; background-color: #fadbd8; }
+        .status-deficit { color: #f39c12; font-weight: bold; }
+        .discrepancy { font-family: monospace; }
+        .alert { background-color: #fdebd0; border-left: 5px solid #f39c12; padding: 10px; margin: 10px 0; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h1>Rapport d'Audit Financier - NGUMA</h1>
+
+    <div class="summary">
+        <h2>Résumé de l'Audit (Post-Réconciliation 10 Janvier)</h2>
+        <p><strong>Total Investisseurs Audités :</strong> 36 Comptes Actifs</p>
+        <p><strong>Comptes avec Surplus (Argent Fantôme) :</strong> 10 Comptes</p>
+        <p><strong>Comptes avec Déficit :</strong> 0 Comptes (Après inclusion du Locked Balance)</p>
+        <p><strong>Comptes Intègres (OK) :</strong> 26 Comptes</p>
+        <div class="alert">
+            <strong>Note Technique :</strong> L'erreur du 10 janvier a systématiquement ignoré les transactions de type <em>'transfer'</em> et <em>'reinvestment'</em>. Les comptes en "Surplus" sont ceux qui ont été doublement crédités par erreur.
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email Investisseur</th>
+                <th>Profits Générés (20%)</th>
+                <th>Consommé (Transferts/Réinv.)</th>
+                <th>Solde Actuel (Profit)</th>
+                <th>En Attente (Locked)</th>
+                <th>Solde Théorique</th>
+                <th>Écart (Erreur)</th>
+                <th>Classification</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="status-surplus">
+                <td>abdouramaneabou70@gmail.com</td>
+                <td>4 025.71</td>
+                <td>3 925.72</td>
+                <td>3 725.71</td>
+                <td>0.00</td>
+                <td>99.99</td>
+                <td>+3 625.72</td>
+                <td>SURPLUS CRITIQUE</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>botesgroup0@gmail.com</td>
+                <td>190.00</td>
+                <td>1 690.00</td>
+                <td>100.00</td>
+                <td>0.00</td>
+                <td>-1 500.00</td>
+                <td>+1 600.00</td>
+                <td>SURPLUS CRITIQUE</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>guyrogerkumande@gmail.com</td>
+                <td>1 360.00</td>
+                <td>1 310.00</td>
+                <td>1 060.00</td>
+                <td>0.00</td>
+                <td>50.00</td>
+                <td>+1 010.00</td>
+                <td>SURPLUS CRITIQUE</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>erickamba96@gmail.com</td>
+                <td>7 002.00</td>
+                <td>3 336.00</td>
+                <td>2 216.00</td>
+                <td>2 100.00</td>
+                <td>3 666.00</td>
+                <td>+650.00</td>
+                <td>SURPLUS (Risque Retrait)</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>williambiadua@gmail.com</td>
+                <td>1 200.00</td>
+                <td>1 400.00</td>
+                <td>300.00</td>
+                <td>0.00</td>
+                <td>-200.00</td>
+                <td>+500.00</td>
+                <td>SURPLUS</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>mohamed76769891@gmail.com</td>
+                <td>2 336.00</td>
+                <td>1 910.00</td>
+                <td>256.00</td>
+                <td>600.00</td>
+                <td>426.00</td>
+                <td>+430.00</td>
+                <td>SURPLUS (Bloqué en Retrait)</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>darrylkitoko@gmail.com</td>
+                <td>700.00</td>
+                <td>900.00</td>
+                <td>150.00</td>
+                <td>0.00</td>
+                <td>-200.00</td>
+                <td>+350.00</td>
+                <td>SURPLUS</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>yayasadiagouni@gmail.com</td>
+                <td>3 675.60</td>
+                <td>2 368.80</td>
+                <td>1 144.80</td>
+                <td>462.00</td>
+                <td>1 306.80</td>
+                <td>+300.00</td>
+                <td>SURPLUS</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>beckykongolo@gmail.com</td>
+                <td>600.00</td>
+                <td>600.00</td>
+                <td>200.00</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>+200.00</td>
+                <td>SURPLUS</td>
+            </tr>
+            <tr class="status-surplus">
+                <td>aimemuhima3@gmail.com</td>
+                <td>1 096.00</td>
+                <td>50.00</td>
+                <td>1 096.00</td>
+                <td>0.00</td>
+                <td>1 046.00</td>
+                <td>+50.00</td>
+                <td>SURPLUS LÉGER</td>
+            </tr>
+            <tr class="status-ok">
+                <td>chris.nsele@gmail.com</td>
+                <td>22 790.00</td>
+                <td>0.00</td>
+                <td>290.00</td>
+                <td>22 500.00</td>
+                <td>22 790.00</td>
+                <td>0.00</td>
+                <td>OK</td>
+            </tr>
+            <tr class="status-ok">
+                <td>magloireulyera@gmail.com</td>
+                <td>3 600.00</td>
+                <td>1 800.00</td>
+                <td>0.00</td>
+                <td>1 800.00</td>
+                <td>1 800.00</td>
+                <td>0.00</td>
+                <td>OK</td>
+            </tr>
+            <tr class="status-ok">
+                <td>lostkaf@gmail.com</td>
+                <td>4 200.00</td>
+                <td>2 050.00</td>
+                <td>0.00</td>
+                <td>2 150.00</td>
+                <td>2 150.00</td>
+                <td>0.00</td>
+                <td>OK</td>
+            </tr>
+            <tr class="status-ok">
+                <td>ninonkas@hotmail.com</td>
+                <td>6 036.00</td>
+                <td>4 000.00</td>
+                <td>36.00</td>
+                <td>2 000.00</td>
+                <td>2 036.00</td>
+                <td>0.00</td>
+                <td>OK</td>
+            </tr>
+            <tr>
+                <td colspan="8" style="text-align:center; background:#eee; font-style:italic;">... 22 autres investisseurs classés "OK" (Écart < 0.01) ...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;">
+        <h3>Recommandations de l'Audit</h3>
+        <ul>
+            <li><strong>Action Immédiate :</strong> Corriger les 10 comptes en "Surplus" avant toute validation de retrait. Ces fonds sont inexistants et proviennent d'une erreur de script.</li>
+            <li><strong>Validation Chris Nsele :</strong> Son compte est intègre malgré le montant élevé (22 500 USD), car il correspond exactement à ses gains théoriques.</li>
+            <li><strong>Correction Technique :</strong> Remplacer le script du 10 janvier par un script incluant <code>type IN ('withdrawal', 'transfer', 'reinvestment')</code>.</li>
+        </ul>
+    </div>
+
+</body>
+</html>

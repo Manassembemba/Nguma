@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getUserDetails, sendAdminNotification } from "@/services/adminService";
+import { getUserDetails, sendAdminNotification, getUserTransactionsPaginated } from "@/services/adminService";
 import { getAuditLogs, formatAuditAction } from "@/services/auditService";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
@@ -50,6 +50,9 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
   const [activeTab, setActiveTab] = useState("profile");
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationPriority, setNotificationPriority] = useState("medium");
+  const [txPage, setTxPage] = useState(1);
+  const TX_PAGE_SIZE = 10;
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -58,6 +61,13 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
     queryKey: ["userDetails", userId],
     queryFn: () => getUserDetails(userId),
     enabled: !!userId,
+  });
+
+  // Fetch paginated transactions for this user
+  const { data: txData, isLoading: isLoadingTx } = useQuery({
+    queryKey: ["userTransactions", userId, txPage],
+    queryFn: () => getUserTransactionsPaginated(userId, txPage, TX_PAGE_SIZE),
+    enabled: !!userId && activeTab === "transactions",
   });
 
   // Fetch audit logs for this user
@@ -110,12 +120,23 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
     return <Badge className={variants[status] || "bg-gray-100"}>{status}</Badge>;
   };
 
-  const getTransactionIcon = (type: string) => {
-    return type === "deposit" ? (
-      <ArrowDownRight className="h-4 w-4 text-green-600" />
-    ) : (
-      <ArrowUpRight className="h-4 w-4 text-red-600" />
-    );
+  const getTransactionDetails = (type: string) => {
+    switch (type) {
+      case "deposit":
+        return { label: "Dépôt", icon: <ArrowDownRight className="h-4 w-4 text-green-600" />, color: "text-green-600", prefix: "+" };
+      case "withdrawal":
+        return { label: "Retrait", icon: <ArrowUpRight className="h-4 w-4 text-red-600" />, color: "text-red-600", prefix: "-" };
+      case "reinvestment":
+        return { label: "Réinvestissement", icon: <TrendingUp className="h-4 w-4 text-indigo-600" />, color: "text-indigo-600", prefix: "-" };
+      case "transfer":
+        return { label: "Transfert (Cap.)", icon: <Wallet className="h-4 w-4 text-cyan-600" />, color: "text-cyan-600", prefix: "-" };
+      case "profit":
+        return { label: "Profit versé", icon: <ArrowDownRight className="h-4 w-4 text-emerald-600" />, color: "text-emerald-600", prefix: "+" };
+      case "investment":
+        return { label: "Investissement", icon: <FileText className="h-4 w-4 text-blue-600" />, color: "text-blue-600", prefix: "-" };
+      default:
+        return { label: type, icon: <TrendingUp className="h-4 w-4 text-zinc-600" />, color: "text-zinc-600", prefix: "" };
+    }
   };
 
   if (isLoading) {
@@ -140,7 +161,7 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
     );
   }
 
-  const { profile, wallet, contracts, transactions } = data;
+  const { profile, wallet, contracts, transactions, totalReinvested, totalTransferred, totalWithdrawn, totalDeposits, totalProfitsPaid } = data;
   const activeContracts = contracts?.filter((c: any) => c.status === "active") || [];
   const totalInvested = activeContracts.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
 
@@ -153,10 +174,6 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
 
   // Calculate total profits generated from contracts
   const totalProfitsGenerated = contracts?.reduce((sum: number, c: any) => sum + Number(c.total_profit_paid || 0), 0) || 0;
-
-  // Calculate total profits withdrawn (completed withdrawals)
-  const totalProfitsWithdrawn = transactions?.filter((tx: any) => tx.type === 'withdrawal' && tx.status === 'completed')
-    .reduce((sum: number, tx: any) => sum + Number(tx.amount), 0) || 0;
 
   return (
     <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -263,8 +280,38 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profit actuel</p>
             </div>
             <div className="text-center p-3 rounded-lg bg-orange-50 border border-orange-100">
-              <p className="text-xl font-bold text-orange-700">{formatCurrency(totalProfitsWithdrawn, wallet?.currency)}</p>
+              <p className="text-xl font-bold text-orange-700">{formatCurrency(totalWithdrawn, wallet?.currency)}</p>
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profits retirés</p>
+            </div>
+          </div>
+
+          {/* Second row of Stats: Reinvested & Transferred & Debt */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-3 rounded-lg bg-indigo-50 border border-indigo-100">
+              <p className="text-xl font-bold text-indigo-700">{formatCurrency(totalReinvested, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profits réinvestis</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-cyan-50 border border-cyan-100">
+              <p className="text-xl font-bold text-cyan-700">{formatCurrency(totalTransferred, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profits transférés (Cap.)</p>
+            </div>
+            <div className={`text-center p-3 rounded-lg border ${Number(wallet?.debt_balance || 0) > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+              <p className={`text-xl font-bold ${Number(wallet?.debt_balance || 0) > 0 ? 'text-red-700' : 'text-gray-700'}`}>
+                {formatCurrency(Number(wallet?.debt_balance || 0), wallet?.currency)}
+              </p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Dette Virtuelle</p>
+            </div>
+          </div>
+
+          {/* Third row of Stats: Total Deposits & Total Profits Paid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+              <p className="text-xl font-bold text-emerald-700">{formatCurrency(totalDeposits, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total des Dépôts</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
+              <p className="text-xl font-bold text-amber-700">{formatCurrency(totalProfitsPaid, wallet?.currency)}</p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total Profits Versés</p>
             </div>
           </div>
         </TabsContent>
@@ -284,6 +331,34 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
               <p className="text-sm text-muted-foreground">Profits</p>
               <p className="text-2xl font-bold text-green-700">+{formatCurrency(Number(wallet?.profit_balance || 0), wallet?.currency)}</p>
             </div>
+            <div className={`p-4 rounded-lg border ${Number(wallet?.debt_balance || 0) > 0 ? 'bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20' : 'bg-gray-500/5 border-gray-500/10'}`}>
+              <p className="text-sm text-muted-foreground">Dette Virtuelle</p>
+              <p className={`text-2xl font-bold ${Number(wallet?.debt_balance || 0) > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                {formatCurrency(Number(wallet?.debt_balance || 0), wallet?.currency)}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-muted/30 border border-dashed mt-6">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-primary" />
+              Provenance du Capital Investi
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase text-muted-foreground font-medium">Dépôts Externes (Cash)</p>
+                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalDeposits, wallet?.currency)}</p>
+                <Progress value={(totalDeposits / (totalInvested || 1)) * 100} className="h-1 bg-blue-100" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase text-muted-foreground font-medium">Réinvestissements (Profits)</p>
+                <p className="text-lg font-bold text-indigo-600">{formatCurrency(totalReinvested + totalTransferred, wallet?.currency)}</p>
+                <Progress value={((totalReinvested + totalTransferred) / (totalInvested || 1)) * 100} className="h-1 bg-indigo-100" />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-3 italic">
+              Note : Le capital investi total ({formatCurrency(totalInvested, wallet?.currency)}) est la somme des fonds frais déposés et des gains réinjectés dans de nouveaux contrats.
+            </p>
           </div>
         </TabsContent>
 
@@ -358,26 +433,62 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
 
         {/* TRANSACTIONS TAB */}
         <TabsContent value="transactions" className="space-y-4">
-          {transactions && transactions.length > 0 ? (
+          {isLoadingTx ? (
             <div className="space-y-2">
-              {transactions.map((tx: any) => (
-                <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
-                  <div className="flex items-center gap-3">
-                    {getTransactionIcon(tx.type)}
-                    <div>
-                      <p className="font-medium capitalize">{tx.type === "deposit" ? "Dépôt" : "Retrait"}</p>
-                      <p className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${tx.type === "deposit" ? "text-green-600" : "text-red-600"}`}>
-                      {tx.type === "deposit" ? "+" : "-"}{formatCurrency(Number(tx.amount), wallet?.currency)}
-                    </p>
-                    {getStatusBadge(tx.status)}
-                  </div>
-                </div>
-              ))}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
             </div>
+          ) : txData?.transactions && txData.transactions.length > 0 ? (
+            <>
+              <div className="space-y-2">
+                {txData.transactions.map((tx: any) => {
+                  const details = getTransactionDetails(tx.type);
+                  return (
+                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                      <div className="flex items-center gap-3">
+                        {details.icon}
+                        <div>
+                          <p className="font-medium capitalize">{details.label}</p>
+                          <p className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${details.color}`}>
+                          {details.prefix}{formatCurrency(Number(tx.amount), wallet?.currency)}
+                        </p>
+                        {getStatusBadge(tx.status)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between pt-4 border-t mt-4">
+                <div className="text-xs text-muted-foreground">
+                  Page {txPage} sur {Math.ceil(txData.totalCount / TX_PAGE_SIZE) || 1} ({txData.totalCount} transactions)
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setTxPage(p => Math.max(1, p - 1))}
+                    disabled={txPage === 1}
+                    className="h-8 text-xs"
+                  >
+                    Précédent
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setTxPage(p => p + 1)}
+                    disabled={txPage >= Math.ceil(txData.totalCount / TX_PAGE_SIZE)}
+                    className="h-8 text-xs"
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -403,9 +514,24 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
                       Par {log.user_email || "Système"} • {formatDateTime(log.created_at)}
                     </p>
                     {log.new_values && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {JSON.stringify(log.new_values).substring(0, 100)}...
-                      </p>
+                      <div className="mt-2 p-2 rounded bg-muted text-[10px] font-mono space-y-1 overflow-x-auto">
+                        {log.old_values && (
+                          <div className="flex gap-2">
+                            <span className="text-red-500">OLD:</span>
+                            <span>{JSON.stringify(log.old_values)}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <span className="text-green-600">NEW:</span>
+                          <span>{JSON.stringify(log.new_values)}</span>
+                        </div>
+                        {log.metadata && (
+                          <div className="flex gap-2 text-blue-600 border-t pt-1 mt-1">
+                            <span className="font-bold">INFO:</span>
+                            <span>{JSON.stringify(log.metadata)}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

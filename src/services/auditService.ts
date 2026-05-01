@@ -116,6 +116,7 @@ export function formatAuditAction(action: string): string {
         'setting.update': '⚙️ Modification paramètre',
         'transaction.approve': '✅ Approbation transaction',
         'transaction.reject': '❌ Rejet transaction',
+        'balance.regularization': '⚖️ Régularisation de solde',
     };
 
     return actionMap[action] || action;

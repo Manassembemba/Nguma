@@ -137,12 +137,12 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-bold tracking-tight">Mes Contrats Actifs</h2>
           {activeContracts.length > 0 && (
-             <span className="text-xs md:text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
-               {activeContracts.length} contrat{activeContracts.length > 1 ? 's' : ''}
-             </span>
+            <span className="text-xs md:text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
+              {activeContracts.length} contrat{activeContracts.length > 1 ? 's' : ''}
+            </span>
           )}
         </div>
-        
+
         {isLoadingContracts ? (
           <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(3)].map((_, i) => (
@@ -169,7 +169,7 @@ const Dashboard = () => {
                 🚀
               </div>
             </div>
-            
+
             <div className="max-w-md mx-auto space-y-3 relative z-10">
               <h3 className="text-2xl md:text-3xl font-black tracking-tighter text-foreground">
                 Prêt à faire fructifier votre capital ?

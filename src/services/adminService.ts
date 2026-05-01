@@ -112,16 +112,58 @@ export const getAllUsers = async () => {
 };
 
 export const getUserDetails = async (userId: string) => {
-  const [profile, wallet, contracts, transactions] = await Promise.all([
+  const [profile, wallet, contracts, transactions, reinvestTotal, transferTotal, withdrawalTotal, depositTotal, profitPaidTotal] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('wallets').select('*').eq('user_id', userId).single(),
     supabase.from('contracts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-    supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(10)
+    supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'reinvestment').eq('status', 'completed'),
+    supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'transfer').eq('status', 'completed'),
+    supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'withdrawal').eq('status', 'completed'),
+    supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'deposit').eq('status', 'completed'),
+    supabase.from('profits').select('amount').eq('user_id', userId)
   ]);
+  
   if (profile.error || wallet.error || contracts.error || transactions.error) {
     throw new Error("Could not fetch complete user details.");
   }
-  return { profile: profile.data, wallet: wallet.data, contracts: contracts.data, transactions: transactions.data };
+
+  const totalReinvested = (reinvestTotal.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const totalTransferred = (transferTotal.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const totalWithdrawn = (withdrawalTotal.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const totalDeposits = (depositTotal.data || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const totalProfitsPaid = (profitPaidTotal.data || []).reduce((sum, profit) => sum + Number(profit.amount), 0);
+
+  return { 
+    profile: profile.data, 
+    wallet: wallet.data, 
+    contracts: contracts.data, 
+    transactions: transactions.data,
+    totalReinvested,
+    totalTransferred,
+    totalWithdrawn,
+    totalDeposits,
+    totalProfitsPaid
+  };
+};
+
+export const getUserTransactionsPaginated = async (userId: string, page: number = 1, pageSize: number = 10) => {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize - 1;
+
+  const { data, error, count } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact' })
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .range(start, end);
+
+  if (error) {
+    console.error("Error fetching user transactions:", error);
+    throw new Error("Could not fetch user transactions.");
+  }
+
+  return { transactions: data || [], totalCount: count || 0 };
 };
 
 export const getUserContracts = async (userId: string): Promise<Contract[]> => {
