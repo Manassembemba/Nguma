@@ -1,9 +1,9 @@
 import { FileIcon, ImageIcon, FileTextIcon, DownloadIcon } from "lucide-react";
 import { formatFileSize, isImageFile } from "@/services/fileUploadService";
-import type { ChatAttachment } from "@/services/chatService";
+// import type { ChatAttachment } from "@/services/chatService";
 
 interface FilePreviewProps {
-    attachment: ChatAttachment;
+    attachment: any; // ChatAttachment;
     className?: string;
 }
 
