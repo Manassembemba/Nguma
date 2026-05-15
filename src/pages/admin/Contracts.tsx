@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { adminGetAllContracts, getAdminContractKPIs } from "@/services/adminService";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminGetAllContracts, getAdminContractKPIs, adminDeleteContract, adminArchiveContract } from "@/services/adminService";
 import { formatCurrency, exportToCsv, exportToPdf } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,8 +14,8 @@ import { Pagination, PaginationContent, PaginationItem, PaginationNext, Paginati
 import { useDebounce } from "@/hooks/useDebounce";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight, RotateCcw, Filter, Search } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight, RotateCcw, Filter, Search, Archive, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { EditContractDialog } from "@/components/admin/EditContractDialog";
 import { AdminContractCard } from "@/components/admin/AdminContractCard";
@@ -32,7 +32,9 @@ const PAGE_SIZE = 15;
 
 const AdminContractsPage = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [seniorityFilter, setSeniorityFilter] = useState("0");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [dateFrom, setDateFrom] = useState("");
@@ -46,15 +48,54 @@ const AdminContractsPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
 
+  const deleteMutation = useMutation({
+    mutationFn: adminDeleteContract,
+    onSuccess: (result) => {
+      if (result.success) {
+        toast({ title: "Supprimé", description: result.message });
+        queryClient.invalidateQueries({ queryKey: ["allContracts"] });
+        queryClient.invalidateQueries({ queryKey: ["adminContractKPIs"] });
+      }
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    }
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: adminArchiveContract,
+    onSuccess: (result) => {
+      if (result.success) {
+        toast({ title: "Archivé", description: result.message });
+        queryClient.invalidateQueries({ queryKey: ["allContracts"] });
+      }
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    }
+  });
+
+  const handleDelete = (contractId: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce contrat ? Cette action est irréversible et supprimera également l'historique des profits associés.")) {
+      deleteMutation.mutate(contractId);
+    }
+  };
+
+  const handleArchive = (contractId: string) => {
+    if (window.confirm("Voulez-vous archiver ce contrat ?")) {
+      archiveMutation.mutate(contractId);
+    }
+  };
+
   const { data: paginatedData, isLoading: isLoadingList } = useQuery({
-    queryKey: ["allContracts", debouncedSearchQuery, statusFilter, page, dateFrom, dateTo],
-    queryFn: () => adminGetAllContracts(debouncedSearchQuery, statusFilter, page, PAGE_SIZE, dateFrom, dateTo),
+    queryKey: ["allContracts", debouncedSearchQuery, statusFilter, seniorityFilter, page, dateFrom, dateTo],
+    queryFn: () => adminGetAllContracts(debouncedSearchQuery, statusFilter, page, PAGE_SIZE, dateFrom, dateTo, Number(seniorityFilter)),
     placeholderData: { data: [], count: 0 },
   });
 
   const { data: kpis, isLoading: isLoadingKPIs } = useQuery({
-    queryKey: ["adminContractKPIs", debouncedSearchQuery, statusFilter, dateFrom, dateTo],
-    queryFn: () => getAdminContractKPIs(debouncedSearchQuery, statusFilter, dateFrom, dateTo),
+    queryKey: ["adminContractKPIs", debouncedSearchQuery, statusFilter, seniorityFilter, dateFrom, dateTo],
+    queryFn: () => getAdminContractKPIs(debouncedSearchQuery, statusFilter, dateFrom, dateTo, Number(seniorityFilter)),
   });
 
   const typedPaginatedData = paginatedData as unknown as { data: ContractData[], count: number };
@@ -67,6 +108,7 @@ const AdminContractsPage = () => {
   const resetFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
+    setSeniorityFilter("0");
     setDatePreset("all");
     setDateFrom("");
     setDateTo("");
@@ -116,7 +158,7 @@ const AdminContractsPage = () => {
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo) as any;
+      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo, Number(seniorityFilter)) as any;
       const allContracts = (rpcResult?.data || []) as ContractData[];
       const headers = {
         id: "ID Contrat",
@@ -150,44 +192,69 @@ const AdminContractsPage = () => {
   const handleExportPdf = async () => {
     setIsExporting(true);
     try {
-      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo) as any;
+      const rpcResult = await adminGetAllContracts(debouncedSearchQuery, statusFilter, 1, 10000, dateFrom, dateTo, Number(seniorityFilter)) as any;
       const allContracts = (rpcResult?.data || []) as ContractData[];
+      
       const headers = {
         client: "Client",
         email: "Email",
-        amount: "Montant",
+        amount: "Investi",
         status: "Statut",
-        progress: "Progression",
-        start_date: "Date Début",
+        months_paid: "Mois",
+        total_profit_paid: "Profits",
+        start_date: "Début",
+        end_date: "Fin",
       } as any;
+
       const dataForPdf = allContracts.map(c => ({
         ...c,
         client: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
         email: c.email,
         amount: formatCurrency(Number(c.amount), c.currency).replace(/\s/g, ''),
-        status: c.status,
-        progress: `${c.months_paid}/${c.duration_months} mois`,
+        status: c.status.toUpperCase(),
+        months_paid: `${c.months_paid}/${c.duration_months}`,
+        total_profit_paid: formatCurrency(Number(c.total_profit_paid || 0), c.currency).replace(/\s/g, ''),
         start_date: format(new Date(c.start_date), "dd/MM/yyyy"),
+        end_date: format(new Date(c.end_date), "dd/MM/yyyy"),
       }));
 
       const columnStyles = {
-        0: { cellWidth: 40 }, // client
-        1: { cellWidth: 45 }, // email
-        2: { cellWidth: 25 }, // amount
-        3: { cellWidth: 20 }, // status
-        4: { cellWidth: 25 }, // progress
-        5: { cellWidth: 20 }, // start_date
+        client: { cellWidth: 45 },
+        email: { cellWidth: 55 },
+        amount: { cellWidth: 25, halign: 'right' },
+        status: { cellWidth: 25, halign: 'center' },
+        months_paid: { cellWidth: 20, halign: 'center' },
+        total_profit_paid: { cellWidth: 30, halign: 'right' },
+        start_date: { cellWidth: 25, halign: 'center' },
+        end_date: { cellWidth: 25, halign: 'center' },
       };
 
       const totalAmount = allContracts.reduce((sum, c) => sum + Number(c.amount), 0);
       const totalProfit = allContracts.reduce((sum, c) => sum + Number(c.total_profit_paid || 0), 0);
 
       const summary = [
+        { label: "Nombre de Contrats", value: allContracts.length.toString() },
         { label: "Total Investi", value: formatCurrency(totalAmount, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
-        { label: "Total Profits", value: formatCurrency(totalProfit, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
+        { label: "Total Profits Versés", value: formatCurrency(totalProfit, allContracts[0]?.currency || 'USD').replace(/\s/g, '') },
       ];
 
-      exportToPdf(dataForPdf as any, headers, `contrats_${new Date().toISOString().split('T')[0]}.pdf`, "Liste des Contrats", columnStyles, summary);
+      const filterDesc = [
+        debouncedSearchQuery ? `Recherche: "${debouncedSearchQuery}"` : null,
+        statusFilter !== 'all' ? `Statut: ${statusFilter}` : null,
+        seniorityFilter !== '0' ? `Ancienneté: > ${seniorityFilter} mois` : null,
+        dateFrom ? `Depuis: ${dateFrom}` : null,
+        dateTo ? `Jusqu'au: ${dateTo}` : null,
+      ].filter(Boolean).join(' | ') || "Aucun filtre actif";
+
+      exportToPdf(
+        dataForPdf as any, 
+        headers, 
+        `rapport_contrats_${new Date().toISOString().split('T')[0]}.pdf`, 
+        "Rapport de Contrats", 
+        columnStyles, 
+        summary,
+        filterDesc
+      );
 
       toast({ title: "Export PDF réussi", description: `${allContracts.length} contrats exportés.` });
     } catch (error) {
@@ -325,6 +392,20 @@ const AdminContractsPage = () => {
               <SelectItem value="refunded">Remboursé</SelectItem>
               <SelectItem value="pending_refund">Demande Remb.</SelectItem>
               <SelectItem value="cancelled">Annulé</SelectItem>
+              <SelectItem value="archived">Archivé</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={seniorityFilter} onValueChange={(value) => { setSeniorityFilter(value); setPage(1); }}>
+            <SelectTrigger className="w-full md:w-[150px]">
+              <SelectValue placeholder="Ancienneté" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Toute ancienneté</SelectItem>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                <SelectItem key={month} value={month.toString()}>
+                  + de {month} {month === 1 ? 'mois' : 'mois'}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -436,6 +517,16 @@ const AdminContractsPage = () => {
                           <DropdownMenuItem onClick={() => handleEditClick(contract)}>
                             <Edit className="mr-2 h-4 w-4" /> Modifier
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleArchive(contract.id)}>
+                            <Archive className="mr-2 h-4 w-4" /> Archiver
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(contract.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -462,6 +553,8 @@ const AdminContractsPage = () => {
                 key={contract.id}
                 contract={contract}
                 onEdit={handleEditClick}
+                onDelete={handleDelete}
+                onArchive={handleArchive}
               />
             ))
           ) : (

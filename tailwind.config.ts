@@ -64,12 +64,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
+        sans: ["Inter", "sans-serif"],
         display: ["Space Grotesk", "sans-serif"],
       },
       boxShadow: {
-        'elegant': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.03)',
-        'premium': '0 10px 40px -10px rgba(0, 0, 0, 0.1), 0 4px 20px -8px rgba(0, 0, 0, 0.05)',
-        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        'elegant': '0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 2px 10px -2px rgba(0, 0, 0, 0.2)',
+        'premium': '0 20px 50px -12px rgba(0, 0, 0, 0.5)',
+        'emerald': '0 0 20px hsla(161, 94%, 30%, 0.2)',
       },
       keyframes: {
         "accordion-down": {

@@ -45,7 +45,16 @@ export const FileUploadControl: React.FC<FileUploadControlProps> = ({
     setUploading(true);
     setProgress(0);
 
-    const fileName = `${Date.now()}_${file.name}`;
+    // Sanitize filename: remove special characters and spaces, keep extension
+    const fileExt = file.name.split('.').pop();
+    const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+    const sanitizedName = fileNameWithoutExt
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9]/gi, '_')     // Replace special chars with underscore
+      .toLowerCase();
+    
+    const fileName = `${Date.now()}_${sanitizedName}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { error } = await supabase.storage

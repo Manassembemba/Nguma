@@ -62,6 +62,7 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [wasProfileIncomplete, setWasProfileIncomplete] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [cities, setCities] = useState<string[]>([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
@@ -227,17 +228,17 @@ const ProfilePage = () => {
 
   // Common classes for inputs and cards
   const cardCls = "border-none shadow-premium bg-white dark:bg-zinc-950 rounded-[2rem] overflow-hidden";
-  const inputCls = "rounded-xl h-11 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 focus:ring-primary";
+  const inputCls = "rounded-xl h-11 bg-zinc-50 dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 focus:ring-primary text-zinc-900 dark:text-zinc-100 font-bold";
 
   return (
     <div className="p-4 md:p-8 space-y-8 animate-fade-in pb-24 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">Paramètres</h1>
-          <p className="text-sm md:text-base text-muted-foreground font-medium">Gérez votre identité et la sécurité de votre compte.</p>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-zinc-900 dark:text-zinc-50">Paramètres</h1>
+          <p className="text-sm md:text-base text-zinc-700 dark:text-zinc-400 font-bold">Gérez votre identité et la sécurité de votre compte.</p>
         </div>
         {wasProfileIncomplete && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-2xl text-xs font-bold uppercase tracking-tight">
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded-2xl text-xs font-black uppercase tracking-tight">
             <Loader2 className="h-3 w-3 animate-spin" />
             Action Requise : Profil Incomplet
           </div>
@@ -247,16 +248,16 @@ const ProfilePage = () => {
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent className="rounded-[2rem] border-none shadow-premium dark:bg-zinc-950">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <AlertCircle className="h-6 w-6 text-amber-500" />
+            <AlertDialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2 text-zinc-900 dark:text-zinc-50">
+              <AlertCircle className="h-6 w-6 text-amber-600" />
               Accès Limité
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-base font-medium leading-relaxed">
+            <AlertDialogDescription className="text-base font-bold leading-relaxed text-zinc-700 dark:text-zinc-300">
               Pour des raisons de conformité et de sécurité (KYC), vous devez être majeur et avoir un profil complet pour effectuer des opérations financières sur Nguma.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction className="rounded-xl h-12 font-bold px-8 bg-primary">Je complète mon profil</AlertDialogAction>
+            <AlertDialogAction className="rounded-xl h-12 font-black px-8 bg-primary text-white shadow-lg">Je complète mon profil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -265,33 +266,33 @@ const ProfilePage = () => {
         {/* Sidebar / Avatar Area */}
         <div className="lg:col-span-4 space-y-6">
           <Card className={cardCls}>
-            <div className="h-24 bg-gradient-to-r from-primary/20 to-primary/5 dark:from-zinc-900 dark:to-zinc-900/50" />
+            <div className="h-24 bg-gradient-to-r from-primary/25 to-primary/10 dark:from-zinc-900 dark:to-zinc-900/50" />
             <CardContent className="px-6 pb-8 -mt-12 text-center space-y-4">
               <div className="relative inline-block group">
-                <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-950 shadow-premium ring-4 ring-primary/5">
+                <Avatar className="h-32 w-32 border-4 border-white dark:border-zinc-950 shadow-2xl ring-4 ring-primary/10">
                   <AvatarImage src={preview || profile?.avatar_url || ''} className="object-cover" />
-                  <AvatarFallback className="bg-zinc-100 dark:bg-zinc-900 text-2xl font-black">
+                  <AvatarFallback className="bg-zinc-100 dark:bg-zinc-900 text-2xl font-black text-zinc-800 dark:text-zinc-200">
                     {profile?.first_name?.[0]}{profile?.last_name?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2.5 bg-primary text-white rounded-full shadow-premium hover:scale-110 active:scale-95 transition-all duration-300 ring-4 ring-white dark:ring-zinc-950"
+                  className="absolute bottom-0 right-0 p-2.5 bg-primary text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all duration-300 ring-4 ring-white dark:ring-zinc-950"
                 >
                   <Camera className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="space-y-1">
-                <h2 className="text-xl font-black tracking-tight">{profile?.first_name} {profile?.last_name}</h2>
-                <p className="text-sm font-medium text-muted-foreground">{profile?.email}</p>
+                <h2 className="text-xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{profile?.first_name} {profile?.last_name}</h2>
+                <p className="text-sm font-bold text-zinc-600 dark:text-zinc-400">{profile?.email}</p>
               </div>
 
               {preview && selectedFile && (
                 <Button 
                   onClick={handleUploadClick} 
                   disabled={isUploading}
-                  className="w-full rounded-xl font-bold h-10 shadow-premium bg-primary hover:bg-primary/90"
+                  className="w-full rounded-xl font-black h-10 shadow-premium bg-primary hover:bg-primary/90"
                 >
                   {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                   Mettre à jour la photo
@@ -304,8 +305,8 @@ const ProfilePage = () => {
 
           <Card className={cn(cardCls, "p-6")}>
             <div className="flex items-center justify-between mb-4">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60">Vérification KYC</CardTitle>
-              <Shield className="h-4 w-4 text-primary opacity-50" />
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-400">Vérification KYC</CardTitle>
+              <Shield className="h-4 w-4 text-primary opacity-90" />
             </div>
             <div className="space-y-3">
               {[
@@ -313,10 +314,10 @@ const ProfilePage = () => {
                 { label: "Téléphone Valide", field: "phone" },
                 { label: "Majorité (18+)", field: "birth_date" }
               ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800/50">
-                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">{item.label}</span>
+                <div key={item.label} className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50">
+                  <span className="text-[11px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-tight">{item.label}</span>
                   {isComplete(item.field as any) ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   ) : (
                     <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                   )}
@@ -330,15 +331,15 @@ const ProfilePage = () => {
         <div className="lg:col-span-8">
           <Tabs defaultValue="general" className="w-full space-y-6">
             <TabsList className="bg-zinc-100 dark:bg-zinc-900 p-1.5 rounded-2xl w-full sm:w-auto h-auto grid grid-cols-3 border border-zinc-200 dark:border-zinc-800">
-              <TabsTrigger value="general" className="rounded-xl py-2.5 font-bold data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
+              <TabsTrigger value="general" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <User className="h-4 w-4 mr-2" />
                 Profil
               </TabsTrigger>
-              <TabsTrigger value="contact" className="rounded-xl py-2.5 font-bold data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
+              <TabsTrigger value="contact" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <MapPin className="h-4 w-4 mr-2" />
                 Contact
               </TabsTrigger>
-              <TabsTrigger value="security" className="rounded-xl py-2.5 font-bold data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
+              <TabsTrigger value="security" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <Shield className="h-4 w-4 mr-2" />
                 Sécurité
               </TabsTrigger>
@@ -349,8 +350,8 @@ const ProfilePage = () => {
                 <TabsContent value="general" className="space-y-6 animate-slide-up outline-none">
                   <Card className={cardCls}>
                     <CardHeader className="border-b border-zinc-100 dark:border-zinc-900">
-                      <CardTitle className="text-lg font-bold">Informations Personnelles</CardTitle>
-                      <CardDescription>Conformément à la réglementation, ces données doivent être exactes.</CardDescription>
+                      <CardTitle className="text-lg font-black text-zinc-900 dark:text-zinc-50">Informations Personnelles</CardTitle>
+                      <CardDescription className="font-bold text-zinc-600 dark:text-zinc-400">Conformément à la réglementation, ces données doivent être exactes.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -367,56 +368,82 @@ const ProfilePage = () => {
 
                       <FormField control={form.control} name="birth_date" render={({ field }) => {
                         const [month, setMonth] = useState(field.value ?? subYears(new Date(), 18));
-                        const maxDate = subYears(new Date(), 18); // Must be 18+
+                        const maxDate = subYears(new Date(), 18);
 
                         return (
                           <FormItem className="flex flex-col">
-                            <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300 flex items-center gap-2">
                               Date de naissance
                               <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black">18 ANS +</span>
                             </FormLabel>
-                            <Popover>
+                            <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={true}>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button variant="outline" className={cn(inputCls, "justify-between text-left font-medium", !field.value && "text-muted-foreground")}>
+                                  <Button 
+                                    variant="outline" 
+                                    className={cn(
+                                      "h-11 rounded-xl border-zinc-300 bg-zinc-50/50 dark:bg-zinc-900 dark:border-zinc-800 justify-between text-left font-bold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 transition-all shadow-sm",
+                                      !field.value && "text-zinc-500"
+                                    )}
+                                  >
                                     {field.value ? format(field.value, "PPP", { locale: fr }) : <span>Choisir votre date de naissance</span>}
-                                    <CalendarIcon className="h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="h-4 w-4 text-zinc-500" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 rounded-[2rem] border-none shadow-premium overflow-hidden dark:bg-zinc-950" align="start">
+                              <PopoverContent 
+                                className="w-auto p-0 rounded-[2rem] border-none shadow-2xl dark:bg-zinc-950 overflow-hidden" 
+                                align="start"
+                              >
+                                <div className="p-4 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
+                                  <div className="flex gap-2">
+                                    <Select 
+                                      value={String(month.getMonth())} 
+                                      onValueChange={(val) => setMonth(m => set(m, { month: parseInt(val) }))}
+                                    >
+                                      <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[200px] rounded-xl">
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                          <SelectItem key={i} value={String(i)} className="text-xs font-bold">
+                                            {format(new Date(0, i), 'MMMM', { locale: fr })}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Select 
+                                      value={String(month.getFullYear())} 
+                                      onValueChange={(val) => setMonth(m => set(m, { year: parseInt(val) }))}
+                                    >
+                                      <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[200px] rounded-xl">
+                                        {Array.from({ length: 85 }, (_, i) => {
+                                          const year = new Date().getFullYear() - 18 - i;
+                                          return <SelectItem key={year} value={String(year)} className="text-xs font-bold">{year}</SelectItem>;
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
                                 <Calendar
                                   mode="single"
                                   selected={field.value}
-                                  onSelect={field.onChange}
+                                  onSelect={(date) => {
+                                    field.onChange(date);
+                                    setCalendarOpen(false); // Close on select
+                                  }}
                                   month={month}
                                   onMonthChange={setMonth}
                                   disabled={(date) => date > maxDate || date < new Date("1940-01-01")}
                                   initialFocus
-                                  className="p-4"
-                                  components={{
-                                    Caption: () => {
-                                      const currentYear = new Date().getFullYear();
-                                      const years = Array.from({ length: currentYear - 1939 }, (_, i) => currentYear - 18 - i);
-                                      const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('fr-FR', { month: 'long' }));
-                                      return (
-                                        <div className="flex justify-center gap-2 mb-4 px-2">
-                                          <Select value={String(month.getMonth())} onValueChange={(val) => setMonth(m => set(m, { month: parseInt(val) }))}>
-                                            <SelectTrigger className="h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900 border-none"><SelectValue /></SelectTrigger>
-                                            <SelectContent className="dark:bg-zinc-900 border-zinc-800">{months.map((m, i) => <SelectItem key={m} value={String(i)}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>)}</SelectContent>
-                                          </Select>
-                                          <Select value={String(month.getFullYear())} onValueChange={(val) => setMonth(m => set(m, { year: parseInt(val) }))}>
-                                            <SelectTrigger className="h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900 border-none"><SelectValue /></SelectTrigger>
-                                            <SelectContent className="max-h-[200px] dark:bg-zinc-900 border-zinc-800">{years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                                          </Select>
-                                        </div>
-                                      );
-                                    },
-                                  }}
+                                  className="p-3"
                                 />
                               </PopoverContent>
                             </Popover>
-                            <FormDescription className="text-[10px]">L'investissement est réservé aux personnes majeures.</FormDescription>
+                            <FormDescription className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">L'investissement est réservé aux personnes majeures.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         );
@@ -428,15 +455,15 @@ const ProfilePage = () => {
                 <TabsContent value="contact" className="space-y-6 animate-slide-up outline-none">
                   <Card className={cardCls}>
                     <CardHeader className="border-b border-zinc-100 dark:border-zinc-900">
-                      <CardTitle className="text-lg font-bold">Coordonnées & Localisation</CardTitle>
-                      <CardDescription>Ces informations sont nécessaires pour vos retraits.</CardDescription>
+                      <CardTitle className="text-lg font-black text-zinc-900 dark:text-zinc-50">Coordonnées & Localisation</CardTitle>
+                      <CardDescription className="font-bold text-zinc-700 dark:text-zinc-400">Ces informations sont nécessaires pour vos retraits.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Phone className="h-3.5 w-3.5 opacity-60" /> Numéro de Téléphone</FormLabel>
+                          <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300 flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-primary" /> Numéro de Téléphone</FormLabel>
                           <FormControl><Input {...field} value={field.value || ''} placeholder={selectedCountry ? `${getCountryDialCode(selectedCountry)} ...` : "+..."} className={inputCls} /></FormControl>
-                          <FormDescription className="text-[10px] font-bold text-primary/60">Utilisé pour la réception des codes de retrait (OTP).</FormDescription>
+                          <FormDescription className="text-[10px] font-black text-primary/80">Utilisé pour la réception des codes de retrait (OTP).</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -444,10 +471,23 @@ const ProfilePage = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <FormField control={form.control} name="country" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Pays de résidence</FormLabel>
+                            <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Pays de résidence</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ''}>
-                              <FormControl><SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
-                              <SelectContent className="max-h-[300px] rounded-2xl dark:bg-zinc-900 border-zinc-800">{COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+                              <FormControl>
+                                <SelectTrigger className="h-11 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-300 dark:border-zinc-800 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-bold">
+                                  <SelectValue placeholder="Sélectionner un pays" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="max-h-[300px] rounded-2xl shadow-2xl border-zinc-200 dark:border-zinc-800">
+                                {COUNTRIES.map((c) => (
+                                  <SelectItem key={c.code} value={c.code} className="py-3 font-bold text-zinc-800 dark:text-zinc-200">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg">{c.flag}</span>
+                                      <span>{c.name}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
@@ -455,10 +495,25 @@ const ProfilePage = () => {
 
                         <FormField control={form.control} name="city" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Ville</FormLabel>
+                            <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Ville</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry || isLoadingCities}>
-                              <FormControl><SelectTrigger className={inputCls}><SelectValue placeholder={isLoadingCities ? "..." : "Sélectionner"} /></SelectTrigger></FormControl>
-                              <SelectContent className="max-h-[300px] rounded-2xl dark:bg-zinc-900 border-zinc-800">{cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                              <FormControl>
+                                <SelectTrigger className="h-11 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-300 dark:border-zinc-800 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-bold">
+                                  {isLoadingCities ? (
+                                    <div className="flex items-center gap-2">
+                                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                      <span className="text-zinc-600">Chargement...</span>
+                                    </div>
+                                  ) : (
+                                    <SelectValue placeholder="Sélectionner une ville" />
+                                  )}
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="max-h-[300px] rounded-2xl shadow-2xl border-zinc-200 dark:border-zinc-800">
+                                {cities.map((c) => (
+                                  <SelectItem key={c} value={c} className="py-3 font-bold text-zinc-800 dark:text-zinc-200">{c}</SelectItem>
+                                ))}
+                              </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
@@ -466,7 +521,7 @@ const ProfilePage = () => {
                       </div>
 
                       <FormField control={form.control} name="address" render={({ field }) => (
-                        <FormItem><FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Adresse Résidentielle</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="Ex: 12, Avenue de la Paix" className={inputCls} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Adresse Résidentielle</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="Ex: 12, Avenue de la Paix" className={inputCls} /></FormControl><FormMessage /></FormItem>
                       )} />
                     </CardContent>
                   </Card>
@@ -475,15 +530,15 @@ const ProfilePage = () => {
                 <TabsContent value="security" className="space-y-6 animate-slide-up outline-none">
                   <Card className={cardCls}>
                     <CardHeader className="border-b border-zinc-100 dark:border-zinc-900">
-                      <CardTitle className="text-lg font-bold">Compte & Sécurité</CardTitle>
-                      <CardDescription>Protégez l'accès à vos investissements.</CardDescription>
+                      <CardTitle className="text-lg font-black text-zinc-900 dark:text-zinc-50">Compte & Sécurité</CardTitle>
+                      <CardDescription className="font-bold text-zinc-700 dark:text-zinc-400">Protégez l'accès à vos investissements.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <FormField control={form.control} name="email" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Mail className="h-3.5 w-3.5 opacity-60" /> Adresse Email (Identifiant)</FormLabel>
-                          <FormControl><Input {...field} disabled className={cn(inputCls, "opacity-60 bg-zinc-100 dark:bg-zinc-900/50")} /></FormControl>
-                          <FormDescription className="text-[10px]">L'email ne peut être modifié pour des raisons de sécurité.</FormDescription>
+                          <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300 flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-primary" /> Adresse Email (Identifiant)</FormLabel>
+                          <FormControl><Input {...field} disabled className={cn(inputCls, "opacity-70 bg-zinc-100 dark:bg-zinc-900/50 font-bold")} /></FormControl>
+                          <FormDescription className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">L'email ne peut être modifié pour des raisons de sécurité.</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )} />

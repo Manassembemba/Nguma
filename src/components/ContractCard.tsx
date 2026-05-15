@@ -18,6 +18,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Shield, TrendingUp, Calendar, ArrowRight, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { getSettings } from "@/services/settingsService";
 
 type ContractData = Database['public']['Tables']['contracts']['Row'];
 
@@ -28,6 +30,16 @@ interface ContractCardProps {
 
 export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+  });
+
+  // Utiliser la durée stockée sur le contrat s'il est assuré, sinon fallback sur le paramètre global
+  const insuranceDurationMonths = contract.is_insured && contract.insurance_duration_months 
+    ? contract.insurance_duration_months 
+    : parseInt(settings?.find(s => s.key === 'insurance_duration_months')?.value || '10');
 
   const progress = (contract.months_paid / contract.duration_months) * 100;
   const totalProfitPaid = Number(contract.total_profit_paid) || 0;
@@ -48,7 +60,7 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
   const statusConfig = getStatusConfig(contract.status);
 
   return (
-    <Card className="group relative overflow-hidden border-none bg-white dark:bg-zinc-900 shadow-elegant transition-all duration-500 hover:shadow-premium hover:-translate-y-1">
+    <Card className="group relative overflow-hidden border-none shadow-elegant transition-all duration-500 hover:shadow-premium hover:-translate-y-1">
       {/* Top Decorative bar */}
       <div className={cn(
         "absolute top-0 left-0 right-0 h-1.5 transition-all duration-500",
@@ -149,7 +161,7 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
                 <DialogHeader className="relative z-10">
                   <DialogTitle className="text-2xl font-black tracking-tight text-white mb-2">Protection du Capital</DialogTitle>
                   <DialogDescription className="text-indigo-100 leading-relaxed">
-                    Votre investissement est protégé par notre fond de garantie. L'assurance couvre votre capital initial jusqu'à ce que les profits versés l'égalent.
+                    Votre investissement est protégé par notre fond de garantie. L'assurance couvre votre capital initial jusqu'à la fin de la période de garantie configurée.
                   </DialogDescription>
                 </DialogHeader>
               </div>
@@ -161,19 +173,19 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
                   </div>
                   <div className="space-y-1 text-right">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Fin estimée de protection</p>
-                    <p className="text-sm font-black text-indigo-600">{format(new Date(new Date(contract.start_date).setMonth(new Date(contract.start_date).getMonth() + 5)), "dd MMMM yyyy", { locale: fr })}</p>
+                    <p className="text-sm font-black text-indigo-600">{format(new Date(new Date(contract.start_date).setMonth(new Date(contract.start_date).getMonth() + insuranceDurationMonths)), "dd MMMM yyyy", { locale: fr })}</p>
                   </div>
                 </div>
 
                 <div className={cn(
                   "p-4 rounded-2xl flex items-center gap-4 transition-all duration-500 border",
-                  contract.months_paid < 5 
+                  contract.months_paid < insuranceDurationMonths 
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' 
                     : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'
                 )}>
                   <div className={cn(
                     "p-2 rounded-xl shrink-0",
-                    contract.months_paid < 5 ? 'bg-emerald-500 text-white' : 'bg-zinc-400 text-white'
+                    contract.months_paid < insuranceDurationMonths ? 'bg-emerald-500 text-white' : 'bg-zinc-400 text-white'
                   )}>
                     <Shield className="h-5 w-5" />
                   </div>
@@ -181,9 +193,9 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
                     <p className="text-sm font-black uppercase tracking-tight">Statut de Protection</p>
                     <p className={cn(
                       "text-xs font-medium",
-                      contract.months_paid < 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                      contract.months_paid < insuranceDurationMonths ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                     )}>
-                      {contract.months_paid < 5 ? 'Protection active et valide' : 'Protection terminée (ROI atteint)'}
+                      {contract.months_paid < insuranceDurationMonths ? 'Protection active et valide' : 'Protection terminée'}
                     </p>
                   </div>
                 </div>

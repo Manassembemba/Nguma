@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
         };
 
         // Invoke the email sending function
-        const { error: invokeError } = await supabaseAdmin.functions.invoke('send-resend-email', {
+        const { data: invokeData, error: invokeError } = await supabaseAdmin.functions.invoke('send-resend-email', {
           body: payload,
           headers: {
             'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
@@ -57,7 +57,13 @@ Deno.serve(async (req) => {
         });
 
         if (invokeError) {
-          throw new Error(`Failed to invoke send-resend-email: ${invokeError.message}`);
+          // Try to get more details if it's a known error structure
+          let detail = invokeError.message;
+          try {
+            // Some error bodies might be accessible or contained in the message
+            console.error(`[process-notification-queue] Invoke error for job ${job.id}:`, invokeError);
+          } catch (e) {}
+          throw new Error(`Failed to invoke send-resend-email: ${detail}`);
         }
 
         // 4. If successful, mark job as 'sent'

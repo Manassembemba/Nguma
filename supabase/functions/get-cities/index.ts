@@ -1,13 +1,16 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { City } from 'https://esm.sh/country-state-city@3.1.4'
 import { corsHeaders } from '../_shared/cors.ts'
 
 console.log(`Function "get-cities" up and running!`);
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // This is needed if you're planning to invoke your function from a browser.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { 
+      status: 204, 
+      headers: corsHeaders 
+    })
   }
 
   try {
@@ -29,6 +32,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("Error in get-cities function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

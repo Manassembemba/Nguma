@@ -99,6 +99,9 @@ export function exportToCsv<T extends Record<string, any>>(
  * @param headers An object mapping object keys to CSV header names.
  * @param filename The desired name of the downloaded file.
  * @param title The title to display at the top of the PDF document.
+ * @param columnStyles Styles for specific columns.
+ * @param summary Summary info to display at the bottom.
+ * @param filters Optional description of filters applied to the data.
  */
 export function exportToPdf<T extends Record<string, any>>(
   data: T[],
@@ -106,25 +109,44 @@ export function exportToPdf<T extends Record<string, any>>(
   filename: string,
   title: string,
   columnStyles: any = {},
-  summary?: { label: string; value: string }[]
+  summary?: { label: string; value: string }[],
+  filters?: string
 ): void {
   if (!data || data.length === 0) {
     alert("Aucune donnée à exporter.");
     return;
   }
 
+  // Use landscape for better column fit
   const doc = new jsPDF({
-    orientation: 'p',
+    orientation: 'l',
     unit: 'mm',
     format: 'a4'
   });
 
-  // Set document title and date
-  doc.setFontSize(18);
-  doc.text(title, 14, 22);
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text(`Exporté le: ${new Date().toLocaleDateString('fr-FR')}`, 14, 30);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Add Logo if possible (using a placeholder or standard location)
+  // For now, we use a styled header
+  doc.setFillColor(24, 31, 46); // Dark primary color
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  // Set document title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text("NGUMA - " + title.toUpperCase(), 14, 20);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Rapport généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 14, 28);
+  
+  if (filters) {
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Filtres: ${filters}`, 14, 34);
+  }
 
   const tableHeaders = Object.values(headers);
   const dataKeys = Object.keys(headers) as (keyof T)[];
@@ -140,40 +162,68 @@ export function exportToPdf<T extends Record<string, any>>(
   });
 
   autoTable(doc, {
-    startY: 35,
+    startY: 45,
     head: [tableHeaders],
     body: tableBody,
-    theme: 'striped',
+    theme: 'grid',
     headStyles: {
-      fillColor: [22, 163, 74],
+      fillColor: [37, 99, 235], // Blue 600
       textColor: [255, 255, 255],
       fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 9,
     },
-    alternateRowStyles: { fillColor: [242, 242, 242] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
     styles: {
       font: 'helvetica',
       fontSize: 8,
-      cellPadding: 2,
+      cellPadding: 3,
+      valign: 'middle',
     },
     columnStyles: indexedColumnStyles,
+    margin: { left: 14, right: 14 },
     didDrawPage: (data) => {
-      // Draw summary only on the last page
-      if (data.pageNumber === (doc as any).internal.getNumberOfPages()) {
-        if (summary && summary.length > 0) {
-          const tableBottomY = (data.cursor?.y || 0) + 5;
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const summaryText = summary.map(s => `${s.label}: ${s.value}`).join('   |   ');
-          
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.setFillColor(52, 73, 94); // Dark blue background
-          doc.rect(14, tableBottomY, pageWidth - 28, 10, 'F');
-          doc.setTextColor(255, 255, 255);
-          doc.text(summaryText, pageWidth / 2, tableBottomY + 6, { align: 'center' });
-        }
-      }
+      // Footer: Page Number
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      const str = "Page " + data.pageNumber;
+      doc.text(str, pageWidth - 20, pageHeight - 10);
+      doc.text("Nguma Investment Platform - Rapport Confidentiel", 14, pageHeight - 10);
     },
   });
+
+  // Final Summary Box
+  if (summary && summary.length > 0) {
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Check if we have space for the summary, otherwise add a new page
+    if (finalY > pageHeight - 40) {
+      doc.addPage();
+    }
+
+    const summaryY = finalY > pageHeight - 40 ? 20 : finalY;
+    
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(pageWidth - 114, summaryY, 100, (summary.length * 8) + 10, 2, 2, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text("RÉSUMÉ FINANCIER", pageWidth - 109, summaryY + 8);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    summary.forEach((item, index) => {
+      const itemY = summaryY + 18 + (index * 8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(item.label + ":", pageWidth - 109, itemY);
+      doc.setTextColor(30, 41, 59);
+      doc.setFont('helvetica', 'bold');
+      doc.text(item.value, pageWidth - 14, itemY, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+    });
+  }
 
   doc.save(filename);
 }

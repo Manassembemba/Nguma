@@ -31,6 +31,8 @@ const supabaseAdmin = createClient(
 
 // --- MAIN HANDLER ---
 serve(async (req) => {
+  console.log(`[send-resend-email] Received request: ${req.method}`);
+  
   // CORS Pre-flight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -38,34 +40,43 @@ serve(async (req) => {
 
   try {
     // Check for critical environment variables first
-    if (!RESEND_API_KEY || !Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-      console.error("CRITICAL: Missing one or more environment variables (RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
-      return errorResponse("Server configuration error", 500);
+    if (!RESEND_API_KEY) {
+      console.error("CRITICAL: RESEND_API_KEY is missing");
+      return errorResponse("Server configuration error: RESEND_API_KEY", 500);
+    }
+    
+    if (!Deno.env.get('SUPABASE_URL') || !Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+      console.error("CRITICAL: Supabase environment variables are missing");
+      return errorResponse("Server configuration error: Supabase Config", 500);
     }
 
+    console.log("[send-resend-email] Initializing Resend client...");
     const resend = new Resend(RESEND_API_KEY);
 
-    // Authentication: Prioritize Service Role Key, then attempt user authentication
-    const authHeader = req.headers.get('Authorization');
-    const isServiceKeyAuth = authHeader && authHeader.includes(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'INVALID_KEY');
+    // Authentication: Prioritize Service Role Key check
+    console.log("[send-resend-email] Checking authentication...");
     const isSvcRole = isServiceRole(req);
+    console.log(`[send-resend-email] isServiceRole: ${isSvcRole}`);
 
-    // If it's not a service role call, and no service key is present, then attempt user authentication
-    if (!isSvcRole && !isServiceKeyAuth) {
+    // If it's not a service role call, attempt user authentication
+    if (!isSvcRole) {
       try {
         await authenticateUser(req);
+        console.log("[send-resend-email] User authenticated successfully");
       } catch (authErr) {
-        console.error("Authentication failed:", authErr.message);
+        console.error("[send-resend-email] Authentication failed:", authErr.message);
         return errorResponse("Unauthorized: " + authErr.message, 401);
       }
     }
 
     // Parse payload
+    console.log("[send-resend-email] Parsing JSON payload...");
     let payload;
     try {
       payload = await req.json();
+      console.log(`[send-resend-email] Payload template_id: ${payload?.template_id}`);
     } catch (e) {
-      console.error("Failed to parse JSON payload:", e);
+      console.error("[send-resend-email] Failed to parse JSON payload:", e.message);
       return errorResponse("Invalid JSON payload", 400);
     }
 

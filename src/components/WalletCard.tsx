@@ -57,7 +57,7 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
       </Card>
 
       {/* Invested - Elegant Card */}
-      <Card className="border-none bg-white dark:bg-zinc-900 shadow-elegant transition-all duration-300 hover:shadow-premium group">
+      <Card className="border-none shadow-elegant transition-all duration-300 hover:shadow-premium group">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg group-hover:scale-110 transition-transform">
@@ -80,7 +80,7 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
       </Card>
 
       {/* Profits - Success Card */}
-      <Card className="border-none bg-white dark:bg-zinc-900 shadow-elegant transition-all duration-300 hover:shadow-premium group">
+      <Card className="border-none shadow-elegant transition-all duration-300 hover:shadow-premium group">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:scale-110 transition-transform">
@@ -104,7 +104,7 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
       </Card>
 
       {/* Active Contracts - Neutral Card */}
-      <Card className="border-none bg-white dark:bg-zinc-900 shadow-elegant transition-all duration-300 hover:shadow-premium group">
+      <Card className="border-none shadow-elegant transition-all duration-300 hover:shadow-premium group">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg group-hover:scale-110 transition-transform">

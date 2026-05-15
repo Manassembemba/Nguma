@@ -58,6 +58,17 @@ secrets/
 # Antigravity artifacts (ne pas commiter)
 .gemini/
 
+# Module Chat (Garder en local uniquement)
+src/components/ChatButton.tsx
+src/components/ChatMessageInput.tsx
+src/components/ChatMessageList.tsx
+src/components/ChatWindow.tsx
+src/components/ConversationHistory.tsx
+src/components/ConversationSelector.tsx
+src/services/chatService.ts
+src/services/aiChatService.ts
+supabase/functions/chat-ai/
+
 # Ignorer les fichiers Markdown et le dossier testsprite_tests
 *.md
 !README.md

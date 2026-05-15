@@ -21,6 +21,7 @@ import { getWallet } from "@/services/walletService";
 import { getSettings } from "@/services/settingsService";
 import { useToast } from "@/components/ui/use-toast";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -57,6 +58,7 @@ export const NewContractDialog = () => {
   const insuranceFeePercent = parseFloat(settings?.find(s => s.key === 'insurance_fee_percent')?.value || '0');
   const insuranceFeeFixed = parseFloat(settings?.find(s => s.key === 'insurance_fee_fixed')?.value || '0');
   const insuranceApplyBoth = settings?.find(s => s.key === 'insurance_apply_both')?.value === 'true';
+  const insuranceDurationMonths = settings?.find(s => s.key === 'insurance_duration_months')?.value || '10';
   const contractPdfUrl = settings?.find(s => s.key === 'contract_explanation_pdf_url')?.value;
 
   // Calculer les frais d'assurance
@@ -166,51 +168,75 @@ export const NewContractDialog = () => {
             </div>
 
             {insuranceEnabled && (
-              <div className="border rounded-lg p-4 bg-muted/50 space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="insurance"
-                    checked={isInsured}
-                    onCheckedChange={(checked) => setIsInsured(checked as boolean)}
-                  />
-                  <label
-                    htmlFor="insurance"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                  >
-                    <Shield className="h-4 w-4 text-green-600" />
-                    Assurance Capital
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">
-                            L'Assurance Capital vous protège pendant les 5 premiers mois de votre investissement.
-                            Elle garantit le remboursement de votre capital moins les bénéfices générés.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </label>
+              <div className={cn(
+                "border-2 rounded-xl p-4 transition-all duration-300",
+                isInsured 
+                  ? "bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800 shadow-sm" 
+                  : "bg-muted/30 border-transparent"
+              )}>
+                <div className="flex items-start space-x-3">
+                  <div className="mt-1">
+                    <Checkbox
+                      id="insurance"
+                      className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                      checked={isInsured}
+                      onCheckedChange={(checked) => setIsInsured(checked as boolean)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5 leading-none flex-1">
+                    <label
+                      htmlFor="insurance"
+                      className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Shield className={cn("h-4 w-4", isInsured ? "text-indigo-600" : "text-zinc-400")} />
+                        Assurance Capital
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                        {insuranceDurationMonths} mois
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">
+                        Protection intégrale de votre capital initial.
+                      </p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground cursor-help opacity-70 hover:opacity-100" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs text-xs">
+                              L'Assurance Capital vous protège pendant les {insuranceDurationMonths} premiers mois.
+                              Elle garantit le remboursement de votre capital moins les bénéfices déjà perçus en cas de besoin.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
                 </div>
 
                 {isInsured && amountValue > 0 && (
-                  <div className="space-y-2 text-sm pl-6">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Montant saisi:</span>
-                      <span className="font-medium">{amountValue.toFixed(2)} USD</span>
+                  <div className="mt-4 space-y-2 text-[11px] border-t border-indigo-100 dark:border-indigo-800/50 pt-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex justify-between items-center text-zinc-500 font-medium">
+                      <span>Montant brut:</span>
+                      <span>{amountValue.toFixed(2)} USD</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Frais d'assurance:</span>
-                      <span className="font-medium text-orange-600">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-medium">Frais de protection:</span>
+                      <span className="font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0.5 rounded">
                         -{insuranceFee.toFixed(2)} USD
                         {insuranceFeePercent > 0 && ` (${insuranceFeePercent}%)`}
                       </span>
                     </div>
-                    <div className="border-t pt-2 flex justify-between">
-                      <span className="font-semibold">Montant du contrat:</span>
-                      <span className="font-semibold text-green-600">{netAmount.toFixed(2)} USD</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-medium">Durée de couverture:</span>
+                      <span className="font-bold text-indigo-600">{insuranceDurationMonths} mois</span>
+                    </div>
+                    <div className="border-t border-dashed border-indigo-200 dark:border-indigo-800 my-2 pt-2 flex justify-between items-center">
+                      <span className="font-bold text-zinc-700 dark:text-zinc-300">Capital net investi:</span>
+                      <span className="text-sm font-black text-emerald-600">{netAmount.toFixed(2)} USD</span>
                     </div>
                   </div>
                 )}

@@ -104,6 +104,7 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
 
   // Marketing & System Templates
   welcome_new_user: welcomeNewUserTemplate,
+  welcome: welcomeNewUserTemplate, // Alias
   dormant_funds_reminder: dormantFundsReminderTemplate,
   notification_preferences_updated: notificationPreferencesUpdatedTemplate, // ⏳ READY (not integrated in NotificationSettings.tsx yet)
   deposit_availability_reminder: depositAvailabilityReminderTemplate,
@@ -111,7 +112,9 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
 
   // Support Templates
   support_request_received_user: supportRequestReceivedUserTemplate,
+  support_request_received: supportRequestReceivedUserTemplate, // Alias
   new_support_request_admin: newSupportRequestAdminTemplate,
+  new_support_request: newSupportRequestAdminTemplate, // Alias
   chat_escalation_admin: chatEscalationAdminTemplate,
   chat_new_message_admin: chatNewMessageAdminTemplate,
   chat_new_message_user: chatNewMessageUserTemplate,
@@ -121,6 +124,12 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
   new_refund_request: refundTemplates[1],
   refund_approved: refundTemplates[2],
   refund_rejected: refundTemplates[3],
+  
+  // Legacy / Common aliases
+  new_deposit: depositApprovedTemplate,
+  deposit_confirmation: depositApprovedTemplate,
+  new_withdrawal: withdrawalApprovedTemplate,
+  withdrawal_confirmation: withdrawalApprovedTemplate,
 };
 
 export const validateTemplateParams = (

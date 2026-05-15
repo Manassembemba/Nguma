@@ -158,14 +158,14 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="relative overflow-hidden p-8 md:p-16 bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-premium text-center space-y-8 group">
+          <div className="relative overflow-hidden p-8 md:p-16 dark:bg-zinc-900 rounded-[2.5rem] border border-border shadow-premium text-center space-y-8 group">
             {/* Background decoration */}
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-700" />
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
 
             <div className="relative mx-auto w-24 h-24 md:w-32 md:h-32">
               <div className="absolute inset-0 bg-primary/20 rounded-full animate-pulse-slow"></div>
-              <div className="relative flex items-center justify-center w-full h-full bg-white dark:bg-zinc-800 rounded-full shadow-elegant border border-zinc-100 dark:border-zinc-700 text-5xl">
+              <div className="relative flex items-center justify-center w-full h-full dark:bg-zinc-800 rounded-full shadow-elegant border border-border text-5xl">
                 🚀
               </div>
             </div>

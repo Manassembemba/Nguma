@@ -4,43 +4,36 @@
 
 @layer base {
   :root {
-    /* BlackRock AI Neon Theme */
-    --background: 240 4% 6%;
-    /* #0D0D0F */
-    --foreground: 240 5% 91%;
-    /* #EAEAEA */
+    /* Nguma Obsidian & Emerald Theme - Professional Edition */
+    --background: 240 10% 3.9%; /* #09090b */
+    --foreground: 0 0% 98%; /* #fafafa */
 
-    --card: 240 4% 11%;
-    /* #1A1A1D */
-    --card-foreground: 240 5% 91%;
+    --card: 240 10% 6%; /* #111113 */
+    --card-foreground: 0 0% 98%;
 
-    --popover: 240 4% 6%;
-    --popover-foreground: 240 5% 91%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 141 100% 50%;
-    /* #00FF41 */
-    --primary-foreground: 240 4% 6%;
+    --primary: 161 94% 30%; /* #059669 - Emerald Pro */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 240 3% 15%;
-    /* #242629 */
-    --secondary-foreground: 240 5% 91%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3% 15%;
-    --muted-foreground: 240 4% 53%;
-    /* #888888 */
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 45%; /* Increased contrast (was 64.9%) */
 
-    --accent: 141 100% 50%;
-    --accent-foreground: 240 4% 6%;
+    --accent: 161 94% 30%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 347 100% 55%;
-    /* #FF1744 */
-    --destructive-foreground: 240 5% 91%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3% 15%;
-    --input: 240 3% 15%;
-    --ring: 141 100% 50%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 161 94% 30%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 }
 
@@ -50,41 +43,32 @@
   }
 
   body {
-    @apply bg-background text-foreground font-display;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(var(--primary) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(var(--primary) / 0.02) 0px, transparent 50%);
   }
 }
 
 @layer utilities {
-  .glowing-icon {
-    text-shadow: 0 0 8px hsl(var(--primary));
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+  
+  .emerald-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, #064e3b 100%);
   }
 
-  .glowing-border-green {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 5px hsl(var(--primary));
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60;
   }
 
-  .glowing-border-red {
-    border-color: hsl(var(--destructive));
-    box-shadow: 0 0 5px hsl(var(--destructive));
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
-  .neon-grid-bg {
-    background-image:
-      linear-gradient(hsla(var(--primary) / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsla(var(--primary) / 0.05) 1px, transparent 1px);
-    background-size: 2rem 2rem;
-    animation: pulse 10s infinite linear;
-  }
-
-  @keyframes pulse {
-    0% {
-      background-position: 0 0;
-    }
-
-    100% {
-      background-position: 2rem 2rem;
-    }
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite;
   }
 }

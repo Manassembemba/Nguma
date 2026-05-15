@@ -415,7 +415,8 @@ export const adminGetAllContracts = async (
   page: number = 1,
   pageSize: number = 10,
   dateFrom?: string,
-  dateTo?: string
+  dateTo?: string,
+  seniorityMonths: number = 0
 ) => {
   const { data, error } = await supabase.rpc('admin_list_contracts', {
     p_search_query: searchQuery || '',
@@ -424,6 +425,7 @@ export const adminGetAllContracts = async (
     p_page_size: Number(pageSize) || 10,
     p_date_from: dateFrom || null,
     p_date_to: dateTo || null,
+    p_min_seniority_months: seniorityMonths || 0
   });
 
   if (error) {
@@ -449,6 +451,42 @@ export const adminUpdateContract = async (contractId: string, updates: Record<st
   const result = data as { success: boolean; message?: string; error?: string };
   if (result && !result.success) {
     throw new Error(result.error || "An unknown error occurred while updating the contract.");
+  }
+
+  return result;
+};
+
+export const adminDeleteContract = async (contractId: string) => {
+  const { data, error } = await supabase.rpc('admin_delete_contract', {
+    p_contract_id: contractId,
+  });
+
+  if (error) {
+    console.error("Error deleting contract:", error);
+    throw new Error(error.message || "Could not delete contract.");
+  }
+
+  const result = data as { success: boolean; message?: string; error?: string };
+  if (result && !result.success) {
+    throw new Error(result.error || "An unknown error occurred while deleting the contract.");
+  }
+
+  return result;
+};
+
+export const adminArchiveContract = async (contractId: string) => {
+  const { data, error } = await supabase.rpc('admin_archive_contract', {
+    p_contract_id: contractId,
+  });
+
+  if (error) {
+    console.error("Error archiving contract:", error);
+    throw new Error(error.message || "Could not archive contract.");
+  }
+
+  const result = data as { success: boolean; message?: string; error?: string };
+  if (result && !result.success) {
+    throw new Error(result.error || "An unknown error occurred while archiving the contract.");
   }
 
   return result;
@@ -505,13 +543,15 @@ export const getAdminContractKPIs = async (
   searchQuery: string = '',
   statusFilter: string = 'all',
   dateFrom: string = '',
-  dateTo: string = ''
+  dateTo: string = '',
+  seniorityMonths: number = 0
 ) => {
   const { data, error } = await supabase.rpc('get_admin_contract_kpis_enriched' as any, {
     p_search_query: searchQuery || null,
     p_status_filter: statusFilter || 'all',
     p_date_from: dateFrom || null,
-    p_date_to: dateTo || null
+    p_date_to: dateTo || null,
+    p_min_seniority_months: seniorityMonths || 0
   });
 
   if (error) {

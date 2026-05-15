@@ -1,4 +1,4 @@
-project_id = "fcxegeffqmhpleaipvov"
+project_id = "kaqxoavnoabcnszzmwye"
 [functions.send-resend-email]
 verify_jwt = false
 import_map = "./functions/send-resend-email/deno.json"

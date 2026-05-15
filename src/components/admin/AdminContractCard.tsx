@@ -5,13 +5,14 @@ import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Clock, MoreHorizontal, Edit, TrendingUp, User, Shield } from "lucide-react";
+import { Clock, MoreHorizontal, Edit, TrendingUp, User, Shield, Archive, Trash2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -25,9 +26,11 @@ type ContractData = Database['public']['Tables']['contracts']['Row'] & {
 interface AdminContractCardProps {
     contract: ContractData;
     onEdit: (contract: ContractData) => void;
+    onDelete: (contractId: string) => void;
+    onArchive: (contractId: string) => void;
 }
 
-export const AdminContractCard = ({ contract, onEdit }: AdminContractCardProps) => {
+export const AdminContractCard = ({ contract, onEdit, onDelete, onArchive }: AdminContractCardProps) => {
     const progress = (contract.months_paid / contract.duration_months) * 100;
     const totalProfitPaid = Number(contract.total_profit_paid) || 0;
 
@@ -42,6 +45,7 @@ export const AdminContractCard = ({ contract, onEdit }: AdminContractCardProps) 
             case 'refunded': return 'destructive';
             case 'pending_refund': return 'outline';
             case 'cancelled': return 'destructive';
+            case 'archived': return 'outline';
             default: return 'outline';
         }
     };
@@ -102,6 +106,16 @@ export const AdminContractCard = ({ contract, onEdit }: AdminContractCardProps) 
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => onEdit(contract)} className="focus:bg-primary/10 focus:text-primary cursor-pointer">
                                     <Edit className="mr-2 h-4 w-4" /> Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onArchive(contract.id)} className="focus:bg-primary/10 focus:text-primary cursor-pointer">
+                                    <Archive className="mr-2 h-4 w-4" /> Archiver
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                    onClick={() => onDelete(contract.id)} 
+                                    className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Supprimer
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
