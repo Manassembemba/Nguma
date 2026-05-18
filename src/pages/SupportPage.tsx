@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// import { ChatMessageList } from "@/components/ChatMessageList";
-// import { ChatMessageInput } from "@/components/ChatMessageInput";
+import { ChatMessageList } from "@/components/ChatMessageList";
+import { ChatMessageInput } from "@/components/ChatMessageInput";
 import { getSettingByKey } from "@/services/settingsService";
-// import { getUserConversation, getMessages, sendMessage, markConversationAsRead, subscribeToMessages, updateConversationTitle } from "@/services/chatService";
-// import type { ChatMessage } from "@/services/chatService";
+import { getUserConversation, getMessages, sendMessage, markConversationAsRead, subscribeToMessages, updateConversationTitle } from "@/services/chatService";
+import type { ChatMessage } from "@/services/chatService";
 import { uploadChatFile } from "@/services/fileUploadService";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageCircle } from "lucide-react";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function SupportPage() {
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [humanRequested, setHumanRequested] = useState(false);
@@ -49,7 +49,6 @@ export default function SupportPage() {
                     }
                 }
 
-                /*
                 // Initialize chat
                 const convId = await getUserConversation();
                 setConversationId(convId);
@@ -66,7 +65,6 @@ export default function SupportPage() {
                     // Marquer automatiquement comme lu
                     markConversationAsRead(convId).catch(console.error);
                 });
-                */
             } catch (error) {
                 console.error('Error initializing chat:', error);
                 toast({
@@ -105,8 +103,7 @@ export default function SupportPage() {
             const isFirstMessage = messages.length === 0;
 
             // Envoyer le message
-            // const messageId = await sendMessage(conversationId, message);
-            const messageId = "local-only";
+            const messageId = await sendMessage(conversationId, message);
 
             // Upload des fichiers si présents
             if (files && files.length > 0) {
@@ -124,7 +121,6 @@ export default function SupportPage() {
                 }
             }
 
-            /*
             // Générer le titre automatiquement au premier message
             if (isFirstMessage) {
                 setTimeout(async () => {
@@ -137,8 +133,8 @@ export default function SupportPage() {
                 setIsTyping(true);
                 setTimeout(async () => {
                     try {
-                        // const { callChatAI } = await import('@/services/aiChatService');
-                        // await callChatAI(conversationId, message);
+                        const { callChatAI } = await import('@/services/aiChatService');
+                        await callChatAI(conversationId, message);
                     } catch (aiError) {
                         console.error('AI response error:', aiError);
                     } finally {
@@ -146,7 +142,6 @@ export default function SupportPage() {
                     }
                 }, 500);
             }
-            */
 
         } catch (error) {
             console.error('Error sending message:', error);
@@ -208,17 +203,25 @@ export default function SupportPage() {
                     </CardDescription>
                 </CardHeader>
 
-                <CardContent className="flex-1 p-0 flex flex-col items-center justify-center text-center p-8">
-                    <div className="bg-zinc-50 dark:bg-zinc-900 p-8 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-800">
-                        <MessageCircle className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Chat indisponible</h3>
-                        <p className="text-zinc-500 max-w-xs mt-2">Le système de messagerie interne est en cours de maintenance. Veuillez utiliser WhatsApp pour nous contacter.</p>
-                        {whatsappNumber && (
-                            <Button asChild className="mt-6 rounded-xl bg-green-600 hover:bg-green-700">
-                                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">Contacter via WhatsApp</a>
-                            </Button>
-                        )}
-                    </div>
+                <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
+                    {loading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : (
+                        <>
+                            <ChatMessageList
+                                messages={messages}
+                                onSuggestionClick={handleSendMessage}
+                                isTyping={isTyping}
+                            />
+                            <ChatMessageInput
+                                onSend={handleSendMessage}
+                                disabled={sending}
+                                aiOnlyMode={!humanRequested && !messages.some(msg => msg.is_admin)}
+                            />
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>

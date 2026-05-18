@@ -50,7 +50,7 @@ const PaymentSchedulerPage = lazy(() => import("./pages/admin/accounting/Payment
 const LedgerPage = lazy(() => import("./pages/admin/accounting/LedgerPage"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings").then(module => ({ default: module.NotificationSettings }))); // Corrected import
 const MaintenancePage = lazy(() => import("./pages/Maintenance").then(module => ({ default: module.MaintenancePage }))); // Import MaintenancePage
-// import { ChatButton } from "./components/ChatButton";
+import { ChatButton } from "./components/ChatButton";
 import InstallPWA from "./components/InstallPWA";
 import { MobileBottomNav } from "./components/MobileBottomNav";
 
@@ -97,7 +97,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
           <AppHeader />
           <main className="flex-1">{children}</main>
         </div>
-        {/* <ChatButton /> */}
+        <ChatButton />
         <MobileBottomNav />
       </div>
     </ProfileCompletionGuard>
