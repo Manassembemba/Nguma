@@ -1,1 +1,0 @@
-import{s}from"./index--n8am9C4.js";const n=async t=>{const{data:e,error:r}=await s.from("settings").select("*").eq("key",t).single();if(r&&r.code!=="PGRST116")throw new Error(`Could not fetch setting for "${t}".`);return e},a=async()=>{const{data:t,error:e}=await s.from("settings").select("*");if(e)throw new Error("Could not fetch settings.");return t||[]};export{n as a,a as g};
