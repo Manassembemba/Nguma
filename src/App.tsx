@@ -13,6 +13,7 @@ import { isRecoveryFlow, clearNavigationState } from "@/services/navigationServi
 import { useNavigationState } from "@/hooks/useNavigationState";
 import { getMaintenanceMode } from "@/services/maintenanceService";
 import { supabase } from "@/integrations/supabase/client";
+import { getSettingByKey } from "@/services/settingsService";
 import { getProfile } from "@/services/profileService";
 
 // Lazy load pages
@@ -88,21 +89,31 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => (
-  <SidebarProvider>
-    <ProfileCompletionGuard>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 pb-16 md:pb-0">
-          <AppHeader />
-          <main className="flex-1">{children}</main>
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  const { data: chatEnabledSetting } = useQuery({
+    queryKey: ['chat_enabled'],
+    queryFn: () => getSettingByKey('chat_enabled'),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const isChatEnabled = chatEnabledSetting?.value !== 'false';
+
+  return (
+    <SidebarProvider>
+      <ProfileCompletionGuard>
+        <div className="min-h-screen flex w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1 pb-16 md:pb-0">
+            <AppHeader />
+            <main className="flex-1">{children}</main>
+          </div>
+          {isChatEnabled && <ChatButton />}
+          <MobileBottomNav />
         </div>
-        <ChatButton />
-        <MobileBottomNav />
-      </div>
-    </ProfileCompletionGuard>
-  </SidebarProvider>
-);
+      </ProfileCompletionGuard>
+    </SidebarProvider>
+  );
+};
 
 const AppInitializer = () => {
   const navigate = useNavigate();

@@ -60,10 +60,22 @@ export const AdminSettings = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      // Find setting details for label and type if it's a new one (like chat_enabled placeholder)
+      const existingSetting = settings?.find(s => s.key === key);
+      
       const { error } = await supabase
         .from('settings')
-        .update({ value })
-        .eq('key', key);
+        .upsert({ 
+          key, 
+          value,
+          updated_at: new Date().toISOString(),
+          // Seuls ces champs sont nécessaires pour l'upsert si on veut qu'il soit bien typé par la suite
+          ...(existingSetting ? {} : { 
+            label: key === 'chat_enabled' ? 'Bouton de Chat Global' : key,
+            type: key === 'chat_enabled' ? 'boolean' : 'text',
+            category: 'general'
+          })
+        }, { onConflict: 'key' });
 
       if (error) throw error;
     },
@@ -159,7 +171,20 @@ export const AdminSettings = () => {
           // Separate special settings from other settings
           const termsContentSetting = categorySettings.find(s => s.key === 'terms_content');
           const pdfUrlSetting = categorySettings.find(s => s.key === 'contract_explanation_pdf_url');
-          const regularSettings = categorySettings.filter(s => s.key !== 'terms_content' && s.key !== 'contract_explanation_pdf_url');
+          let regularSettings = categorySettings.filter(s => s.key !== 'terms_content' && s.key !== 'contract_explanation_pdf_url');
+
+          // Ensure chat_enabled is visible in general category
+          if (category === 'general' && !regularSettings.find(s => s.key === 'chat_enabled')) {
+            regularSettings.push({
+              id: 'chat_enabled_placeholder',
+              key: 'chat_enabled',
+              value: 'true',
+              type: 'boolean',
+              label: 'Bouton de Chat Global',
+              description: 'Afficher ou masquer le bouton de messagerie instantanée pour tous les utilisateurs.',
+              category: 'general'
+            });
+          }
 
           return (
             <AccordionItem key={category} value={category} className="border rounded-lg">
