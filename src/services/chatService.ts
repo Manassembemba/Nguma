@@ -364,3 +364,15 @@ export const getUnreadCount = async (): Promise<number> => {
         return 0;
     }
 };
+
+/**
+ * Active ou désactive le support par IA pour une conversation
+ */
+export const toggleAiSupport = async (conversationId: string, enabled: boolean): Promise<void> => {
+    const { error } = await supabase
+        .from('chat_conversations')
+        .update({ is_ai_enabled: enabled })
+        .eq('id', conversationId);
+
+    if (error) throw new Error(error.message);
+};
