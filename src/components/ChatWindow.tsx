@@ -13,7 +13,8 @@ import {
     markConversationAsRead,
     subscribeToMessages,
     switchToConversation,
-    setupTypingIndicator
+    setupTypingIndicator,
+    subscribeToConversationStatus
 } from "@/services/chatService";
 import type { ChatMessage, ChatConversation } from "@/services/chatService";
 import { uploadChatFile } from "@/services/fileUploadService";
@@ -40,6 +41,7 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     const { toast } = useToast();
     
     const unsubscribeMessagesRef = useRef<(() => void) | null>(null);
+    const unsubscribeStatusRef = useRef<(() => void) | null>(null);
     const typingRef = useRef<{ setTyping: (isTyping: boolean) => void; unsubscribe: () => void } | null>(null);
 
     // Initialisation
@@ -54,6 +56,7 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
 
         return () => {
             unsubscribeMessagesRef.current?.();
+            unsubscribeStatusRef.current?.();
             typingRef.current?.unsubscribe();
         };
     }, []);
@@ -112,6 +115,16 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
                     }
                 });
 
+                // Souscription au statut de l'IA (Typing indicator)
+                unsubscribeStatusRef.current?.();
+                unsubscribeStatusRef.current = subscribeToConversationStatus(activeConversationId, (conv) => {
+                    if (conv.ai_status === 'thinking' || conv.ai_status === 'typing') {
+                        setIsTyping(true);
+                    } else {
+                        setIsTyping(false);
+                    }
+                });
+
                 // Setup typing indicator
                 setupTyping(activeConversationId);
             } catch (error) {
@@ -122,7 +135,10 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
         };
 
         fetchMessages();
-        return () => unsubscribeMessagesRef.current?.();
+        return () => {
+            unsubscribeMessagesRef.current?.();
+            unsubscribeStatusRef.current?.();
+        };
     }, [activeConversationId]);
 
     const setupTyping = (conversationId: string) => {
@@ -217,7 +233,7 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
 
                         <div className="flex-1 overflow-hidden relative">
                             {loadingMessages && <div className="absolute inset-0 bg-[#0b141a]/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-[#00a884]" /></div>}
-                            <ChatMessageList messages={messages} currentUserId={currentUserId} />
+                            <ChatMessageList messages={messages} currentUserId={currentUserId} isTyping={isTyping} />
                         </div>
 
                         <div className="bg-[#202c33]">
