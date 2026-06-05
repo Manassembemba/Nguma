@@ -1,0 +1,1 @@
+import{s as c}from"./index-B7Zu9H3M.js";const n=async(a,o)=>{try{const{data:r,error:t}=await c.functions.invoke("chat-ai",{body:{conversationId:a,message:o}});if(t)throw t;return r}catch(r){throw r}};export{n as callChatAI};
