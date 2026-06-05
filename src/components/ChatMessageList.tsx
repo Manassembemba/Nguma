@@ -77,7 +77,7 @@ function MessageItem({
     };
 
     return (
-        <div className={`group flex w-full mb-1 ${isOwnMessage ? 'justify-end pl-12' : 'justify-start pr-12'} ${isNextSameSender ? 'mb-0.5' : 'mb-3'}`}>
+        <div className={`group flex w-full mb-1 ${isOwnMessage ? 'justify-end pl-4 md:pl-12' : 'justify-start pr-4 md:pr-12'} ${isNextSameSender ? 'mb-0.5' : 'mb-3'}`}>
             {isAdminView && !isDeleting && (
                 <button
                     onClick={handleDelete}

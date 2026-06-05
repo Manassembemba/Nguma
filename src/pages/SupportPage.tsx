@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 export default function SupportPage() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<string | undefined>();
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [humanRequested, setHumanRequested] = useState(false);
@@ -53,6 +54,7 @@ export default function SupportPage() {
                 // Initialize chat
                 const convId = await getUserConversation();
                 setConversationId(convId);
+                if (user) setCurrentUserId(user.id);
 
                 const msgs = await getMessages(convId);
                 setMessages(msgs);
@@ -170,52 +172,46 @@ export default function SupportPage() {
     const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/\s/g, '')}` : '';
 
     return (
-        <div className="container mx-auto p-6 max-w-4xl">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                    <MessageCircle className="h-8 w-8" />
+        <div className="container mx-auto p-2 sm:p-4 md:p-6 max-w-4xl h-[calc(100vh-64px)] md:h-auto flex flex-col">
+            <div className="mb-4 sm:mb-6 px-2">
+                <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                    <MessageCircle className="h-6 w-6 sm:h-8 sm:h-8" />
                     Support
                 </h1>
-                <p className="text-muted-foreground mt-2">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
                     Contactez notre équipe de support. Nous sommes là pour vous aider.
                 </p>
             </div>
 
             {isActiveUser && whatsappNumber && (
-                <Card className="mb-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                <Card className="mb-4 sm:mb-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                    <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex-1">
+                            <p className="text-[10px] sm:text-sm font-medium text-green-800 dark:text-green-200 uppercase tracking-wider">
                                 Contact direct :
                             </p>
-                            <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                            <p className="text-base sm:text-lg font-bold text-green-900 dark:text-green-100 mt-0.5">
                                 <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:underline">
                                     {whatsappNumber} (WhatsApp)
                                 </a>
                             </p>
-                            <p className="text-xs text-green-700 dark:text-green-300">
-                                Pour des questions urgentes, notre équipe est disponible sur WhatsApp.
-                            </p>
                         </div>
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="ml-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                            Ouvrir WhatsApp
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto text-center px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95">
+                            WhatsApp
                         </a>
                     </CardContent>
                 </Card>
             )}
 
-            <Card className="h-[calc(100vh-250px)] flex flex-col">
-                <CardHeader className="border-b">
-                    <CardTitle className="flex items-center gap-2">
+            <Card className="flex-1 flex flex-col overflow-hidden border-none sm:border bg-[#111b21] sm:bg-background">
+                <CardHeader className="border-b py-3 sm:py-4 px-4 sm:px-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                         Conversation
                     </CardTitle>
-                    <CardDescription>
-                        Envoyez un message à notre équipe et recevez une réponse rapidement
-                    </CardDescription>
                 </CardHeader>
 
-                <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
+                <CardContent className="flex-1 p-0 flex flex-col overflow-hidden relative">
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -226,12 +222,15 @@ export default function SupportPage() {
                                 messages={messages}
                                 onSuggestionClick={handleSendMessage}
                                 isTyping={isTyping}
+                                currentUserId={currentUserId}
                             />
-                            <ChatMessageInput
-                                onSend={handleSendMessage}
-                                disabled={sending}
-                                aiOnlyMode={!humanRequested && !messages.some(msg => msg.is_admin)}
-                            />
+                            <div className="mt-auto border-t bg-background">
+                                <ChatMessageInput
+                                    onSend={handleSendMessage}
+                                    disabled={sending}
+                                    aiOnlyMode={!humanRequested && !messages.some(msg => msg.is_admin)}
+                                />
+                            </div>
                         </>
                     )}
                 </CardContent>
