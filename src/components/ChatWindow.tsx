@@ -177,6 +177,20 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
             if (files && files.length > 0) {
                 for (const file of files) await uploadChatFile(file, messageId);
             }
+
+            // Appeler l'IA après un court délai si message texte présent
+            if (message.trim()) {
+                setIsTyping(true);
+                setTimeout(async () => {
+                    try {
+                        const { callChatAI } = await import('@/services/aiChatService');
+                        await callChatAI(activeConversationId, message);
+                    } catch (aiError) {
+                        console.error('AI response error:', aiError);
+                        setIsTyping(false);
+                    }
+                }, 500);
+            }
         } catch (error) {
             toast({ title: "Erreur", description: "Échec de l'envoi.", variant: "destructive" });
         } finally { setSending(false); }
@@ -185,19 +199,20 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     const activeConv = conversations.find(c => c.id === activeConversationId);
 
     return (
-        <Card className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 w-full md:w-[450px] lg:w-[950px] h-full md:h-[600px] lg:h-[750px] md:max-h-[90vh] shadow-2xl flex flex-row z-50 overflow-hidden md:rounded-lg border-none animate-in zoom-in-95 duration-200">
-            {/* Sidebar */}
-            <div className={`${showHistory ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-[350px] flex-shrink-0 flex-col border-r border-[#222d34]`}>
-                <ConversationHistory
-                    conversations={conversations}
-                    activeConversationId={activeConversationId}
-                    onSelectConversation={handleSelectConversation}
-                    onNewConversation={handleNewConversation}
-                />
-            </div>
+        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-[100] flex items-end justify-end pointer-events-none p-0 md:p-4">
+            <Card className={`pointer-events-auto w-full md:w-[450px] lg:w-[900px] h-full md:h-[600px] lg:h-[700px] md:max-h-[85vh] shadow-2xl flex flex-row overflow-hidden md:rounded-2xl border-none md:border border-[#222d34] animate-in slide-in-from-bottom-4 duration-300`}>
+                {/* Sidebar */}
+                <div className={`${showHistory ? 'flex' : 'hidden'} md:flex w-full md:w-72 lg:w-[320px] flex-shrink-0 flex-col border-r border-[#222d34]`}>
+                    <ConversationHistory
+                        conversations={conversations}
+                        activeConversationId={activeConversationId}
+                        onSelectConversation={handleSelectConversation}
+                        onNewConversation={handleNewConversation}
+                    />
+                </div>
 
-            {/* Chat Area */}
-            <div className={`${!showHistory ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0 h-full bg-[#0b141a]`}>
+                {/* Chat Area */}
+                <div className={`${!showHistory ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0 h-full bg-[#0b141a]`}>
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center bg-[#0b141a]">
                         <Loader2 className="h-10 w-10 animate-spin text-[#00a884] mb-4" />
