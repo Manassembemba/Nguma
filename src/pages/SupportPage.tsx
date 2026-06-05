@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChatMessageList } from "@/components/ChatMessageList";
 import { ChatMessageInput } from "@/components/ChatMessageInput";
 import { getSettingByKey } from "@/services/settingsService";
-import { getUserConversation, getMessages, sendMessage, markConversationAsRead, subscribeToMessages, updateConversationTitle } from "@/services/chatService";
+import { getUserConversation, getMessages, sendMessage, markConversationAsRead, subscribeToMessages, updateConversationTitle, subscribeToConversationStatus } from "@/services/chatService";
 import type { ChatMessage } from "@/services/chatService";
 import { uploadChatFile } from "@/services/fileUploadService";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ export default function SupportPage() {
     const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
     const { toast } = useToast();
     const unsubscribeRef = useRef<(() => void) | null>(null);
+    const unsubscribeStatusRef = useRef<(() => void) | null>(null);
 
     // Initialiser la conversation et charger les messages
     useEffect(() => {
@@ -65,6 +66,15 @@ export default function SupportPage() {
                     // Marquer automatiquement comme lu
                     markConversationAsRead(convId).catch(console.error);
                 });
+
+                // S'abonner aux changements de statut (AI thinking)
+                unsubscribeStatusRef.current = subscribeToConversationStatus(convId, (conv) => {
+                    if (conv.ai_status === 'thinking' || conv.ai_status === 'typing') {
+                        setIsTyping(true);
+                    } else {
+                        setIsTyping(false);
+                    }
+                });
             } catch (error) {
                 console.error('Error initializing chat:', error);
                 toast({
@@ -83,6 +93,9 @@ export default function SupportPage() {
         return () => {
             if (unsubscribeRef.current) {
                 unsubscribeRef.current();
+            }
+            if (unsubscribeStatusRef.current) {
+                unsubscribeStatusRef.current();
             }
         };
     }, [toast]);
@@ -137,7 +150,6 @@ export default function SupportPage() {
                         await callChatAI(conversationId, message);
                     } catch (aiError) {
                         console.error('AI response error:', aiError);
-                    } finally {
                         setIsTyping(false);
                     }
                 }, 500);

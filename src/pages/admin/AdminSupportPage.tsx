@@ -18,6 +18,7 @@ import {
     closeConversation,
     subscribeToMessages,
     subscribeToConversations,
+    subscribeToConversationStatus,
     toggleAiSupport
 } from "@/services/chatService";
 import type { AdminConversation, ChatMessage } from "@/services/chatService";
@@ -51,11 +52,13 @@ export default function AdminSupportPage() {
     const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | undefined>('open');
     const [searchQuery, setSearchQuery] = useState("");
     const [isAiEnabled, setIsAiEnabled] = useState(true);
+    const [isTyping, setIsTyping] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const { toast } = useToast();
     
     const unsubscribeMessagesRef = useRef<(() => void) | null>(null);
     const unsubscribeConversationsRef = useRef<(() => void) | null>(null);
+    const unsubscribeStatusRef = useRef<(() => void) | null>(null);
 
     // Initialisation
     useEffect(() => {
@@ -125,6 +128,16 @@ export default function AdminSupportPage() {
                     });
                     if (!newMessage.is_admin) markConversationAsRead(selectedConversation).catch(() => {});
                 });
+
+                // Souscription au statut de l'IA (Typing indicator)
+                unsubscribeStatusRef.current?.();
+                unsubscribeStatusRef.current = subscribeToConversationStatus(selectedConversation, (conv) => {
+                    if (conv.ai_status === 'thinking' || conv.ai_status === 'typing') {
+                        setIsTyping(true);
+                    } else {
+                        setIsTyping(false);
+                    }
+                });
             } catch (error) {
                 console.error('Error loading messages:', error);
             } finally {
@@ -133,7 +146,10 @@ export default function AdminSupportPage() {
         };
 
         fetchInitialMessages();
-        return () => unsubscribeMessagesRef.current?.();
+        return () => {
+            unsubscribeMessagesRef.current?.();
+            unsubscribeStatusRef.current?.();
+        };
     }, [selectedConversation]);
 
     // Charger plus de messages (Pagination)
@@ -356,6 +372,7 @@ export default function AdminSupportPage() {
                                 onLoadMore={handleLoadMore}
                                 hasMore={hasMore}
                                 loadingMore={loadingMore}
+                                isTyping={isTyping}
                             />
                         </div>
 

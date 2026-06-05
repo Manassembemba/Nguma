@@ -1,7 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-export type ChatConversation = Database['public']['Tables']['chat_conversations']['Row'];
+export type ChatConversation = Database['public']['Tables']['chat_conversations']['Row'] & {
+    ai_status?: 'idle' | 'thinking' | 'error';
+    is_ai_enabled?: boolean;
+};
 export type ChatMessage = Database['public']['Tables']['chat_messages']['Row'];
 export type ChatAttachment = Database['public']['Tables']['chat_attachments']['Row'];
 export type ChatAnalytics = Database['public']['Tables']['chat_analytics']['Row'];
@@ -312,6 +315,34 @@ export const subscribeToConversations = (
 };
 
 /**
+ * Souscrit aux changements d'une conversation spÃ©cifique (Realtime)
+ */
+export const subscribeToConversationStatus = (
+    conversationId: string,
+    callback: (conversation: ChatConversation) => void
+) => {
+    const channel = supabase
+        .channel(`chat_conversation:${conversationId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'chat_conversations',
+                filter: `id=eq.${conversationId}`
+            },
+            (payload) => {
+                callback(payload.new as ChatConversation);
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+};
+
+/**
  * Supprime un message de chat (Admin seulement)
  */
 export const deleteChatMessage = async (messageId: string): Promise<void> => {
@@ -366,7 +397,7 @@ export const getUnreadCount = async (): Promise<number> => {
 };
 
 /**
- * Active ou désactive le support par IA pour une conversation
+ * Active ou dï¿½sactive le support par IA pour une conversation
  */
 export const toggleAiSupport = async (conversationId: string, enabled: boolean): Promise<void> => {
     const { error } = await supabase

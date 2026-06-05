@@ -47,14 +47,14 @@ function DateSeparator({ date }: { date: Date }) {
     );
 }
 
-function MessageItem({ 
-    message, 
-    isOwnMessage, 
+function MessageItem({
+    message,
+    isOwnMessage,
     isNextSameSender,
     isPrevSameSender,
     isAdminView
-}: { 
-    message: ChatMessage; 
+}: {
+    message: ChatMessage;
     isOwnMessage: boolean;
     isNextSameSender: boolean;
     isPrevSameSender: boolean;
@@ -79,14 +79,14 @@ function MessageItem({
     return (
         <div className={`group flex w-full mb-1 ${isOwnMessage ? 'justify-end pl-12' : 'justify-start pr-12'} ${isNextSameSender ? 'mb-0.5' : 'mb-3'}`}>
             {isAdminView && !isDeleting && (
-                <button 
+                <button
                     onClick={handleDelete}
                     className={`opacity-0 group-hover:opacity-100 transition-opacity p-2 text-[#8696a0] hover:text-[#f15c5c] self-center ${isOwnMessage ? 'order-first' : 'order-last'}`}
                 >
                     <Trash2 className="h-4 w-4" />
                 </button>
             )}
-            
+
             {isDeleting && (
                 <div className={`self-center ${isOwnMessage ? 'order-first' : 'order-last'}`}>
                     <Loader2 className="h-4 w-4 animate-spin text-[#8696a0]" />
@@ -94,14 +94,14 @@ function MessageItem({
             )}
 
             <div className={`relative max-w-full px-2.5 py-1.5 shadow-sm transition-all duration-200 ${
-                isOwnMessage 
+                isOwnMessage
                     ? `bg-[#005c4b] text-[#e9edef] ${isPrevSameSender ? 'rounded-lg' : 'rounded-lg rounded-tr-none'}`
                     : `bg-[#202c33] text-[#e9edef] ${isPrevSameSender ? 'rounded-lg' : 'rounded-lg rounded-tl-none'}`
             }`}>
                 {!isPrevSameSender && (
                     <div className={`absolute top-0 w-3 h-3 ${
-                        isOwnMessage 
-                            ? '-right-2 bg-[#005c4b] [clip-path:polygon(0_0,0_100%,100%_0)]' 
+                        isOwnMessage
+                            ? '-right-2 bg-[#005c4b] [clip-path:polygon(0_0,0_100%,100%_0)]'
                             : '-left-2 bg-[#202c33] [clip-path:polygon(100%_0,0_0,100%_100%)]'
                     }`} />
                 )}
@@ -109,7 +109,7 @@ function MessageItem({
                 <div className="text-[14.5px] leading-relaxed break-words">
                     {formatMessage(message.message)}
                 </div>
-                
+
                 <div className="flex justify-end items-center gap-1 mt-0.5 min-w-[65px]">
                     <span className="text-[10px] text-[#8696a0] font-medium uppercase">
                         {format(new Date(message.created_at), 'HH:mm')}
@@ -125,17 +125,17 @@ function MessageItem({
     );
 }
 
-export function ChatMessageList({ 
-    messages, 
-    onSuggestionClick, 
-    isTyping = false, 
+export function ChatMessageList({
+    messages,
+    onSuggestionClick,
+    isTyping = false,
     currentUserId,
     onLoadMore,
     hasMore = false,
     loadingMore = false
 }: ChatMessageListProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
@@ -150,14 +150,14 @@ export function ChatMessageList({
     // Auto-scroll intelligent au bas de la liste
     useEffect(() => {
         if (shouldAutoScroll && scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+            scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
     }, [messages.length, isTyping, shouldAutoScroll]);
 
     // Détecter si l'utilisateur scrolle manuellement pour désactiver l'auto-scroll
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const target = e.currentTarget;
-        const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
+        const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 150;
         setShouldAutoScroll(isAtBottom);
     };
 
@@ -166,21 +166,22 @@ export function ChatMessageList({
     }
 
     return (
-        <ScrollArea 
-            className="flex-1 bg-[#0b141a] relative" 
+        <ScrollArea
+            className="flex-1 bg-[#0b141a] relative h-full"
             onScrollCapture={handleScroll}
+            viewportRef={viewportRef}
         >
-            <div className="absolute inset-0 opacity-[0.4] pointer-events-none" 
-                 style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', filter: 'invert(1)' }} 
+            <div className="absolute inset-0 opacity-[0.4] pointer-events-none"
+                 style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', filter: 'invert(1)' }}
             />
-            
+
             <div className="flex flex-col px-4 py-6 relative z-10">
                 {/* Pagination : Charger plus de messages */}
                 {hasMore && (
                     <div className="flex justify-center mb-6">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={onLoadMore}
                             disabled={loadingMore}
                             className="text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] rounded-full px-4 text-xs h-8 gap-2 border border-[#222d34]"
@@ -199,7 +200,7 @@ export function ChatMessageList({
                     const msgDate = new Date(message.created_at);
                     const prevMsg = index > 0 ? messages[index - 1] : null;
                     const nextMsg = index < messages.length - 1 ? messages[index + 1] : null;
-                    
+
                     const isFirstInDay = !prevMsg || !isSameDay(new Date(prevMsg.created_at), msgDate);
                     const isOwnMessage = message.sender_id === currentUserId;
                     const isPrevSameSender = prevMsg?.sender_id === message.sender_id && !isFirstInDay;
@@ -208,8 +209,8 @@ export function ChatMessageList({
                     return (
                         <div key={message.id}>
                             {isFirstInDay && <DateSeparator date={msgDate} />}
-                            <MessageItem 
-                                message={message} 
+                            <MessageItem
+                                message={message}
                                 isOwnMessage={isOwnMessage}
                                 isNextSameSender={isNextSameSender}
                                 isPrevSameSender={isPrevSameSender}
@@ -220,11 +221,22 @@ export function ChatMessageList({
                 })}
 
                 {isTyping && (
-                    <div className="flex justify-start mb-4 animate-in fade-in">
-                        <div className="bg-[#202c33] rounded-lg rounded-tl-none px-3 py-2 flex gap-1 items-center shadow-sm">
-                            <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    <div className="flex justify-start mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="relative bg-[#202c33] rounded-2xl rounded-tl-none px-4 py-3 flex gap-3 items-center shadow-lg border border-white/5">
+                            <div className="absolute top-0 -left-2 bg-[#202c33] w-3 h-3 [clip-path:polygon(100%_0,0_0,100%_100%)] border-t border-white/5" />
+                            <div className="flex gap-1.5 px-1">
+                                <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-duration:0.8s]" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-duration:0.8s]" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-duration:0.8s]" style={{ animationDelay: '300ms' }}></span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[12px] text-[#e9edef] font-bold tracking-tight italic opacity-90">
+                                    Monsieur Nguma est en train de réfléchir...
+                                </span>
+                                <span className="text-[9px] text-[#8696a0] font-medium uppercase tracking-widest mt-0.5">
+                                    Réponse imminente
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )}
