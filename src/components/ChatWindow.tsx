@@ -199,8 +199,8 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
     const activeConv = conversations.find(c => c.id === activeConversationId);
 
     return (
-        <div className="fixed inset-0 md:inset-auto md:bottom-24 md:right-6 z-[100] flex items-end justify-end pointer-events-none p-0 md:p-4">
-            <Card className={`pointer-events-auto w-full md:w-[450px] lg:w-[900px] h-full md:h-[600px] lg:h-[700px] md:max-h-[85vh] shadow-2xl flex flex-row overflow-hidden md:rounded-2xl border-none md:border border-[#222d34] animate-in slide-in-from-bottom-4 duration-300`}>
+        <div className="fixed inset-x-0 bottom-20 md:bottom-24 md:right-6 z-[40] flex items-end justify-end pointer-events-none p-2 md:p-4">
+            <Card className={`pointer-events-auto w-full md:w-[450px] lg:w-[900px] h-[70vh] md:h-[600px] lg:h-[700px] shadow-2xl flex flex-row overflow-hidden rounded-t-2xl md:rounded-2xl border-x border-t md:border border-[#222d34] animate-in slide-in-from-bottom-4 duration-300`}>
                 {/* Sidebar */}
                 <div className={`${showHistory ? 'flex' : 'hidden'} md:flex w-full md:w-72 lg:w-[320px] flex-shrink-0 flex-col border-r border-[#222d34]`}>
                     <ConversationHistory
@@ -213,64 +213,65 @@ export function ChatWindow({ onClose }: ChatWindowProps) {
 
                 {/* Chat Area */}
                 <div className={`${!showHistory ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0 h-full bg-[#0b141a]`}>
-                {loading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center bg-[#0b141a]">
-                        <Loader2 className="h-10 w-10 animate-spin text-[#00a884] mb-4" />
-                        <p className="text-sm text-[#8696a0]">Chargement...</p>
-                    </div>
-                ) : activeConversationId ? (
-                    <>
-                        <div className="h-16 flex-shrink-0 bg-[#202c33] px-4 flex items-center justify-between border-b border-[#222d34] shadow-sm z-20">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-[#aebac1]" onClick={() => setShowHistory(true)}>
-                                    <Menu className="h-5 w-5" />
-                                </Button>
-                                <Avatar className="h-10 w-10 border border-[#313d45]">
-                                    <AvatarFallback className="bg-[#6a7175] text-[#e9edef] font-bold">
-                                        {activeConv?.subject?.charAt(0) || "S"}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col truncate">
-                                    <h2 className="text-[15px] font-medium text-[#e9edef] truncate">
-                                        {activeConv?.subject || "Support Nguma"}
-                                    </h2>
-                                    <span className="text-[11px] text-[#8696a0] font-normal">
-                                        {isTyping ? "en train d'écrire..." : "En ligne"}
-                                    </span>
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-[#0b141a]">
+                            <Loader2 className="h-10 w-10 animate-spin text-[#00a884] mb-4" />
+                            <p className="text-sm text-[#8696a0]">Chargement...</p>
+                        </div>
+                    ) : activeConversationId ? (
+                        <>
+                            <div className="h-16 flex-shrink-0 bg-[#202c33] px-4 flex items-center justify-between border-b border-[#222d34] shadow-sm z-20">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-[#aebac1]" onClick={() => setShowHistory(true)}>
+                                        <Menu className="h-5 w-5" />
+                                    </Button>
+                                    <Avatar className="h-10 w-10 border border-[#313d45]">
+                                        <AvatarFallback className="bg-[#6a7175] text-[#e9edef] font-bold">
+                                            {activeConv?.subject?.charAt(0) || "S"}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col truncate">
+                                        <h2 className="text-[15px] font-medium text-[#e9edef] truncate">
+                                            {activeConv?.subject || "Support Nguma"}
+                                        </h2>
+                                        <span className="text-[11px] text-[#8696a0] font-normal">
+                                            {isTyping ? "en train d'écrire..." : "En ligne"}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" onClick={onClose} className="text-[#aebac1] rounded-full h-10 w-10 hover:bg-[#374248]">
+                                        <X className="h-5 w-5" />
+                                    </Button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={onClose} className="text-[#aebac1] rounded-full h-10 w-10 hover:bg-[#374248]">
-                                    <X className="h-5 w-5" />
-                                </Button>
+
+                            <div className="flex-1 overflow-hidden relative">
+                                {loadingMessages && <div className="absolute inset-0 bg-[#0b141a]/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-[#00a884]" /></div>}
+                                <ChatMessageList messages={messages} currentUserId={currentUserId} isTyping={isTyping} />
                             </div>
-                        </div>
 
-                        <div className="flex-1 overflow-hidden relative">
-                            {loadingMessages && <div className="absolute inset-0 bg-[#0b141a]/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-[#00a884]" /></div>}
-                            <ChatMessageList messages={messages} currentUserId={currentUserId} isTyping={isTyping} />
+                            <div className="bg-[#202c33]">
+                                <ChatMessageInput
+                                    onSend={handleSendMessage}
+                                    onTyping={(typing) => typingRef.current?.setTyping(typing)}
+                                    disabled={sending}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-[#111b21] px-8 text-center">
+                            <div className="w-64 h-64 bg-[#202c33] rounded-full flex items-center justify-center mb-8">
+                                <MessageCircle className="h-32 w-32 text-[#3b4a54]" />
+                            </div>
+                            <h2 className="text-2xl font-light text-[#e9edef] mb-4">Support Nguma</h2>
+                            <p className="text-sm text-[#8696a0] max-w-xs leading-relaxed">
+                                Envoyez et recevez des messages de support en toute sécurité.
+                            </p>
                         </div>
-
-                        <div className="bg-[#202c33]">
-                            <ChatMessageInput
-                                onSend={handleSendMessage}
-                                onTyping={(typing) => typingRef.current?.setTyping(typing)}
-                                disabled={sending}
-                            />
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center bg-[#111b21] px-8 text-center">
-                        <div className="w-64 h-64 bg-[#202c33] rounded-full flex items-center justify-center mb-8">
-                            <MessageCircle className="h-32 w-32 text-[#3b4a54]" />
-                        </div>
-                        <h2 className="text-2xl font-light text-[#e9edef] mb-4">Support Nguma</h2>
-                        <p className="text-sm text-[#8696a0] max-w-xs leading-relaxed">
-                            Envoyez et recevez des messages de support en toute sécurité.
-                        </p>
-                    </div>
-                )}
-            </div>
-        </Card>
+                    )}
+                </div>
+            </Card>
+        </div>
     );
 }
