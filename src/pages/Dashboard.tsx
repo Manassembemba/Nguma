@@ -67,7 +67,7 @@ const Dashboard = () => {
     queryFn: getSettings,
   });
 
-  const activeContracts = contracts?.filter(c => c.status === 'active') || [];
+  const activeContracts = contracts?.filter(c => c.status === 'active' || c.status === 'paused') || [];
   const totalInvested = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
 
   // ROI = (Total Profit / Total Invested) * 100

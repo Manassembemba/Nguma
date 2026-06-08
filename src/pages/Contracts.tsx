@@ -34,7 +34,7 @@ const ContractsPage = () => {
   };
 
   // Calculate summary stats
-  const activeContracts = contracts?.filter(c => c.status === 'active') || [];
+  const activeContracts = contracts?.filter(c => c.status === 'active' || c.status === 'paused') || [];
   const totalInvested = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
   const totalProfits = contracts?.reduce((sum, c) => sum + Number(c.total_profit_paid || 0), 0) || 0;
   const avgROI = totalInvested > 0 ? ((totalProfits / totalInvested) * 100) : 0;
