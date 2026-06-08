@@ -151,6 +151,11 @@ export const AdminSettings = () => {
       icon: CreditCard,
       description: 'Gestion des périodes et limitations des dépôts',
     },
+    contracts: {
+      label: 'Gestion des Contrats',
+      icon: ShieldCheck,
+      description: 'Paramètres de pause et de contrôle des contrats d\'investissement',
+    },
   };
 
   return (
@@ -159,7 +164,7 @@ export const AdminSettings = () => {
       <MaintenanceModeToggle />
       {/* --- End Maintenance Mode Toggle --- */}
 
-      <Accordion type="multiple" defaultValue={['security', 'general', 'insurance', 'payment_methods']} className="space-y-4">
+      <Accordion type="multiple" defaultValue={['security', 'general', 'insurance', 'payment_methods', 'contracts']} className="space-y-4">
         {Object.entries(settingsByCategory || {}).map(([category, categorySettings]) => {
           const categoryInfo = categoryLabels[category] || {
             label: category.charAt(0).toUpperCase() + category.slice(1),

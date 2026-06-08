@@ -53,6 +53,7 @@ export const ContractCard = ({ contract, formatCurrency }: ContractCardProps) =>
       case 'completed': return { label: 'Terminé', class: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' };
       case 'refunded': return { label: 'Remboursé', class: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800' };
       case 'pending_refund': return { label: 'Remboursement en cours', class: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' };
+      case 'paused': return { label: 'En Pause', class: 'bg-zinc-100 text-zinc-700 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700' };
       default: return { label: status, class: 'bg-zinc-50 text-zinc-700 border-zinc-200' };
     }
   };

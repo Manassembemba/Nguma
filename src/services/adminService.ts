@@ -562,6 +562,7 @@ export const getAdminContractKPIs = async (
   return data as {
     total_count: number;
     active_count: number;
+    paused_count: number;
     total_investment: number;
     total_profits_paid: number;
     total_profits_available: number;

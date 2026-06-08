@@ -44,6 +44,7 @@ export const AdminContractCard = ({ contract, onEdit, onDelete, onArchive }: Adm
             case 'completed': return 'secondary';
             case 'refunded': return 'destructive';
             case 'pending_refund': return 'outline';
+            case 'paused': return 'outline';
             case 'cancelled': return 'destructive';
             case 'archived': return 'outline';
             default: return 'outline';

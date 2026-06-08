@@ -14,7 +14,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationNext, Paginati
 import { useDebounce } from "@/hooks/useDebounce";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight, RotateCcw, Filter, Search, Archive, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, FileText, CheckCircle, TrendingUp, DollarSign, LayoutGrid, List, FileDown, ChevronLeft, ChevronRight, RotateCcw, Filter, Search, Archive, Trash2, PauseCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { EditContractDialog } from "@/components/admin/EditContractDialog";
@@ -278,7 +278,7 @@ const AdminContractsPage = () => {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -305,6 +305,21 @@ const AdminContractsPage = () => {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               En cours
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-zinc-500/10 to-slate-500/10 border-zinc-500/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Contrats en Pause</div>
+              <PauseCircle className="h-4 w-4 text-zinc-600" />
+            </div>
+            <div className="text-2xl font-bold text-zinc-700">
+              {kpis?.paused_count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Suspendus (Seuil)
             </p>
           </CardContent>
         </Card>
@@ -392,6 +407,7 @@ const AdminContractsPage = () => {
               <SelectItem value="refunded">Remboursé</SelectItem>
               <SelectItem value="pending_refund">Demande Remb.</SelectItem>
               <SelectItem value="cancelled">Annulé</SelectItem>
+              <SelectItem value="paused">En Pause</SelectItem>
               <SelectItem value="archived">Archivé</SelectItem>
             </SelectContent>
           </Select>
