@@ -389,13 +389,31 @@ const AdminContractsPage = () => {
       <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
 
         {/* Left: Search & Filter */}
-        <div className="flex flex-col md:flex-row gap-2 w-full xl:w-auto">
+        <div className="flex flex-col md:flex-row gap-2 w-full xl:w-auto items-center">
           <Input
             placeholder="Rechercher par nom, email, ID..."
             className="w-full md:w-[250px]"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
           />
+          
+          {/* Bouton de filtre rapide pour les pauses */}
+          <Button 
+            variant={statusFilter === 'paused' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setStatusFilter(statusFilter === 'paused' ? 'all' : 'paused');
+              setPage(1);
+            }}
+            className={cn(
+              "whitespace-nowrap gap-2",
+              statusFilter === 'paused' ? "bg-zinc-800 hover:bg-zinc-900" : "text-zinc-600 border-zinc-200"
+            )}
+          >
+            <PauseCircle className={cn("h-4 w-4", statusFilter === 'paused' ? "text-white" : "text-zinc-500")} />
+            {statusFilter === 'paused' ? "Voir tous" : `Contrats en pause (${kpis?.paused_count || 0})`}
+          </Button>
+
           <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(1); }}>
             <SelectTrigger className="w-full md:w-[150px]">
               <SelectValue placeholder="Statut" />
