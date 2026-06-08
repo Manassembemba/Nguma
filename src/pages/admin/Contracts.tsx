@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminGetAllContracts, getAdminContractKPIs, adminDeleteContract, adminArchiveContract } from "@/services/adminService";
-import { formatCurrency, exportToCsv, exportToPdf } from "@/lib/utils";
+import { formatCurrency, exportToCsv, exportToPdf, cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
