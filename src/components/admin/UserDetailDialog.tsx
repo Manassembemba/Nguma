@@ -162,7 +162,7 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
   }
 
   const { profile, wallet, contracts, transactions, totalReinvested, totalTransferred, totalWithdrawn, totalDeposits, totalProfitsPaid } = data;
-  const activeContracts = contracts?.filter((c: any) => c.status === "active") || [];
+  const activeContracts = contracts?.filter((c: any) => c.status === "active" || c.status === "paused") || [];
   const totalInvested = activeContracts.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
 
   // Calculate profile completion status

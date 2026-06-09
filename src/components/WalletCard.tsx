@@ -22,10 +22,10 @@ export const WalletCard = ({ wallet, contracts }: WalletCardProps) => {
     }).format(amount);
   };
 
-  const activeContracts = contracts?.filter(c => c.status === "active").length || 0;
+  const activeContracts = contracts?.filter(c => c.status === "active" || c.status === "paused").length || 0;
   const totalProfit = Number(wallet?.profit_balance || 0);
   const totalInvested = contracts
-    ?.filter(c => c.status === "active")
+    ?.filter(c => c.status === "active" || c.status === "paused")
     .reduce((sum, contract) => sum + Number(contract.amount), 0) || 0;
   const totalBalance = Number(wallet?.total_balance || 0);
 
