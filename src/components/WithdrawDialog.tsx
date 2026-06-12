@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { getSettings } from "@/services/settingsService";
+import { getProfile } from "@/services/profileService";
 import { useToast } from "@/components/ui/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info, ArrowLeft } from "lucide-react";
+import { Info, ArrowLeft, ShieldAlert } from "lucide-react";
 import { DynamicPaymentMethodSelector } from "@/components/DynamicPaymentMethodSelector";
 import { PaymentMethod } from "@/services/paymentMethodsService";
+import { useNavigate } from "react-router-dom";
 
 type WalletData = Database['public']['Tables']['wallets']['Row'];
 type Step = "select_method" | "enter_details" | "verify_otp";
@@ -39,6 +41,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
   const [paymentDetails, setPaymentDetails] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // MFA State
   const [verificationId, setVerificationId] = useState<string | null>(null);
@@ -50,10 +53,19 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
     queryFn: getSettings,
   });
 
+  // Load user profile for KYC status
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+  });
+
+  const isKycVerified = profile?.kyc_status === 'verified';
+
   const minWithdrawal = Number(settings?.find(s => s.key === 'min_withdrawal_amount')?.value || 10);
   const profitBalance = Number(wallet?.profit_balance || 0);
   const maxWithdrawalSetting = Number(settings?.find(s => s.key === 'max_withdrawal_amount')?.value || 10000);
-  const maxWithdrawal = profitBalance > 0 ? Math.min(profitBalance, maxWithdrawalSetting) : maxWithdrawalSetting;
+  const dailyLimit = Number(settings?.find(s => s.key === 'daily_withdrawal_amount_limit')?.value || 1000);
+  const maxWithdrawal = profitBalance > 0 ? Math.min(profitBalance, maxWithdrawalSetting, dailyLimit) : dailyLimit;
 
   // Check if user has sufficient balance
   const hasSufficientBalance = profitBalance >= minWithdrawal;
@@ -61,6 +73,10 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
   // Step 1: Request OTP
   const requestOTPMutation = useMutation({
     mutationFn: async () => {
+      if (!isKycVerified) {
+        throw new Error("Votre identité doit être vérifiée (KYC) avant de pouvoir effectuer un retrait.");
+      }
+
       if (!selectedMethod) throw new Error("Aucune méthode sélectionnée");
 
       const amountNum = parseFloat(amount);
@@ -72,8 +88,8 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
         throw new Error(`Le montant minimum est de ${minWithdrawal} USD.`);
       }
 
-      if (amountNum > maxWithdrawal) {
-        throw new Error(`Le montant maximum est de ${maxWithdrawal.toFixed(2)} USD.`);
+      if (amountNum > dailyLimit) {
+        throw new Error(`La limite de retrait journalière est de ${dailyLimit} USD.`);
       }
 
       if (amountNum > profitBalance) {
@@ -104,6 +120,10 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
   // Step 2: Verify OTP and process withdrawal
   const verifyOTPMutation = useMutation({
     mutationFn: async () => {
+      if (!isKycVerified) {
+        throw new Error("Votre identité doit être vérifiée (KYC) avant de pouvoir effectuer un retrait.");
+      }
+      
       if (!verificationId || !otpCode) throw new Error("Code de vérification manquant.");
       const { verifyAndWithdraw } = await import("@/services/withdrawalMFAService");
       return verifyAndWithdraw(verificationId, otpCode);
@@ -212,12 +232,43 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
           </DialogDescription>
         </DialogHeader>
 
+        {/* KYC Verification Alert */}
+        {!isKycVerified && (
+          <Alert className="bg-red-50 border-red-200 mb-4">
+            <ShieldAlert className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800 space-y-2">
+              <p><strong>Vérification KYC requise</strong></p>
+              <p>Conformément aux régulations financières, vous devez vérifier votre identité avant d'effectuer un retrait.</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 border-red-200 text-red-800 hover:bg-red-100 font-bold"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/profile?tab=verification');
+                }}
+              >
+                Vérifier mon identité maintenant
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Solde disponible - Toujours visible */}
         {step !== 'verify_otp' && (
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 my-4">
             <p className="text-sm text-gray-600 mb-1">Profits disponibles</p>
             <p className="text-3xl font-bold text-purple-700">{profitBalance.toFixed(2)} USD</p>
           </div>
+        )}
+
+        {hasSufficientBalance && !isKycVerified && step !== 'verify_otp' && (
+          <Alert className="bg-amber-50 border-amber-200 mb-4">
+            <Info className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800">
+              Votre solde est suffisant, mais la vérification KYC est manquante.
+            </AlertDescription>
+          </Alert>
         )}
 
         {!hasSufficientBalance && step !== 'verify_otp' && (
@@ -236,6 +287,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
             <DynamicPaymentMethodSelector
               type="withdrawal"
               onSelect={handleMethodSelect}
+              disabled={!isKycVerified}
             />
           </div>
         )}
@@ -270,7 +322,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
                 placeholder={`Min: ${minWithdrawal} USD`}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
-                disabled={requestOTPMutation.isPending || !hasSufficientBalance}
+                disabled={requestOTPMutation.isPending || !hasSufficientBalance || !isKycVerified}
               />
             </div>
 
@@ -301,7 +353,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       onChange={(e) => setPaymentDetails(prev => ({ ...prev, [field.field_key]: e.target.value }))}
                       value={paymentDetails[field.field_key] || ''}
-                      disabled={requestOTPMutation.isPending}
+                      disabled={requestOTPMutation.isPending || !isKycVerified}
                     />
                     {field.help_text && (
                       <p className="text-xs text-muted-foreground">{field.help_text}</p>
@@ -313,7 +365,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
                 type="button"
                 variant="destructive"
                 onClick={() => handleDetailsSubmit(paymentDetails)}
-                disabled={requestOTPMutation.isPending || !amount || parseFloat(amount) <= 0 || !hasSufficientBalance}
+                disabled={requestOTPMutation.isPending || !amount || parseFloat(amount) <= 0 || !hasSufficientBalance || !isKycVerified}
                 className="w-full"
               >
                 {requestOTPMutation.isPending ? "Envoi en cours..." : "Recevoir le code de vérification"}

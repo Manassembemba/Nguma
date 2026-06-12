@@ -184,13 +184,14 @@ export interface InvestorFilters {
   dateTo?: string;
   minInvested?: number;
   maxInvested?: number;
-  country?: string; // Gardé pour la compatibilité de type, mais non utilisé dans l'appel
-  city?: string;    // Gardé pour la compatibilité de type, mais non utilisé dans l'appel
+  country?: string; 
+  city?: string;    
   status?: string;
+  kycStatus?: string;
 }
 
 export const getInvestorsList = async (filters: InvestorFilters = {}) => {
-  const { searchQuery, page = 1, pageSize = 10, dateFrom, dateTo, minInvested, maxInvested, country, city, status } = filters;
+  const { searchQuery, page = 1, pageSize = 10, dateFrom, dateTo, minInvested, maxInvested, country, city, status, kycStatus } = filters;
 
   const { data, error } = await supabase.rpc('get_investor_list_details', {
     p_search_query: searchQuery || null,
@@ -202,7 +203,8 @@ export const getInvestorsList = async (filters: InvestorFilters = {}) => {
     p_max_invested: maxInvested || null,
     param_country: country || null,
     param_city: city || null,
-    p_status_filter: status || null
+    p_status_filter: status || null,
+    p_kyc_status: kycStatus || null
   });
 
   if (error) {
@@ -315,6 +317,7 @@ export const getAdminDashboardStats = async () => {
     total_profit_distributed: number;
     total_wallet_profits: number;
     total_debt_to_recover: number;
+    total_insurance_fees: number;
     pending_deposits: number;
     pending_withdrawals: number;
     cash_on_hand: number;

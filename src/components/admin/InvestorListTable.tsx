@@ -106,6 +106,7 @@ export const InvestorListTable = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [kycStatusFilter, setKycStatusFilter] = useState("all");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [isExporting, setIsExporting] = useState(false);
   const [activationDialog, setActivationDialog] = useState<{ isOpen: boolean; user?: Investor; action?: 'activate' | 'deactivate' }>({ isOpen: false });
@@ -162,12 +163,13 @@ export const InvestorListTable = () => {
     country: country || undefined,
     city: city || undefined,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    kycStatus: kycStatusFilter === 'all' ? undefined : kycStatusFilter,
   };
 
   const hasAdvancedFilters = dateFrom || dateTo || minInvested || maxInvested || country || city;
 
   const { data, isLoading } = useQuery<{ data: Investor[], count: number }>({
-    queryKey: ["investorsList", debouncedSearchQuery, page, statusFilter, dateFrom, dateTo, minInvested, maxInvested, country, city],
+    queryKey: ["investorsList", debouncedSearchQuery, page, statusFilter, dateFrom, dateTo, minInvested, maxInvested, country, city, kycStatusFilter],
     queryFn: () => getInvestorsList(filters),
   });
 
@@ -387,6 +389,22 @@ export const InvestorListTable = () => {
                         </Select>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Statut KYC</Label>
+                    <Select value={kycStatusFilter} onValueChange={(value) => { setKycStatusFilter(value); setPage(1); }}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Tous" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous</SelectItem>
+                        <SelectItem value="verified">Vérifié</SelectItem>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="rejected">Refusé</SelectItem>
+                        <SelectItem value="none">Non soumis</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <Button className="w-full" onClick={() => setShowAdvancedFilters(false)}>

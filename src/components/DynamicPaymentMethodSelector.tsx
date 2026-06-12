@@ -7,13 +7,15 @@ import { Separator } from '@/components/ui/separator';
 import { getActiveDepositMethods, PaymentMethod, PaymentCategory } from '@/services/paymentMethodsService';
 import * as Icons from 'lucide-react';
 import { Loader2, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Props {
     onSelect: (method: PaymentMethod) => void;
     type: 'deposit' | 'withdrawal';
+    disabled?: boolean;
 }
 
-export const DynamicPaymentMethodSelector = ({ onSelect, type }: Props) => {
+export const DynamicPaymentMethodSelector = ({ onSelect, type, disabled = false }: Props) => {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     const { data: methods, isLoading } = useQuery({
@@ -91,7 +93,8 @@ export const DynamicPaymentMethodSelector = ({ onSelect, type }: Props) => {
                                 key={method.id}
                                 variant="outline"
                                 className="justify-start h-auto p-4 hover:bg-accent hover:border-primary transition-all"
-                                onClick={() => onSelect(method)}
+                                onClick={() => !disabled && onSelect(method)}
+                                disabled={disabled}
                             >
                                 <div className="flex items-start gap-4 w-full">
                                     <div className="flex-shrink-0 mt-1">
@@ -156,8 +159,11 @@ export const DynamicPaymentMethodSelector = ({ onSelect, type }: Props) => {
                     return (
                         <Card
                             key={categoryId}
-                            className="cursor-pointer hover:border-primary hover:shadow-md transition-all"
-                            onClick={() => setSelectedCategory(categoryId)}
+                            className={cn(
+                                "cursor-pointer hover:border-primary hover:shadow-md transition-all",
+                                disabled && "opacity-50 cursor-not-allowed grayscale"
+                            )}
+                            onClick={() => !disabled && setSelectedCategory(categoryId)}
                         >
                             <CardHeader className="pb-3">
                                 <div className="flex items-start gap-4">

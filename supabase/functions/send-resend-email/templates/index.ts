@@ -53,6 +53,8 @@ import {
 // Import refund templates
 import { refundTemplates } from './categories/transactions/refunds.ts';
 
+import { kycApprovedTemplate, kycRejectedTemplate } from './categories/security/kyc.ts';
+
 export const TEMPLATES: Record<string, EmailTemplate> = {
   // Transaction Templates
   deposit_approved: depositApprovedTemplate,
@@ -79,6 +81,8 @@ export const TEMPLATES: Record<string, EmailTemplate> = {
   '2fa_disabled_confirmed': twoFactorDisabledConfirmedTemplate,
   backup_codes_generated: backupCodesGeneratedTemplate,
   password_reset_otp: passwordResetOtpTemplate,
+  kyc_approved: kycApprovedTemplate,
+  kyc_rejected: kycRejectedTemplate,
 
   // Profile Templates
   profile_updated_by_admin: profileTemplates[0], // ✅ Added profile template
