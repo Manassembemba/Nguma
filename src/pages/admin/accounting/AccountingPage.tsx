@@ -145,26 +145,28 @@ const AccountingPage = () => {
                 <StatCard
                     title="Trésorerie Totale"
                     value={formatCurrency(
-                        (contractStats?.total_liquid_balance || 0) +
                         (contractStats?.total_capital_invested || 0) +
                         (contractStats?.total_insurance_fees_collected || 0)
                     )}
                     icon={Landmark}
                     isLoading={isLoadingContractStats}
                     gradient="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/20"
+                    description="Capital + Assurances"
                 />
                 <StatCard
                     title="Soldes Liquides"
-                    value={formatCurrency(contractStats?.total_liquid_balance)}
+                    value={formatCurrency(contractStats?.total_deposit_liquid_balance)}
                     icon={Wallet}
                     isLoading={isLoadingContractStats}
-                    gradient="bg-gradient-to-br from-yellow-500/10 to-red-500/10 border-yellow-500/20"
+                    gradient="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20"
+                    description="Dépôts non investis"
                 />
                 <StatCard
                     title="Capital Investi"
                     value={formatCurrency(contractStats?.total_capital_invested)}
                     icon={TrendingUp}
                     isLoading={isLoadingContractStats}
+                    description="Contrats Actifs & Pause"
                 />
                 <StatCard
                     title="Frais d'Assurance"

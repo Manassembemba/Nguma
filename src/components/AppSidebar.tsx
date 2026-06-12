@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users, MessageCircle, BookOpen, Mail } from "lucide-react";
+import { LayoutDashboard, Wallet, FileText, TrendingUp, Settings, Users, MessageCircle, BookOpen, Mail, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,7 @@ const adminItems = [
   { title: "Historique Transactions", url: "/admin/transactions", icon: TrendingUp },
 
   { title: "Gestion Contrats", url: "/admin/contracts", icon: FileText },
+  { title: "Vérification KYC", url: "/admin/kyc", icon: Shield },
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
   { title: "Diffusion Email", url: "/admin/broadcast", icon: Mail },
   { title: "Support Chat", url: "/admin/support", icon: MessageCircle },

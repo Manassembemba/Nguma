@@ -37,11 +37,11 @@ export const AdminEmailBroadcast = () => {
 
       if (userError) throw userError;
 
-      // 2. Fetch IDs of users with active contracts
+      // 2. Fetch IDs of users with active or paused contracts
       const { data: contractData, error: contractError } = await supabase
         .from('contracts')
         .select('user_id')
-        .eq('status', 'active');
+        .in('status', ['active', 'paused']);
 
       if (contractError) throw contractError;
 
@@ -145,7 +145,7 @@ export const AdminEmailBroadcast = () => {
                 onCheckedChange={(checked) => setOnlyActive(!!checked)} 
               />
               <label htmlFor="only-active" className="text-sm font-medium leading-none cursor-pointer">
-                Uniquement contrats actifs
+                Contrats actifs ou en pause
               </label>
             </div>
 

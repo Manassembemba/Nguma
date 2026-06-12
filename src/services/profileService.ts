@@ -140,3 +140,22 @@ export const updateProfile = async (profileData: Partial<Profile>) => {
 
   return updatedProfile;
 };
+
+/**
+ * Submits KYC documentation for the currently authenticated user.
+ */
+export const submitKYC = async (idFrontUrl: string, idBackUrl: string, residenceProofUrl: string, documentType: string) => {
+  const { data, error } = await supabase.rpc('submit_kyc', {
+    p_id_front_url: idFrontUrl,
+    p_id_back_url: idBackUrl,
+    p_residence_proof_url: residenceProofUrl,
+    p_document_type: documentType,
+  });
+
+  if (error || (data as any)?.success === false) {
+    console.error("Error submitting KYC:", error || (data as any)?.error);
+    throw new Error((data as any)?.error || "Erreur lors de la soumission du KYC.");
+  }
+
+  return data;
+};

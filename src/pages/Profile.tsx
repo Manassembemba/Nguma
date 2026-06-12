@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProfile, updateProfile } from '@/services/profileService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, User, Mail, Phone, MapPin, Shield, CheckCircle2, Camera, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Loader2, User, Mail, Phone, MapPin, Shield, CheckCircle2, Camera, AlertCircle, FileText, Upload, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { submitKYC } from '@/services/profileService';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, set, subYears } from 'date-fns';
@@ -71,6 +74,19 @@ const ProfilePage = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [kycIdFront, setKycIdFront] = useState<File | null>(null);
+  const [kycIdBack, setKycIdBack] = useState<File | null>(null);
+  const [kycResidence, setKycResidence] = useState<File | null>(null);
+  const [kycPreviews, setKycPreviews] = useState<{front?: string, back?: string, residence?: string}>({});
+  const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
+  const [kycDocType, setKycDocType] = useState('ID_CARD');
+  const [kycStep, setKycStep] = useState(1);
+  const kycInputRef = useRef<HTMLInputElement>(null);
+  
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const [activeTab, setActiveTab] = useState(queryParams.get('tab') || 'general');
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -206,6 +222,67 @@ const ProfilePage = () => {
     }
   };
 
+  const handleKycFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].includes(file.type)) {
+        toast({ variant: "destructive", title: "Erreur", description: "Format non supporté (JPG, PNG, PDF uniquement)." });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ variant: "destructive", title: "Erreur", description: "Fichier trop lourd (Max 5Mo)." });
+        return;
+      }
+
+      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
+
+      if (kycStep === 1) {
+        setKycIdFront(file);
+        setKycPreviews(prev => ({ ...prev, front: previewUrl }));
+      } else if (kycStep === 2) {
+        setKycIdBack(file);
+        setKycPreviews(prev => ({ ...prev, back: previewUrl }));
+      } else if (kycStep === 3) {
+        setKycResidence(file);
+        setKycPreviews(prev => ({ ...prev, residence: previewUrl }));
+      }
+    }
+  };
+
+  const handleKycSubmit = async () => {
+    if (!kycIdFront || !kycIdBack || !kycResidence || !profile) return;
+    setIsSubmittingKyc(true);
+    try {
+      const uploadFile = async (file: File, suffix: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${profile.id}/${Date.now()}_${suffix}.${fileExt}`;
+        const { data, error } = await supabase.storage.from('kyc-documents').upload(fileName, file);
+        if (error) throw error;
+        return data.path;
+      };
+
+      const [frontPath, backPath, residencePath] = await Promise.all([
+        uploadFile(kycIdFront, 'id_front'),
+        uploadFile(kycIdBack, 'id_back'),
+        uploadFile(kycResidence, 'residence')
+      ]);
+
+      await submitKYC(frontPath, backPath, residencePath, kycDocType);
+      
+      toast({ title: "Demande soumise", description: "Votre dossier KYC complet est en cours d'examen." });
+      setKycIdFront(null);
+      setKycIdBack(null);
+      setKycResidence(null);
+      setKycPreviews({});
+      setKycStep(1);
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    } finally {
+      setIsSubmittingKyc(false);
+    }
+  };
+
   const isComplete = (fieldName: keyof ProfileFormValues) => {
     const val = form.getValues(fieldName);
     return val && val.toString().trim() !== '';
@@ -312,11 +389,12 @@ const ProfilePage = () => {
               {[
                 { label: "Nom & Prénom", field: "last_name" },
                 { label: "Téléphone Valide", field: "phone" },
-                { label: "Majorité (18+)", field: "birth_date" }
+                { label: "Majorité (18+)", field: "birth_date" },
+                { label: "Identité Vérifiée", customCheck: profile?.kyc_status === 'verified' }
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50">
                   <span className="text-[11px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-tight">{item.label}</span>
-                  {isComplete(item.field as any) ? (
+                  {(item.customCheck !== undefined ? item.customCheck : isComplete(item.field as any)) ? (
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   ) : (
                     <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
@@ -324,13 +402,23 @@ const ProfilePage = () => {
                 </div>
               ))}
             </div>
+            {profile?.kyc_status === 'pending' && (
+              <p className="mt-4 text-[10px] font-bold text-center text-amber-600 bg-amber-50 py-1.5 rounded-lg border border-amber-100 animate-pulse">
+                Examen de votre identité en cours...
+              </p>
+            )}
+            {profile?.kyc_status === 'verified' && (
+              <p className="mt-4 text-[10px] font-bold text-center text-emerald-600 bg-emerald-50 py-1.5 rounded-lg border border-emerald-100">
+                Identité confirmée avec succès
+              </p>
+            )}
           </Card>
         </div>
 
         {/* Main Content Area */}
         <div className="lg:col-span-8">
-          <Tabs defaultValue="general" className="w-full space-y-6">
-            <TabsList className="bg-zinc-100 dark:bg-zinc-900 p-1.5 rounded-2xl w-full sm:w-auto h-auto grid grid-cols-3 border border-zinc-200 dark:border-zinc-800">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+            <TabsList className="bg-zinc-100 dark:bg-zinc-900 p-1.5 rounded-2xl w-full sm:w-auto h-auto grid grid-cols-4 border border-zinc-200 dark:border-zinc-800">
               <TabsTrigger value="general" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <User className="h-4 w-4 mr-2" />
                 Profil
@@ -338,6 +426,10 @@ const ProfilePage = () => {
               <TabsTrigger value="contact" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <MapPin className="h-4 w-4 mr-2" />
                 Contact
+              </TabsTrigger>
+              <TabsTrigger value="verification" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
+                <FileText className="h-4 w-4 mr-2" />
+                Identité
               </TabsTrigger>
               <TabsTrigger value="security" className="rounded-xl py-2.5 font-black text-zinc-600 dark:text-zinc-400 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-50 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:shadow-elegant transition-all">
                 <Shield className="h-4 w-4 mr-2" />
@@ -523,6 +615,194 @@ const ProfilePage = () => {
                       <FormField control={form.control} name="address" render={({ field }) => (
                         <FormItem><FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Adresse Résidentielle</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="Ex: 12, Avenue de la Paix" className={inputCls} /></FormControl><FormMessage /></FormItem>
                       )} />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="verification" className="space-y-6 animate-slide-up outline-none">
+                  <Card className={cardCls}>
+                    <CardHeader className="border-b border-zinc-100 dark:border-zinc-900">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg font-black text-zinc-900 dark:text-zinc-50">Vérification d'Identité (KYC)</CardTitle>
+                          <CardDescription className="font-bold text-zinc-700 dark:text-zinc-400">Suivez les étapes pour valider votre compte.</CardDescription>
+                        </div>
+                        {profile?.kyc_status === 'verified' && <Badge className="bg-emerald-500 text-white border-none px-3 rounded-full">Vérifié</Badge>}
+                        {profile?.kyc_status === 'pending' && <Badge className="bg-amber-500 text-white border-none px-3 rounded-full animate-pulse">En attente</Badge>}
+                        {profile?.kyc_status === 'rejected' && <Badge className="bg-red-500 text-white border-none px-3 rounded-full">Refusé</Badge>}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6">
+                      {profile?.kyc_status === 'rejected' && (
+                        <Alert className="bg-red-50 border-red-200 text-red-800 rounded-2xl p-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="font-bold ml-2">
+                            Votre demande précédente a été refusée : <span className="italic">"{profile.kyc_rejection_reason}"</span>. Veuillez soumettre un nouveau dossier complet.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {profile?.kyc_status === 'verified' ? (
+                        <div className="text-center py-12 space-y-4">
+                          <div className="mx-auto w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                          </div>
+                          <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Votre identité est vérifiée</h3>
+                          <p className="text-zinc-600 dark:text-zinc-400 font-bold max-w-sm mx-auto">
+                            Merci d'avoir complété votre vérification. Vous avez désormais un accès complet à toutes les fonctionnalités de Nguma.
+                          </p>
+                        </div>
+                      ) : profile?.kyc_status === 'pending' ? (
+                        <div className="text-center py-12 space-y-4">
+                          <div className="mx-auto w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                            <Loader2 className="h-10 w-10 text-amber-600 animate-spin" />
+                          </div>
+                          <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Vérification en cours</h3>
+                          <p className="text-zinc-600 dark:text-zinc-400 font-bold max-w-sm mx-auto">
+                            Nos administrateurs examinent actuellement vos 3 documents. Ce processus prend généralement moins de 24 heures.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-8">
+                          {/* Stepper Header */}
+                          <div className="flex justify-between items-center max-w-md mx-auto relative">
+                            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-zinc-100 dark:bg-zinc-800 -translate-y-1/2 -z-0" />
+                            {[1, 2, 3].map((step) => (
+                              <div 
+                                key={step} 
+                                className={cn(
+                                  "w-10 h-10 rounded-full flex items-center justify-center font-black text-sm z-10 transition-all duration-500",
+                                  kycStep >= step ? "bg-primary text-white shadow-lg scale-110" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                                )}
+                              >
+                                {step}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="text-center space-y-2">
+                            <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">
+                              {kycStep === 1 ? "Étape 1 : Pièce d'Identité (Recto)" : 
+                               kycStep === 2 ? "Étape 2 : Pièce d'Identité (Verso)" : 
+                               "Étape 3 : Justificatif de Domicile"}
+                            </h3>
+                            <p className="text-sm text-zinc-500 font-bold">
+                              {kycStep === 1 ? "Téléchargez la face avant de votre carte d'identité ou passeport." : 
+                               kycStep === 2 ? "Téléchargez la face arrière de votre document d'identité." : 
+                               "Facture d'eau/électricité ou certificat de résidence de moins de 3 mois."}
+                            </p>
+                          </div>
+
+                          {kycStep === 1 && (
+                            <div className="max-w-sm mx-auto space-y-4">
+                              <Select value={kycDocType} onValueChange={setKycDocType}>
+                                <SelectTrigger className="rounded-xl h-11 border-zinc-300 dark:border-zinc-800 font-bold">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl font-bold">
+                                  <SelectItem value="ID_CARD">Carte d'Identité</SelectItem>
+                                  <SelectItem value="PASSPORT">Passeport</SelectItem>
+                                  <SelectItem value="DRIVING_LICENSE">Permis de Conduire</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <div className="max-w-xl mx-auto space-y-6">
+                            <div 
+                              onClick={() => !isSubmittingKyc && kycInputRef.current?.click()}
+                              className={cn(
+                                "border-2 border-dashed rounded-[2rem] p-10 text-center cursor-pointer transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/50 min-h-[250px] flex flex-col items-center justify-center",
+                                (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycIdBack) || (kycStep === 3 && kycResidence) ? "border-primary bg-primary/5" : "border-zinc-200 dark:border-zinc-800",
+                                isSubmittingKyc && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <input 
+                                type="file" 
+                                ref={kycInputRef} 
+                                className="hidden" 
+                                onChange={handleKycFileChange}
+                                accept="image/*,application/pdf"
+                              />
+                              
+                              {(kycStep === 1 && kycPreviews.front) || (kycStep === 2 && kycPreviews.back) || (kycStep === 3 && kycPreviews.residence) ? (
+                                <div className="relative w-full max-w-xs aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-zinc-900">
+                                  <img 
+                                    src={kycStep === 1 ? kycPreviews.front : kycStep === 2 ? kycPreviews.back : kycPreviews.residence} 
+                                    className="w-full h-full object-cover" 
+                                    alt="Preview" 
+                                  />
+                                  <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      if (kycStep === 1) setKycIdFront(null);
+                                      else if (kycStep === 2) setKycIdBack(null);
+                                      else setKycResidence(null);
+                                      setKycPreviews(prev => {
+                                        const n = { ...prev };
+                                        if (kycStep === 1) delete n.front;
+                                        else if (kycStep === 2) delete n.back;
+                                        else delete n.residence;
+                                        return n;
+                                      });
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycIdBack) || (kycStep === 3 && kycResidence) ? (
+                                <div className="space-y-3">
+                                  <FileText className="mx-auto h-16 w-16 text-primary" />
+                                  <p className="font-black text-zinc-900 dark:text-zinc-50">
+                                    {kycStep === 1 ? kycIdFront?.name : kycStep === 2 ? kycIdBack?.name : kycResidence?.name}
+                                  </p>
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); kycInputRef.current?.click(); }} className="text-primary font-bold">Changer de fichier</Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-2">
+                                    <Upload className="h-10 w-10 text-zinc-400" />
+                                  </div>
+                                  <p className="text-xl font-black text-zinc-900 dark:text-zinc-50">Cliquez pour télécharger</p>
+                                  <p className="text-sm text-zinc-500 font-bold">Format accepté : JPG, PNG ou PDF (Max 5Mo)</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex gap-4">
+                              {kycStep > 1 && (
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => setKycStep(kycStep - 1)}
+                                  className="h-14 rounded-2xl font-bold flex-1 border-zinc-300 dark:border-zinc-800"
+                                >
+                                  Précédent
+                                </Button>
+                              )}
+                              
+                              {kycStep < 3 ? (
+                                <Button 
+                                  disabled={(kycStep === 1 && !kycIdFront) || (kycStep === 2 && !kycIdBack)}
+                                  onClick={() => setKycStep(kycStep + 1)}
+                                  className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-premium bg-primary hover:bg-primary/90 flex-1"
+                                >
+                                  Étape suivante
+                                </Button>
+                              ) : (
+                                <Button 
+                                  onClick={handleKycSubmit}
+                                  disabled={!kycResidence || isSubmittingKyc}
+                                  className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-premium bg-emerald-600 hover:bg-emerald-700 flex-1"
+                                >
+                                  {isSubmittingKyc ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />}
+                                  Soumettre mon dossier complet
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>

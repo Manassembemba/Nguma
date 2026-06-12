@@ -15,9 +15,9 @@ export const getSettingByKey = async (key: string): Promise<Setting | null> => {
     .from("settings")
     .select("*")
     .eq("key", key)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 = "single row not found"
+  if (error) {
     console.error(`Error fetching setting "${key}":`, error);
     throw new Error(`Could not fetch setting for "${key}".`);
   }

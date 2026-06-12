@@ -4,6 +4,7 @@ import { getContracts } from "@/services/contractService";
 import { getRecentTransactions } from "@/services/transactionService";
 import { getProfits } from "@/services/profitService";
 import { getSettings } from "@/services/settingsService";
+import { getProfile } from "@/services/profileService";
 import { WalletCard } from "@/components/WalletCard";
 import { TransactionTable } from "@/components/TransactionTable";
 import { ContractCard } from "@/components/ContractCard";
@@ -12,10 +13,11 @@ import { DashboardActions } from "@/components/DashboardActions";
 import { UpcomingPayments } from "@/components/UpcomingPayments";
 import { NewContractDialog } from "@/components/NewContractDialog";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,10 +26,11 @@ import {
   useUserContractsRealtime,
   useUserProfitsRealtime,
 } from "@/hooks/useRealtimeSync";
-// Removed: import { isDepositEnabled, getDepositPeriodStatus } from "@/services/depositPeriodService";
-// Removed: import { useDepositStatus } from "@/hooks/useDepositStatus";
 
 const Dashboard = () => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   // Get current user ID for Realtime filtering
   const { data: userResponse } = useQuery({
     queryKey: ["currentUser"],
@@ -40,12 +43,40 @@ const Dashboard = () => {
   useUserContractsRealtime(user?.id);
   useUserProfitsRealtime(user?.id);
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+  });
+
+  useEffect(() => {
+    if (profile && (profile.kyc_status === 'not_submitted' || profile.kyc_status === 'rejected')) {
+      const timer = setTimeout(() => {
+        toast({
+          title: "Vérification d'identité requise",
+          description: profile.kyc_status === 'rejected' 
+            ? "Votre demande KYC a été refusée. Veuillez soumettre un nouveau dossier."
+            : "Complétez votre KYC pour débloquer toutes les fonctionnalités.",
+          action: (
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={() => navigate('/profile?tab=verification')}
+              className="bg-primary text-white font-bold rounded-lg"
+            >
+              Vérifier maintenant
+            </Button>
+          ),
+          duration: 10000,
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [profile, toast, navigate]);
+
   const { data: wallet, isLoading: isLoadingWallet } = useQuery({
     queryKey: ["wallet"],
     queryFn: getWallet,
   });
-
-  // Removed: const { depositStatus, isLoading: isLoadingDepositStatus, error } = useDepositStatus();
 
   const { data: contracts, isLoading: isLoadingContracts } = useQuery({
     queryKey: ["contracts"],
@@ -70,12 +101,6 @@ const Dashboard = () => {
   const activeContracts = contracts?.filter(c => c.status === 'active' || c.status === 'paused') || [];
   const totalInvested = activeContracts.reduce((sum, c) => sum + Number(c.amount), 0);
 
-  // ROI = (Total Profit / Total Invested) * 100
-  // This shows the percentage return on the invested capital
-  const roi = Number(wallet?.invested_balance || 0) > 0
-    ? ((Number(wallet?.profit_balance || 0) / Number(wallet?.invested_balance || 0)) * 100)
-    : 0;
-
   // Calculate latest profit and next payment
   const latestProfit = profits?.[0]?.amount || 0;
   const nextPayment = activeContracts.length > 0 ? activeContracts[0] : null;
@@ -99,7 +124,6 @@ const Dashboard = () => {
         <DashboardActions wallet={wallet} />
       </div>
 
-      {/* Wallet Cards with Loading State */}
       <div className="w-full overflow-hidden">
         {isLoadingWallet || isLoadingContracts ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -114,7 +138,6 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Main Stats & Performance Section */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {isLoadingProfits ? (
@@ -132,7 +155,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Contracts Section with Enhanced Empty State */}
       <div className="space-y-4 md:space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-bold tracking-tight">Mes Contrats Actifs</h2>
@@ -159,7 +181,6 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="relative overflow-hidden p-8 md:p-16 dark:bg-zinc-900 rounded-[2.5rem] border border-border shadow-premium text-center space-y-8 group">
-            {/* Background decoration */}
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-700" />
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
 
@@ -187,6 +208,11 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+      </div>
+      
+      <div className="pt-8">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight mb-4">Transactions Récentes</h2>
+        <TransactionTable transactions={recentTransactions || []} isLoading={isLoadingTransactions} />
       </div>
     </div>
   );

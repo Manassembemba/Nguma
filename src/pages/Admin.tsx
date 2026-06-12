@@ -84,14 +84,19 @@ const AdminPage = () => {
       ) : (
         <div className="space-y-6">
           {/* Main Financial KPIs */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Fonds Sous Gestion"
               value={formatCurrency(stats?.funds_under_management || 0)}
               icon={DollarSign}
             />
             <StatCard
-              title="Dette Virtuelle Totale"
+              title="Frais d'Assurance"
+              value={formatCurrency(stats?.total_insurance_fees || 0)}
+              icon={Wallet}
+            />
+            <StatCard
+              title="Dette Virtuelle"
               value={formatCurrency(stats?.total_debt_to_recover || 0)}
               icon={ArrowUpCircle}
             />

@@ -33,6 +33,7 @@ const UsersPage = lazy(() => import("./pages/admin/UsersPage"));
 const SettingsPage = lazy(() => import("./pages/admin/SettingsPage"));
 const PendingDepositsPage = lazy(() => import("./pages/admin/PendingDepositsPage"));
 const PendingWithdrawalsPage = lazy(() => import("./pages/admin/PendingWithdrawalsPage"));
+const KycManagementPage = lazy(() => import("./pages/admin/KycManagement"));
 
 const AdminContractsPage = lazy(() => import("./pages/admin/Contracts"));
 const AdminUserContractsPage = lazy(() => import("./pages/admin/AdminUserContractsPage"));
@@ -247,6 +248,16 @@ const App = () => (
                     <AdminRoute>
                       <AppLayout>
                         <PendingWithdrawalsPage />
+                      </AppLayout>
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/kyc"
+                  element={
+                    <AdminRoute>
+                      <AppLayout>
+                        <KycManagementPage />
                       </AppLayout>
                     </AdminRoute>
                   }
