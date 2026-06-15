@@ -76,9 +76,8 @@ const ProfilePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [kycIdFront, setKycIdFront] = useState<File | null>(null);
-  const [kycIdBack, setKycIdBack] = useState<File | null>(null);
   const [kycResidence, setKycResidence] = useState<File | null>(null);
-  const [kycPreviews, setKycPreviews] = useState<{front?: string, back?: string, residence?: string}>({});
+  const [kycPreviews, setKycPreviews] = useState<{front?: string, residence?: string}>({});
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
   const [kycDocType, setKycDocType] = useState('ID_CARD');
   const [kycStep, setKycStep] = useState(1);
@@ -240,9 +239,6 @@ const ProfilePage = () => {
         setKycIdFront(file);
         setKycPreviews(prev => ({ ...prev, front: previewUrl }));
       } else if (kycStep === 2) {
-        setKycIdBack(file);
-        setKycPreviews(prev => ({ ...prev, back: previewUrl }));
-      } else if (kycStep === 3) {
         setKycResidence(file);
         setKycPreviews(prev => ({ ...prev, residence: previewUrl }));
       }
@@ -250,7 +246,7 @@ const ProfilePage = () => {
   };
 
   const handleKycSubmit = async () => {
-    if (!kycIdFront || !kycIdBack || !kycResidence || !profile) return;
+    if (!kycIdFront || !kycResidence || !profile) return;
     setIsSubmittingKyc(true);
     try {
       const uploadFile = async (file: File, suffix: string) => {
@@ -261,17 +257,15 @@ const ProfilePage = () => {
         return data.path;
       };
 
-      const [frontPath, backPath, residencePath] = await Promise.all([
+      const [frontPath, residencePath] = await Promise.all([
         uploadFile(kycIdFront, 'id_front'),
-        uploadFile(kycIdBack, 'id_back'),
         uploadFile(kycResidence, 'residence')
       ]);
 
-      await submitKYC(frontPath, backPath, residencePath, kycDocType);
+      await submitKYC(frontPath, '', residencePath, kycDocType);
       
       toast({ title: "Demande soumise", description: "Votre dossier KYC complet est en cours d'examen." });
       setKycIdFront(null);
-      setKycIdBack(null);
       setKycResidence(null);
       setKycPreviews({});
       setKycStep(1);
@@ -665,9 +659,9 @@ const ProfilePage = () => {
                       ) : (
                         <div className="space-y-8">
                           {/* Stepper Header */}
-                          <div className="flex justify-between items-center max-w-md mx-auto relative">
+                          <div className="flex justify-between items-center max-w-sm mx-auto relative">
                             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-zinc-100 dark:bg-zinc-800 -translate-y-1/2 -z-0" />
-                            {[1, 2, 3].map((step) => (
+                            {[1, 2].map((step) => (
                               <div 
                                 key={step} 
                                 className={cn(
@@ -683,12 +677,10 @@ const ProfilePage = () => {
                           <div className="text-center space-y-2">
                             <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">
                               {kycStep === 1 ? "Étape 1 : Pièce d'Identité (Recto)" : 
-                               kycStep === 2 ? "Étape 2 : Pièce d'Identité (Verso)" : 
-                               "Étape 3 : Justificatif de Domicile"}
+                               "Étape 2 : Justificatif de Domicile"}
                             </h3>
                             <p className="text-sm text-zinc-500 font-bold">
                               {kycStep === 1 ? "Téléchargez la face avant de votre carte d'identité ou passeport." : 
-                               kycStep === 2 ? "Téléchargez la face arrière de votre document d'identité." : 
                                "Facture d'eau/électricité ou certificat de résidence de moins de 3 mois."}
                             </p>
                           </div>
@@ -781,9 +773,9 @@ const ProfilePage = () => {
                                 </Button>
                               )}
                               
-                              {kycStep < 3 ? (
+                              {kycStep < 2 ? (
                                 <Button 
-                                  disabled={(kycStep === 1 && !kycIdFront) || (kycStep === 2 && !kycIdBack)}
+                                  disabled={(kycStep === 1 && !kycIdFront)}
                                   onClick={() => setKycStep(kycStep + 1)}
                                   className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-premium bg-primary hover:bg-primary/90 flex-1"
                                 >
