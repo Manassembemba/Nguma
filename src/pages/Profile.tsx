@@ -705,7 +705,7 @@ const ProfilePage = () => {
                               onClick={() => !isSubmittingKyc && kycInputRef.current?.click()}
                               className={cn(
                                 "border-2 border-dashed rounded-[2rem] p-10 text-center cursor-pointer transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/50 min-h-[250px] flex flex-col items-center justify-center",
-                                (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycIdBack) || (kycStep === 3 && kycResidence) ? "border-primary bg-primary/5" : "border-zinc-200 dark:border-zinc-800",
+                                (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycResidence) ? "border-primary bg-primary/5" : "border-zinc-200 dark:border-zinc-800",
                                 isSubmittingKyc && "opacity-50 cursor-not-allowed"
                               )}
                             >
@@ -717,10 +717,10 @@ const ProfilePage = () => {
                                 accept="image/*,application/pdf"
                               />
                               
-                              {(kycStep === 1 && kycPreviews.front) || (kycStep === 2 && kycPreviews.back) || (kycStep === 3 && kycPreviews.residence) ? (
+                              {(kycStep === 1 && kycPreviews.front) || (kycStep === 2 && kycPreviews.residence) ? (
                                 <div className="relative w-full max-w-xs aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-zinc-900">
                                   <img 
-                                    src={kycStep === 1 ? kycPreviews.front : kycStep === 2 ? kycPreviews.back : kycPreviews.residence} 
+                                    src={kycStep === 1 ? kycPreviews.front : kycPreviews.residence} 
                                     className="w-full h-full object-cover" 
                                     alt="Preview" 
                                   />
@@ -728,12 +728,10 @@ const ProfilePage = () => {
                                     onClick={(e) => { 
                                       e.stopPropagation(); 
                                       if (kycStep === 1) setKycIdFront(null);
-                                      else if (kycStep === 2) setKycIdBack(null);
                                       else setKycResidence(null);
                                       setKycPreviews(prev => {
                                         const n = { ...prev };
                                         if (kycStep === 1) delete n.front;
-                                        else if (kycStep === 2) delete n.back;
                                         else delete n.residence;
                                         return n;
                                       });
@@ -743,15 +741,16 @@ const ProfilePage = () => {
                                     <X className="h-4 w-4" />
                                   </button>
                                 </div>
-                              ) : (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycIdBack) || (kycStep === 3 && kycResidence) ? (
+                              ) : (kycStep === 1 && kycIdFront) || (kycStep === 2 && kycResidence) ? (
                                 <div className="space-y-3">
                                   <FileText className="mx-auto h-16 w-16 text-primary" />
                                   <p className="font-black text-zinc-900 dark:text-zinc-50">
-                                    {kycStep === 1 ? kycIdFront?.name : kycStep === 2 ? kycIdBack?.name : kycResidence?.name}
+                                    {kycStep === 1 ? kycIdFront?.name : kycResidence?.name}
                                   </p>
                                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); kycInputRef.current?.click(); }} className="text-primary font-bold">Changer de fichier</Button>
                                 </div>
                               ) : (
+
                                 <div className="space-y-4">
                                   <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-2">
                                     <Upload className="h-10 w-10 text-zinc-400" />
