@@ -182,7 +182,10 @@ const KycManagement = () => {
       setLoading(true);
       const signedUrl = await getDocumentUrl(path);
       setLoading(false);
-      if (signedUrl) setDocumentViewer({ isOpen: true, url: signedUrl, label });
+      if (signedUrl) {
+        const isPdf = path.toLowerCase().endsWith('.pdf');
+        setDocumentViewer({ isOpen: true, url: signedUrl, label, isPdf });
+      }
     };
 
     const statusConfig = {
