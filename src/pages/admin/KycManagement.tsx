@@ -396,7 +396,7 @@ const KycManagement = () => {
       </div>
 
       {/* Document Viewer Modal */}
-      <Dialog open={documentViewer.isOpen} onOpenChange={(open) => !open && setDocumentViewer({ isOpen: false, url: "", label: "" })}>
+      <Dialog open={documentViewer.isOpen} onOpenChange={(open) => !open && setDocumentViewer({ isOpen: false, url: "", label: "", isPdf: false })}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-zinc-950/90 backdrop-blur-xl">
           <div className="p-6 border-b border-white/10 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
@@ -405,19 +405,27 @@ const KycManagement = () => {
               </div>
               <h3 className="font-black text-xl tracking-tight text-white">{documentViewer.label}</h3>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setDocumentViewer({ isOpen: false, url: "", label: "" })} className="rounded-full hover:bg-white/10 text-white">
+            <Button variant="ghost" size="icon" onClick={() => setDocumentViewer({ isOpen: false, url: "", label: "", isPdf: false })} className="rounded-full hover:bg-white/10 text-white">
               <XCircle className="h-6 w-6" />
             </Button>
           </div>
-          <div className="bg-zinc-900/50 flex items-center justify-center p-8 min-h-[50vh]">
-            <img 
-              src={documentViewer.url} 
-              alt={documentViewer.label} 
-              className="max-h-[70vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
-            />
+          <div className="bg-zinc-900/50 flex items-center justify-center p-8 min-h-[70vh]">
+            {documentViewer.isPdf ? (
+              <iframe 
+                src={documentViewer.url} 
+                className="w-full h-[70vh] rounded-2xl"
+                title={documentViewer.label}
+              />
+            ) : (
+              <img 
+                src={documentViewer.url} 
+                alt={documentViewer.label} 
+                className="max-h-[70vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
+              />
+            )}
           </div>
           <div className="p-6 bg-zinc-900 border-t border-white/10 flex justify-center">
-            <Button variant="secondary" onClick={() => setDocumentViewer({ isOpen: false, url: "", label: "" })} className="rounded-2xl font-black px-10 h-12 shadow-premium border-none text-zinc-900">
+            <Button variant="secondary" onClick={() => setDocumentViewer({ isOpen: false, url: "", label: "", isPdf: false })} className="rounded-2xl font-black px-10 h-12 shadow-premium border-none text-zinc-900">
               Fermer la vue
             </Button>
           </div>
