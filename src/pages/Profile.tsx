@@ -653,7 +653,7 @@ const ProfilePage = () => {
                           </div>
                           <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Vérification en cours</h3>
                           <p className="text-zinc-600 dark:text-zinc-400 font-bold max-w-sm mx-auto">
-                            Nos administrateurs examinent actuellement vos 3 documents. Ce processus prend généralement moins de 24 heures.
+                            Votre dossier est actuellement en cours d'examen. Nos équipes analysent vos documents et vous serez informé dès la fin de la vérification, qui peut prendre jusqu'à une semaine.
                           </p>
                         </div>
                       ) : (
