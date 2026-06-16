@@ -77,30 +77,33 @@ const renderWithdrawalPending = (params: EmailParams, helpers: TemplateHelpers):
     ${StatusBadge('info', 'Vérification en cours')}
     <h2>Demande enregistrée</h2>
     <p style="font-size: 15px; line-height: 1.6; color: #374151;">
-      Nous traitons toutes les demandes de retrait dans un délai de <strong>5 jours ouvrables</strong>. Toutefois, ce délai peut être légèrement prolongé en fonction de l’affluence. Vous serez informé(e) dès que le processus sera finalisé.
+      Bonjour <strong>${name}</strong>,<br><br>
+      Votre demande de retrait a bien été reçue !
     </p>
 
     ${InfoCard(`
       <table class="info-table">
         <tr><td>Montant :</td><td class="amount-highlight">${formatCurrency(amount)}</td></tr>
-        <tr><td>Délai standard :</td><td>5 jours ouvrables</td></tr>
       </table>
     `)}
 
-    <p style="font-size: 14px; line-height: 1.6; color: #6B7280; margin-top: 20px;">
-      Si, après 5 jours ouvrables, le retrait n’est toujours pas validé, la demande sera automatiquement annulée. Nous vous inviterons alors à effectuer une nouvelle demande via un autre moyen de paiement pour accélérer le traitement.
+    <p style="font-size: 15px; line-height: 1.6; color: #374151; margin-top: 20px;">
+      Notre délai standard de traitement est de <strong>5 jours ouvrables</strong>. Toutefois, face à un grand nombre de demandes simultanées, ce délai peut parfois être prolongé jusqu'à <strong>60 jours</strong>.
     </p>
 
-    <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #E5E7EB;">
-      <p style="font-size: 14px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">Besoin d’aide ?</p>
-      <p style="font-size: 13px; color: #4B5563;">Notre équipe d’assistance est disponible 24h/24 et 7j/7 via le chat en ligne ou notre support.</p>
-    </div>
+    <p style="font-size: 15px; line-height: 1.6; color: #374151; margin-top: 20px;">
+      Chaque demande compte énormément pour nous, et nous vous remercions sincèrement pour votre patience et votre confiance pendant que nous finalisons la vôtre. Le plus important est en marche : votre patience sera bientôt récompensée !
+    </p>
+
+    <p style="font-size: 15px; line-height: 1.6; color: #374151; margin-top: 20px;">
+      Un e-mail de confirmation vous sera envoyé dès que le virement sera validé.
+    </p>
   `;
   const html = BaseLayout(content, previewText, siteUrl);
   return {
     subject,
     previewText,
-    text: `Bonjour ${name}, votre demande est enregistrée.`,
+    text: `Bonjour ${name}, votre demande de retrait de ${formatCurrency(amount)} a bien été reçue. Elle est en cours de traitement (délai standard 5 jours, pouvant aller jusqu'à 60 jours en cas de forte affluence). Merci de votre patience.`,
     html
   };
 };
