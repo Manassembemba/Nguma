@@ -113,15 +113,19 @@ L'équipe Nguma Botes Group`
     subject: '⏳ Retrait En Attente - {{amount}} {{currency}}',
     body: `Bonjour,
 
-Votre retrait de {{amount}} {{currency}} est en attente de validation.
+Votre demande de retrait a bien été reçue !
 
-Détails :
+Détails de la demande :
 - Montant : {{amount}} {{currency}}
 - Date : {{date}}
 - Méthode : {{method}}
 - Référence : {{reference}}
 
-Notre équipe procédera à la vérification dans les plus brefs délais.
+Notre délai standard de traitement est de 5 jours ouvrables. Toutefois, face à un grand nombre de demandes simultanées, ce délai peut parfois être prolongé jusqu'à 60 jours.
+
+Chaque demande compte énormément pour nous, et nous vous remercions sincèrement pour votre patience et votre confiance pendant que nous finalisons la vôtre. Le plus important est en marche : votre patience sera bientôt récompensée !
+
+Un e-mail de confirmation vous sera envoyé dès que le virement sera validé.
 
 Cordialement,
 L'équipe Nguma Botes Group`
