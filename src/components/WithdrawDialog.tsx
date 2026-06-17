@@ -64,7 +64,7 @@ export const WithdrawDialog = ({ wallet, open: propOpen, onOpenChange: propOnOpe
   const minWithdrawal = Number(settings?.find(s => s.key === 'min_withdrawal_amount')?.value || 10);
   const profitBalance = Number(wallet?.profit_balance || 0);
   const maxWithdrawalSetting = Number(settings?.find(s => s.key === 'max_withdrawal_amount')?.value || 10000);
-  const dailyLimit = Number(settings?.find(s => s.key === 'daily_withdrawal_amount_limit')?.value || 1000);
+  const dailyLimit = Number(settings?.find(s => s.key === 'withdrawal_daily_limit_amount')?.value || 1000);
   const maxWithdrawal = profitBalance > 0 ? Math.min(profitBalance, maxWithdrawalSetting, dailyLimit) : dailyLimit;
 
   // Check if user has sufficient balance
