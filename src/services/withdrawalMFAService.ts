@@ -7,9 +7,9 @@ export const requestWithdrawalOTP = async (amount: number, method: string, detai
     // On ne loggue pas les détails du MFA en production pour plus de propreté et sécurité
 
     const { data, error } = await supabase.rpc('request_withdrawal_otp', {
-        amount: amount,
-        method: method,
-        payment_details: details
+        p_amount: amount,
+        p_method: method,
+        p_payment_details: details
     } as any);
 
     if (error) {
