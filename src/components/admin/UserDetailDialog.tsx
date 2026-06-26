@@ -186,6 +186,7 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
             <span>{profile?.first_name} {profile?.last_name}</span>
             {profile?.post_nom && <span className="text-muted-foreground ml-1">({profile.post_nom})</span>}
           </div>
+          {profile?.kyc_status === 'verified' && <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 ml-2">KYC Validé</Badge>}
         </DialogTitle>
         <DialogDescription>Vue complète du profil et de l'activité de l'utilisateur</DialogDescription>
       </DialogHeader>

@@ -531,6 +531,8 @@ export const InvestorListTable = () => {
                           <span className="font-medium">{`${investor.first_name || ''} ${investor.last_name || ''}`.trim() || "N/A"}</span>
                           {isBanned && <Badge variant="destructive">Banni</Badge>}
                           {isNewUser(investor.created_at) && <Badge variant="secondary"><Sparkles className="h-3 w-3 mr-1" />Nouveau</Badge>}
+                          {/* @ts-ignore: investor type needs update for kyc_status */}
+                          {investor.kyc_status === 'verified' && <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">KYC Validé</Badge>}
                         </div>
                         <div className="text-sm text-muted-foreground">{investor.email}</div>
                       </TableCell>

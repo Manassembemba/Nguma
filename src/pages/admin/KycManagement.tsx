@@ -39,22 +39,64 @@ const KycManagement = () => {
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [documentViewer, setDocumentViewer] = useState<{ isOpen: boolean; url: string; label: string }>({ isOpen: false, url: "", label: "" });
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('pending');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const ITEMS_PER_PAGE = 5;
+  const [documentViewer, setDocumentViewer] = useState<{ isOpen: boolean; url: string; label: string; isPdf?: boolean }>({ isOpen: false, url: "", label: "" });
 
-  // Fetch pending KYC requests
-  const { data: pendingKycs, isLoading } = useQuery({
-    queryKey: ["pendingKycs"],
+  // Fetch KYC history
+  const { data: kycHistory } = useQuery({
+    queryKey: ["kycHistory", selectedUser?.id],
+    queryFn: async () => {
+      if (!selectedUser) return [];
+      const { data, error } = await supabase
+        .from("kyc_history")
+        .select("*, profiles!kyc_history_changed_by_fkey(first_name, last_name)")
+        .eq("user_id", selectedUser.id)
+        .order("changed_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedUser,
+  });
+
+  // Fetch all KYC requests
+  const { data: allKycs, isLoading } = useQuery({
+    queryKey: ["allKycs"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("kyc_status", "pending")
-        .order("kyc_submitted_at", { ascending: true });
+        .neq("kyc_status", "not_submitted")
+        .order("kyc_submitted_at", { ascending: false });
 
       if (error) throw error;
       return data;
     },
   });
+
+  const filteredKycs = allKycs?.filter(kyc => {
+    const matchesTab = kyc.kyc_status === activeTab;
+    const matchesSearch = 
+      (kyc.first_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (kyc.last_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (kyc.email?.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesTab && matchesSearch;
+  }) || [];
+  
+  // Pagination logic
+  const totalPages = Math.ceil(filteredKycs.length / ITEMS_PER_PAGE);
+  const paginatedKycs = filteredKycs.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset page when tab or search changes
+  useState(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
 
   const reviewKycMutation = useMutation({
     mutationFn: async ({ userId, status, reason }: { userId: string, status: string, reason?: string }) => {
@@ -275,10 +317,52 @@ const KycManagement = () => {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="px-6 py-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm text-right">
-              <span className="block text-zinc-400 text-xs font-black uppercase tracking-widest mb-1">En attente</span>
-              <span className="text-4xl font-black text-white">{pendingKycs?.length || 0}</span>
+              <span className="block text-zinc-400 text-xs font-black uppercase tracking-widest mb-1">Total {activeTab}</span>
+              <span className="text-4xl font-black text-white">{filteredKycs.length}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          { label: 'Total', value: allKycs?.length || 0, color: 'text-zinc-600' },
+          { label: 'En attente', value: allKycs?.filter(k => k.kyc_status === 'pending').length || 0, color: 'text-amber-600' },
+          { label: 'Validés', value: allKycs?.filter(k => k.kyc_status === 'verified').length || 0, color: 'text-emerald-600' },
+          { label: 'Refusés', value: allKycs?.filter(k => k.kyc_status === 'rejected').length || 0, color: 'text-rose-600' },
+        ].map((stat, i) => (
+          <Card key={i} className="p-6 rounded-[2rem] shadow-sm border border-zinc-100 bg-white">
+            <span className="text-[10px] font-black uppercase text-zinc-400">{stat.label}</span>
+            <div className={`text-3xl font-black ${stat.color}`}>{stat.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabs and Search */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-full w-fit">
+          {['pending', 'verified', 'rejected'].map((tab) => (
+            <Button
+              key={tab}
+              variant="ghost"
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-full capitalize ${activeTab === tab ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+            >
+              {tab}
+            </Button>
+          ))}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <input
+          type="text"
+          placeholder="Rechercher..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-primary text-sm text-zinc-900 dark:text-white"
+          />
+
+          <div className="absolute left-3 top-2.5 text-zinc-400">🔍</div>
         </div>
       </div>
 
@@ -289,9 +373,9 @@ const KycManagement = () => {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <p className="font-bold text-zinc-600 animate-pulse uppercase tracking-widest text-xs">Chargement des dossiers...</p>
           </div>
-        ) : pendingKycs && pendingKycs.length > 0 ? (
+        ) : filteredKycs.length > 0 ? (
           <div className="grid grid-cols-1 gap-8">
-            {pendingKycs.map((kyc) => (
+            {paginatedKycs.map((kyc) => (
               <Card key={kyc.id} className="border-none shadow-premium rounded-[2.5rem] overflow-hidden group transition-all duration-500 hover:shadow-hover bg-white dark:bg-zinc-900 border border-zinc-100">
                 <div className="flex flex-col lg:flex-row">
                   {/* Left Sidebar: User Info */}
@@ -326,15 +410,17 @@ const KycManagement = () => {
                     </div>
 
                     <div className="pt-6">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => openRejectDialog(kyc)}
-                        className="w-full rounded-2xl text-rose-700 hover:bg-rose-50 hover:text-rose-800 font-black uppercase tracking-widest text-[10px] py-6 border border-rose-100"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Refuser le dossier complet
-                      </Button>
+                      {activeTab === 'pending' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => openRejectDialog(kyc)}
+                          className="w-full rounded-2xl text-rose-700 hover:bg-rose-50 hover:text-rose-800 font-black uppercase tracking-widest text-[10px] py-6 border border-rose-100"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Refuser le dossier complet
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -379,6 +465,27 @@ const KycManagement = () => {
                 </div>
               </Card>
             ))}
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-4 py-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Précédent
+                </Button>
+                <span className="text-sm font-bold">Page {currentPage} sur {totalPages}</span>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-32 flex flex-col items-center justify-center text-center space-y-6 bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] border border-zinc-200 dark:border-zinc-800">
@@ -431,6 +538,37 @@ const KycManagement = () => {
             <Button variant="secondary" onClick={() => setDocumentViewer({ isOpen: false, url: "", label: "", isPdf: false })} className="rounded-2xl font-black px-10 h-12 shadow-premium border-none text-zinc-900">
               Fermer la vue
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-[2.5rem] border-none shadow-2xl dark:bg-zinc-950 p-8">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black text-zinc-900 dark:text-white">Historique KYC</DialogTitle>
+            <DialogDescription className="font-bold text-zinc-500">
+              {selectedUser?.first_name} {selectedUser?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {kycHistory && kycHistory.length > 0 ? (
+              kycHistory.map((entry: any) => (
+                <div key={entry.id} className="p-4 border rounded-2xl bg-zinc-50 dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800">
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase text-zinc-500 mb-2">
+                    <span>{format(new Date(entry.changed_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</span>
+                    <Badge variant="outline">{entry.event_type} - {entry.object_type}</Badge>
+                  </div>
+                  <div className="text-sm font-medium text-zinc-900 dark:text-white">
+                    Statut : <span className="font-bold text-primary">{entry.status_from}</span> → <span className="font-bold text-emerald-600">{entry.status_to}</span>
+                  </div>
+                  {entry.notes && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 italic">"{entry.notes}"</p>}
+                  {entry.rejection_reason && <p className="mt-1 text-xs text-rose-600 font-bold">Raison: {entry.rejection_reason}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-zinc-500 py-10">Aucun historique disponible.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
