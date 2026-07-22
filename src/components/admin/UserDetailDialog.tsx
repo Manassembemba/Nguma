@@ -1,17 +1,18 @@
-
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserDetails, sendAdminNotification, getUserTransactionsPaginated } from "@/services/adminService";
 import { getAuditLogs, formatAuditAction } from "@/services/auditService";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
+import { DeductServiceFeeDialog } from "@/components/admin/DeductServiceFeeDialog";
 import {
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  Dialog,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
@@ -178,28 +179,34 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
   return (
     <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-primary" />
+        <DialogTitle className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <span>{profile?.first_name} {profile?.last_name}</span>
+              {profile?.post_nom && <span className="text-muted-foreground ml-1">({profile.post_nom})</span>}
+            </div>
+            {profile?.kyc_status === 'verified' && <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 ml-2">KYC Validé</Badge>}
           </div>
-          <div>
-            <span>{profile?.first_name} {profile?.last_name}</span>
-            {profile?.post_nom && <span className="text-muted-foreground ml-1">({profile.post_nom})</span>}
-          </div>
-          {profile?.kyc_status === 'verified' && <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 ml-2">KYC Validé</Badge>}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+                Facturer Service
+              </Button>
+            </DialogTrigger>
+            <DeductServiceFeeDialog userId={userId} userEmail={profile?.email || ""} />
+          </Dialog>
         </DialogTitle>
         <DialogDescription>Vue complète du profil et de l'activité de l'utilisateur</DialogDescription>
       </DialogHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-4">
+        <TabsList className="grid w-full grid-cols-5 mb-4">
           <TabsTrigger value="profile" className="text-xs">
             <User className="h-4 w-4 mr-1" />
             Profil
-          </TabsTrigger>
-          <TabsTrigger value="wallet" className="text-xs">
-            <Wallet className="h-4 w-4 mr-1" />
-            Portefeuille
           </TabsTrigger>
           <TabsTrigger value="contracts" className="text-xs">
             <FileText className="h-4 w-4 mr-1" />
@@ -280,9 +287,16 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
               <p className="text-xl font-bold text-purple-700">{formatCurrency(Number(wallet?.profit_balance || 0), wallet?.currency)}</p>
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profit actuel</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-orange-50 border border-orange-100">
-              <p className="text-xl font-bold text-orange-700">{formatCurrency(totalWithdrawn, wallet?.currency)}</p>
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Profits retirés</p>
+            <div className="text-center p-3 rounded-lg bg-red-50 border border-red-100">
+              <p className="text-xl font-bold text-red-700">
+                {formatCurrency(
+                  transactions
+                    ?.filter((t: any) => t.type === 'service_fee' && t.status === 'completed')
+                    ?.reduce((sum: number, t: any) => sum + Number(t.amount), 0) || 0,
+                  wallet?.currency
+                )}
+              </p>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Achat de services</p>
             </div>
           </div>
 
@@ -314,52 +328,6 @@ export const UserDetailDialog = ({ userId }: UserDetailDialogProps) => {
               <p className="text-xl font-bold text-amber-700">{formatCurrency(totalProfitsPaid, wallet?.currency)}</p>
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total Profits Versés</p>
             </div>
-          </div>
-        </TabsContent>
-
-        {/* WALLET TAB */}
-        <TabsContent value="wallet" className="space-y-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
-              <p className="text-sm text-muted-foreground">Solde Total</p>
-              <p className="text-2xl font-bold text-blue-700">{formatCurrency(Number(wallet?.total_balance || 0), wallet?.currency)}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-              <p className="text-sm text-muted-foreground">Investi</p>
-              <p className="text-2xl font-bold text-purple-700">{formatCurrency(Number(wallet?.invested_balance || 0), wallet?.currency)}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-              <p className="text-sm text-muted-foreground">Profits</p>
-              <p className="text-2xl font-bold text-green-700">+{formatCurrency(Number(wallet?.profit_balance || 0), wallet?.currency)}</p>
-            </div>
-            <div className={`p-4 rounded-lg border ${Number(wallet?.debt_balance || 0) > 0 ? 'bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20' : 'bg-gray-500/5 border-gray-500/10'}`}>
-              <p className="text-sm text-muted-foreground">Dette Virtuelle</p>
-              <p className={`text-2xl font-bold ${Number(wallet?.debt_balance || 0) > 0 ? 'text-red-700' : 'text-gray-500'}`}>
-                {formatCurrency(Number(wallet?.debt_balance || 0), wallet?.currency)}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg bg-muted/30 border border-dashed mt-6">
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              Provenance du Capital Investi
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-[10px] uppercase text-muted-foreground font-medium">Dépôts Externes (Cash)</p>
-                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalDeposits, wallet?.currency)}</p>
-                <Progress value={(totalDeposits / (totalInvested || 1)) * 100} className="h-1 bg-blue-100" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] uppercase text-muted-foreground font-medium">Réinvestissements (Profits)</p>
-                <p className="text-lg font-bold text-indigo-600">{formatCurrency(totalReinvested + totalTransferred, wallet?.currency)}</p>
-                <Progress value={((totalReinvested + totalTransferred) / (totalInvested || 1)) * 100} className="h-1 bg-indigo-100" />
-              </div>
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-3 italic">
-              Note : Le capital investi total ({formatCurrency(totalInvested, wallet?.currency)}) est la somme des fonds frais déposés et des gains réinjectés dans de nouveaux contrats.
-            </p>
           </div>
         </TabsContent>
 

@@ -104,6 +104,49 @@ export const adminAdjustDepositAmount = async ({ transactionId, newAmount }: { t
   return result;
 };
 
+export const adminDeductServiceFee = async ({ userId, amount, reason }: { userId: string; amount: number; reason: string }) => {
+  const { data, error } = await supabase.rpc('admin_deduct_service_fee', { p_user_id: userId, p_amount: amount, p_reason: reason });
+
+  if (error) {
+    console.error("Error in admin_deduct_service_fee RPC:", error);
+    throw new Error("Could not deduct service fee from user.");
+  }
+
+  const result = data as { success: boolean; error?: string };
+  if (result && !result.success) {
+    throw new Error(result.error || "An unknown error occurred during the transaction.");
+  }
+
+  // Fetch user profile to send notification
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email, first_name, last_name')
+    .eq('id', userId)
+    .single();
+
+  if (profile) {
+    const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    try {
+      // Message formaté selon la demande simple
+      const message = `Chère cliente, Cher client, le montant de ${amount} $US a été débité de votre compte pour : ${reason}.`;
+      
+      await sendEmailNotification({
+        template_id: 'profile_updated_by_admin', 
+        to: profile.email,
+        name: fullName || 'Cher utilisateur',
+        amount: amount,
+        reason: reason,
+        userId: userId,
+        activity: message // Passer le message simple dans le paramètre activity
+      });
+    } catch (e) {
+      console.error("Failed to send deduction notification email:", e);
+    }
+  }
+
+  return result;
+};
+
 // --- User Management ---
 export const getAllUsers = async () => {
   const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
