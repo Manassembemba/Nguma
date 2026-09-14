@@ -66,6 +66,8 @@ const ProfilePage = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [wasProfileIncomplete, setWasProfileIncomplete] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [birthDateMonth, setBirthDateMonth] = useState<Date>(() => subYears(new Date(), 18));
+  const [birthDateInputValue, setBirthDateInputValue] = useState<string>('');
 
   const [cities, setCities] = useState<string[]>([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
@@ -147,6 +149,12 @@ const ProfilePage = () => {
         address: profile.address || '',
         birth_date: profile.birth_date ? new Date(profile.birth_date) : undefined,
       });
+
+      if (profile.birth_date) {
+        const bDate = new Date(profile.birth_date);
+        setBirthDateMonth(bDate);
+        setBirthDateInputValue(format(bDate, 'dd/MM/yyyy'));
+      }
 
       if (profile.country) {
         fetchCities(profile.country);
@@ -453,8 +461,46 @@ const ProfilePage = () => {
                       )} />
 
                       <FormField control={form.control} name="birth_date" render={({ field }) => {
-                        const [month, setMonth] = useState(field.value ?? subYears(new Date(), 18));
                         const maxDate = subYears(new Date(), 18);
+
+                        const handleManualDateChange = (val: string) => {
+                          let digits = val.replace(/\D/g, '');
+                          if (digits.length > 8) digits = digits.slice(0, 8);
+                          
+                          let formatted = '';
+                          if (digits.length <= 2) {
+                            formatted = digits;
+                          } else if (digits.length <= 4) {
+                            formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+                          } else {
+                            formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+                          }
+
+                          setBirthDateInputValue(formatted);
+
+                          if (digits.length === 8) {
+                            const day = parseInt(digits.slice(0, 2), 10);
+                            const month = parseInt(digits.slice(2, 4), 10) - 1;
+                            const year = parseInt(digits.slice(4, 8), 10);
+                            const dateObj = new Date(year, month, day);
+                            if (
+                              !isNaN(dateObj.getTime()) &&
+                              dateObj.getDate() === day &&
+                              dateObj.getMonth() === month &&
+                              dateObj.getFullYear() === year &&
+                              year >= 1900 &&
+                              year <= new Date().getFullYear()
+                            ) {
+                              field.onChange(dateObj);
+                              setBirthDateMonth(dateObj);
+                              return;
+                            }
+                          }
+
+                          if (digits.length === 0) {
+                            field.onChange(undefined);
+                          }
+                        };
 
                         return (
                           <FormItem className="flex flex-col">
@@ -462,74 +508,103 @@ const ProfilePage = () => {
                               Date de naissance
                               <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black">18 ANS +</span>
                             </FormLabel>
-                            <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={true}>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button 
-                                    variant="outline" 
-                                    className={cn(
-                                      "h-11 rounded-xl border-zinc-300 bg-zinc-50/50 dark:bg-zinc-900 dark:border-zinc-800 justify-between text-left font-bold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 transition-all shadow-sm",
-                                      !field.value && "text-zinc-500"
-                                    )}
-                                  >
-                                    {field.value ? format(field.value, "PPP", { locale: fr }) : <span>Choisir votre date de naissance</span>}
-                                    <CalendarIcon className="h-4 w-4 text-zinc-500" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent 
-                                className="w-auto p-0 rounded-[2rem] border-none shadow-2xl dark:bg-zinc-950 overflow-hidden" 
-                                align="start"
-                              >
-                                <div className="p-4 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
-                                  <div className="flex gap-2">
-                                    <Select 
-                                      value={String(month.getMonth())} 
-                                      onValueChange={(val) => setMonth(m => set(m, { month: parseInt(val) }))}
-                                    >
-                                      <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-[200px] rounded-xl">
-                                        {Array.from({ length: 12 }, (_, i) => (
-                                          <SelectItem key={i} value={String(i)} className="text-xs font-bold">
-                                            {format(new Date(0, i), 'MMMM', { locale: fr })}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <Select 
-                                      value={String(month.getFullYear())} 
-                                      onValueChange={(val) => setMonth(m => set(m, { year: parseInt(val) }))}
-                                    >
-                                      <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-[200px] rounded-xl">
-                                        {Array.from({ length: 85 }, (_, i) => {
-                                          const year = new Date().getFullYear() - 18 - i;
-                                          return <SelectItem key={year} value={String(year)} className="text-xs font-bold">{year}</SelectItem>;
-                                        })}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                    setCalendarOpen(false); // Close on select
+                            <div className="flex gap-2 items-center">
+                              <FormControl>
+                                <Input 
+                                  type="text"
+                                  placeholder="JJ/MM/AAAA (ex: 15/06/1990)"
+                                  value={birthDateInputValue}
+                                  onChange={(e) => handleManualDateChange(e.target.value)}
+                                  onBlur={() => {
+                                    if (field.value) {
+                                      setBirthDateInputValue(format(field.value, 'dd/MM/yyyy'));
+                                    }
                                   }}
-                                  month={month}
-                                  onMonthChange={setMonth}
-                                  disabled={(date) => date > maxDate || date < new Date("1940-01-01")}
-                                  initialFocus
-                                  className="p-3"
+                                  className={cn(inputCls, "flex-1")}
                                 />
-                              </PopoverContent>
-                            </Popover>
-                            <FormDescription className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">L'investissement est réservé aux personnes majeures.</FormDescription>
+                              </FormControl>
+
+                              <Popover 
+                                open={calendarOpen} 
+                                onOpenChange={(open) => {
+                                  setCalendarOpen(open);
+                                  if (open && field.value) {
+                                    setBirthDateMonth(field.value);
+                                  }
+                                }} 
+                                modal={true}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button 
+                                    type="button"
+                                    variant="outline" 
+                                    className="h-11 px-3 rounded-xl border-zinc-300 bg-zinc-50/50 dark:bg-zinc-900 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm flex items-center gap-1.5 font-bold shrink-0"
+                                    title="Choisir sur le calendrier"
+                                  >
+                                    <CalendarIcon className="h-4 w-4 text-primary" />
+                                    <span className="hidden sm:inline text-xs">Calendrier</span>
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent 
+                                  className="w-auto p-0 rounded-[2rem] border-none shadow-2xl dark:bg-zinc-950 overflow-hidden" 
+                                  align="end"
+                                >
+                                  <div className="p-4 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex gap-2">
+                                      <Select 
+                                        value={String(birthDateMonth.getMonth())} 
+                                        onValueChange={(val) => setBirthDateMonth(m => set(m, { month: parseInt(val) }))}
+                                      >
+                                        <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-[200px] rounded-xl">
+                                          {Array.from({ length: 12 }, (_, i) => (
+                                            <SelectItem key={i} value={String(i)} className="text-xs font-bold">
+                                              {format(new Date(0, i), 'MMMM', { locale: fr })}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Select 
+                                        value={String(birthDateMonth.getFullYear())} 
+                                        onValueChange={(val) => setBirthDateMonth(m => set(m, { year: parseInt(val) }))}
+                                      >
+                                        <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-[200px] rounded-xl">
+                                          {Array.from({ length: 85 }, (_, i) => {
+                                            const year = new Date().getFullYear() - 18 - i;
+                                            return <SelectItem key={year} value={String(year)} className="text-xs font-bold">{year}</SelectItem>;
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={(date) => {
+                                      field.onChange(date);
+                                      if (date) {
+                                        setBirthDateMonth(date);
+                                        setBirthDateInputValue(format(date, 'dd/MM/yyyy'));
+                                      }
+                                      setCalendarOpen(false); // Close on select
+                                    }}
+                                    month={birthDateMonth}
+                                    onMonthChange={setBirthDateMonth}
+                                    disabled={(date) => date > maxDate || date < new Date("1940-01-01")}
+                                    initialFocus
+                                    className="p-3"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            <FormDescription className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                              Tapez votre date (ex: 15/06/1990) ou utilisez le calendrier (réservé aux 18 ans et plus).
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         );

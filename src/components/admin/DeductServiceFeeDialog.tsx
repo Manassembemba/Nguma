@@ -112,26 +112,24 @@ export const DeductServiceFeeDialog = ({ userId, userEmail }: DeductServiceFeeDi
                 <p className="font-semibold text-muted-foreground">Détail des contrats :</p>
                 <div className="max-h-[150px] overflow-y-auto border rounded p-2 space-y-1">
                     {(userDetails.contracts || []).filter((c: any) => c.status !== 'closed').map((c: any) => {
-                        const amount = Number(c.amount || 0);
+                        const currentAmount = Number(c.amount || 0); // Utiliser le capital actuel (après prélèvements)
                         const totalProfitPaid = Number(c.total_profit_paid || 0);
-                        const monthsPaid = Number(c.months_paid || 0);
-                        const durationMonths = Number(c.duration_months || 10);
-                        const netCapital = Math.max(0, amount - totalProfitPaid);
+                        const netCapital = Math.max(0, currentAmount);
 
-                        // Calcul réaliste basé sur la performance réelle constatée
-                        const monthlyProfit = monthsPaid > 0 ? (totalProfitPaid / monthsPaid) : 0;
-                        const totalExpectedProfit = monthlyProfit * durationMonths;
-                        const remainingProfit = Math.max(0, totalExpectedProfit - totalProfitPaid);
+                        // Règle métier : 200% total (soit 100% de profit sur le capital)
+                        // Pour avoir le profit restant, on calcule par rapport au capital ACTUEL
+                        const totalRate = 1.0; 
+                        const remainingProfit = Math.max(0, (currentAmount * totalRate) - totalProfitPaid);
 
                         return (
                             <div key={c.id} className="flex justify-between items-center bg-muted/30 p-1.5 rounded text-[10px]">
                                 <div className="truncate max-w-[120px]">
                                     <p className="font-semibold truncate">Contrat #{c.id.substring(0, 8)}</p>
-                                    <p className="text-[9px] text-muted-foreground">Cap: {formatCurrency(amount, userDetails.wallet?.currency)}</p>
+                                    <p className="text-[9px] text-muted-foreground">Capital actuel: {formatCurrency(currentAmount, userDetails.wallet?.currency)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-mono font-medium">{formatCurrency(netCapital, userDetails.wallet?.currency)}</p>
-                                    <p className="text-[9px] text-green-600">Restant: {formatCurrency(remainingProfit, userDetails.wallet?.currency)}</p>
+                                    <p className="font-mono font-bold text-primary">{formatCurrency(netCapital, userDetails.wallet?.currency)}</p>
+                                    <p className="text-[9px] text-green-600">Profit restant: {formatCurrency(remainingProfit, userDetails.wallet?.currency)}</p>
                                 </div>
                             </div>
                         );
