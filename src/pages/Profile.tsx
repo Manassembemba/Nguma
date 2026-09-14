@@ -69,9 +69,6 @@ const ProfilePage = () => {
   const [birthDateMonth, setBirthDateMonth] = useState<Date>(() => subYears(new Date(), 18));
   const [birthDateInputValue, setBirthDateInputValue] = useState<string>('');
 
-  const [cities, setCities] = useState<string[]>([]);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -110,32 +107,6 @@ const ProfilePage = () => {
 
   const selectedCountry = form.watch('country');
 
-  const fetchCities = async (countryCode: string) => {
-    if (!countryCode) {
-      setCities([]);
-      return;
-    }
-    setIsLoadingCities(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-cities', {
-        body: { countryCode },
-      });
-      if (error) throw error;
-      setCities(data || []);
-    } catch (error) {
-      console.error("Failed to fetch cities:", error);
-      setCities(['Autre']);
-    } finally {
-      setIsLoadingCities(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedCountry) {
-      fetchCities(selectedCountry);
-    }
-  }, [selectedCountry]);
-
   useEffect(() => {
     if (profile) {
       form.reset({
@@ -154,10 +125,6 @@ const ProfilePage = () => {
         const bDate = new Date(profile.birth_date);
         setBirthDateMonth(bDate);
         setBirthDateInputValue(format(bDate, 'dd/MM/yyyy'));
-      }
-
-      if (profile.country) {
-        fetchCities(profile.country);
       }
 
       const isProfileIncomplete = (
@@ -336,7 +303,7 @@ const ProfilePage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction className="rounded-xl h-12 font-black px-8 bg-primary text-white shadow-lg">Je complète mon profil</AlertDialogAction>
+            <AlertDialogAction onClick={() => setIsAlertOpen(false)} className="rounded-xl h-12 font-black px-8 bg-primary text-white shadow-lg">Je complète mon profil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -551,35 +518,31 @@ const ProfilePage = () => {
                                 >
                                   <div className="p-4 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
                                     <div className="flex gap-2">
-                                      <Select 
-                                        value={String(birthDateMonth.getMonth())} 
-                                        onValueChange={(val) => setBirthDateMonth(m => set(m, { month: parseInt(val) }))}
+                                      <select 
+                                        value={birthDateMonth.getMonth()} 
+                                        onChange={(e) => setBirthDateMonth(m => set(m, { month: parseInt(e.target.value) }))}
+                                        className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100 flex-1 outline-none focus:ring-2 focus:ring-primary"
                                       >
-                                        <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-[200px] rounded-xl">
-                                          {Array.from({ length: 12 }, (_, i) => (
-                                            <SelectItem key={i} value={String(i)} className="text-xs font-bold">
-                                              {format(new Date(0, i), 'MMMM', { locale: fr })}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <Select 
-                                        value={String(birthDateMonth.getFullYear())} 
-                                        onValueChange={(val) => setBirthDateMonth(m => set(m, { year: parseInt(val) }))}
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                          <option key={i} value={i} className="text-zinc-900 dark:text-zinc-100 dark:bg-zinc-900">
+                                            {format(new Date(0, i), 'MMMM', { locale: fr })}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <select 
+                                        value={birthDateMonth.getFullYear()} 
+                                        onChange={(e) => setBirthDateMonth(m => set(m, { year: parseInt(e.target.value) }))}
+                                        className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100 flex-1 outline-none focus:ring-2 focus:ring-primary"
                                       >
-                                        <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white dark:bg-zinc-950 shadow-sm text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-[200px] rounded-xl">
-                                          {Array.from({ length: 85 }, (_, i) => {
-                                            const year = new Date().getFullYear() - 18 - i;
-                                            return <SelectItem key={year} value={String(year)} className="text-xs font-bold">{year}</SelectItem>;
-                                          })}
-                                        </SelectContent>
-                                      </Select>
+                                        {Array.from({ length: 85 }, (_, i) => {
+                                          const year = new Date().getFullYear() - 18 - i;
+                                          return (
+                                            <option key={year} value={year} className="text-zinc-900 dark:text-zinc-100 dark:bg-zinc-900">
+                                              {year}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
                                     </div>
                                   </div>
                                   <Calendar
@@ -633,7 +596,7 @@ const ProfilePage = () => {
                         <FormField control={form.control} name="country" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Pays de résidence</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <Select onValueChange={field.onChange} value={field.value || undefined}>
                               <FormControl>
                                 <SelectTrigger className="h-11 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-300 dark:border-zinc-800 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-bold">
                                   <SelectValue placeholder="Sélectionner un pays" />
@@ -657,25 +620,9 @@ const ProfilePage = () => {
                         <FormField control={form.control} name="city" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="font-black text-xs uppercase tracking-widest text-zinc-800 dark:text-zinc-300">Ville</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry || isLoadingCities}>
-                              <FormControl>
-                                <SelectTrigger className="h-11 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-300 dark:border-zinc-800 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-bold">
-                                  {isLoadingCities ? (
-                                    <div className="flex items-center gap-2">
-                                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                                      <span className="text-zinc-600">Chargement...</span>
-                                    </div>
-                                  ) : (
-                                    <SelectValue placeholder="Sélectionner une ville" />
-                                  )}
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="max-h-[300px] rounded-2xl shadow-2xl border-zinc-200 dark:border-zinc-800">
-                                {cities.map((c) => (
-                                  <SelectItem key={c} value={c} className="py-3 font-bold text-zinc-800 dark:text-zinc-200">{c}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Ex: Kinshasa, Lubumbashi, Paris..." className={inputCls} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />

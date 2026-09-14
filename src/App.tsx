@@ -55,6 +55,7 @@ const MaintenancePage = lazy(() => import("./pages/Maintenance").then(module => 
 import { ChatButton } from "./components/ChatButton";
 import InstallPWA from "./components/InstallPWA";
 import { MobileBottomNav } from "./components/MobileBottomNav";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -132,14 +133,15 @@ const AppInitializer = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppInitializer />
-        <InstallPWA />
-        <NotificationProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppInitializer />
+          <InstallPWA />
+          <NotificationProvider>
           <Suspense fallback={
             <div className="flex items-center justify-center h-screen w-full bg-[#0b141a]">
               <Loader2 className="h-8 w-8 animate-spin text-[#00a884]" />
@@ -372,6 +374,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+</ErrorBoundary>
 );
 
 export default App;
