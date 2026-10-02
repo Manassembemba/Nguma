@@ -575,6 +575,41 @@ export interface TransactionKpiItem {
   assurances?: number;
 }
 
+export interface FilteredTransactionKpi {
+  total_count: number;
+  total_amount: number;
+  deposits: number;
+  deposits_completed: number;
+  withdrawals: number;
+  withdrawals_completed: number;
+  transfers: number;
+  investments: number;
+  assurances: number;
+}
+
+export const getFilteredTransactionKPIs = async (
+  searchQuery: string = '',
+  typeFilter: string = 'all',
+  statusFilter: string = 'all',
+  dateFrom: string = '',
+  dateTo: string = ''
+) => {
+  const { data, error } = await supabase.rpc('get_filtered_transaction_kpis' as any, {
+    p_search_query: searchQuery || null,
+    p_type_filter: typeFilter || 'all',
+    p_status_filter: statusFilter || 'all',
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null
+  });
+
+  if (error) {
+    console.error("Error fetching filtered transaction KPIs:", error);
+    throw new Error("Could not fetch filtered transaction KPIs.");
+  }
+
+  return data as FilteredTransactionKpi;
+};
+
 export const getTransactionKPIs = async (
   dateFrom: string = '',
   dateTo: string = ''
