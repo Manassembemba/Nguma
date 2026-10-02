@@ -113,7 +113,7 @@ const AdminTransactionsPage = () => {
     };
 
     const isFiltered = searchQuery !== "" || typeFilter !== "all" || statusFilter !== "all" || datePreset !== "all" || dateFrom !== "" || dateTo !== "";
-    const pendingWithdrawals = Math.max(0, (kpis?.withdrawals || 0) - (kpis?.withdrawals_completed || 0));
+    const pendingWithdrawals = kpis?.withdrawals_pending || 0;
 
     return (
         <div className="p-8 space-y-6">
@@ -146,7 +146,18 @@ const AdminTransactionsPage = () => {
                             {isLoadingKPIs ? "..." : formatCurrency(kpis?.deposits || 0)}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                            validés: {formatCurrency(kpis?.deposits_completed || 0)}
+                            {statusFilter === 'rejected' ? (
+                                <span className="text-rose-600">rejetés: {formatCurrency(kpis?.deposits_rejected || 0)}</span>
+                            ) : (
+                                <>
+                                    validés: {formatCurrency(kpis?.deposits_completed || 0)}
+                                    {(kpis?.deposits_pending || 0) > 0 && (
+                                        <span className="text-amber-600 ml-1">
+                                            (attente: {formatCurrency(kpis?.deposits_pending || 0)})
+                                        </span>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -163,11 +174,17 @@ const AdminTransactionsPage = () => {
                             {isLoadingKPIs ? "..." : formatCurrency(kpis?.withdrawals || 0)}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                            validés: {formatCurrency(kpis?.withdrawals_completed || 0)}
-                            {pendingWithdrawals > 0 && (
-                                <span className="text-amber-600 ml-1">
-                                    (attente: {formatCurrency(pendingWithdrawals)})
-                                </span>
+                            {statusFilter === 'rejected' ? (
+                                <span className="text-rose-600">rejetés: {formatCurrency(kpis?.withdrawals_rejected || 0)}</span>
+                            ) : (
+                                <>
+                                    validés: {formatCurrency(kpis?.withdrawals_completed || 0)}
+                                    {pendingWithdrawals > 0 && statusFilter !== 'completed' && (
+                                        <span className="text-amber-600 ml-1">
+                                            (attente: {formatCurrency(pendingWithdrawals)})
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </div>
                     </CardContent>

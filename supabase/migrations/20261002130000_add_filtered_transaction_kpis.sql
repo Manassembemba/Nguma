@@ -1,6 +1,6 @@
 ﻿-- Migration: Add Filtered Transaction KPIs Function
 -- Date: 2026-10-02
--- Description: Dynamically calculates KPIs matching all active filters (search_query, type_filter, status_filter, date_from, date_to)
+-- Description: Dynamically calculates KPIs matching active filters, excluding rejected by default
 
 CREATE OR REPLACE FUNCTION public.get_filtered_transaction_kpis(
     p_search_query TEXT DEFAULT NULL,
@@ -23,8 +23,8 @@ BEGIN
 
     WITH filtered_txs AS (
         SELECT 
-            t.type,
-            t.status,
+            LOWER(t.type) as type,
+            LOWER(t.status) as status,
             t.amount
         FROM public.transactions t
         LEFT JOIN public.profiles p ON t.user_id = p.id
@@ -42,13 +42,49 @@ BEGIN
     SELECT jsonb_build_object(
         'total_count', COUNT(*),
         'total_amount', COALESCE(SUM(amount), 0),
-        'deposits', COALESCE(SUM(CASE WHEN LOWER(type) = 'deposit' THEN amount ELSE 0 END), 0),
-        'deposits_completed', COALESCE(SUM(CASE WHEN LOWER(type) = 'deposit' AND LOWER(status) = 'completed' THEN amount ELSE 0 END), 0),
-        'withdrawals', COALESCE(SUM(CASE WHEN LOWER(type) = 'withdrawal' THEN amount ELSE 0 END), 0),
-        'withdrawals_completed', COALESCE(SUM(CASE WHEN LOWER(type) = 'withdrawal' AND LOWER(status) = 'completed' THEN amount ELSE 0 END), 0),
-        'transfers', COALESCE(SUM(CASE WHEN LOWER(type) = 'transfer' THEN amount ELSE 0 END), 0),
-        'investments', COALESCE(SUM(CASE WHEN LOWER(type) = 'investment' THEN amount ELSE 0 END), 0),
-        'assurances', COALESCE(SUM(CASE WHEN LOWER(type) IN ('assurance', 'insurance') THEN amount ELSE 0 END), 0)
+
+        -- DEPOTS: rejetés exclus par défaut quand filtre = 'all'
+        'deposits', COALESCE(SUM(CASE 
+            WHEN type = 'deposit' AND (p_status_filter <> 'all' OR status IN ('completed', 'pending')) 
+            THEN amount ELSE 0 END), 0),
+        'deposits_completed', COALESCE(SUM(CASE 
+            WHEN type = 'deposit' AND status = 'completed' 
+            THEN amount ELSE 0 END), 0),
+        'deposits_pending', COALESCE(SUM(CASE 
+            WHEN type = 'deposit' AND status = 'pending' 
+            THEN amount ELSE 0 END), 0),
+        'deposits_rejected', COALESCE(SUM(CASE 
+            WHEN type = 'deposit' AND status = 'rejected' 
+            THEN amount ELSE 0 END), 0),
+
+        -- RETRAITS: rejetés exclus par défaut quand filtre = 'all'
+        'withdrawals', COALESCE(SUM(CASE 
+            WHEN type = 'withdrawal' AND (p_status_filter <> 'all' OR status IN ('completed', 'pending')) 
+            THEN amount ELSE 0 END), 0),
+        'withdrawals_completed', COALESCE(SUM(CASE 
+            WHEN type = 'withdrawal' AND status = 'completed' 
+            THEN amount ELSE 0 END), 0),
+        'withdrawals_pending', COALESCE(SUM(CASE 
+            WHEN type = 'withdrawal' AND status = 'pending' 
+            THEN amount ELSE 0 END), 0),
+        'withdrawals_rejected', COALESCE(SUM(CASE 
+            WHEN type = 'withdrawal' AND status = 'rejected' 
+            THEN amount ELSE 0 END), 0),
+
+        -- TRANSFERTS
+        'transfers', COALESCE(SUM(CASE 
+            WHEN type = 'transfer' AND (p_status_filter <> 'all' OR status IN ('completed', 'pending')) 
+            THEN amount ELSE 0 END), 0),
+
+        -- INVESTISSEMENTS
+        'investments', COALESCE(SUM(CASE 
+            WHEN type = 'investment' AND (p_status_filter <> 'all' OR status IN ('completed', 'pending')) 
+            THEN amount ELSE 0 END), 0),
+
+        -- ASSURANCES
+        'assurances', COALESCE(SUM(CASE 
+            WHEN type IN ('assurance', 'insurance') AND (p_status_filter <> 'all' OR status IN ('completed', 'pending')) 
+            THEN amount ELSE 0 END), 0)
     )
     INTO v_result
     FROM filtered_txs;

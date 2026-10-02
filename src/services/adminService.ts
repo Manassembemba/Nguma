@@ -580,8 +580,12 @@ export interface FilteredTransactionKpi {
   total_amount: number;
   deposits: number;
   deposits_completed: number;
+  deposits_pending: number;
+  deposits_rejected: number;
   withdrawals: number;
   withdrawals_completed: number;
+  withdrawals_pending: number;
+  withdrawals_rejected: number;
   transfers: number;
   investments: number;
   assurances: number;
