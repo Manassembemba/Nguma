@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { getAdminTransactionHistory, getTransactionKPIs } from "@/services/adminService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { Loader2, Search, Eye, Filter, ArrowLeft, ArrowRight, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, RotateCcw, XCircle } from "lucide-react";
+import { Loader2, Search, Eye, Filter, ArrowLeft, ArrowRight, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, RotateCcw, XCircle, TrendingUp, ShieldCheck } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth, endOfDay, startOfDay } from "date-fns";
 
 const AdminTransactionsPage = () => {
@@ -19,7 +19,7 @@ const AdminTransactionsPage = () => {
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [datePreset, setDatePreset] = useState("all");
-    const [kpiPeriod, setKpiPeriod] = useState<"week" | "month" | "custom">("month");
+    const [kpiPeriod, setKpiPeriod] = useState<"all" | "month" | "last_month" | "week" | "today" | "custom">("month");
     const [page, setPage] = useState(1);
     const pageSize = 10;
 
@@ -32,9 +32,17 @@ const AdminTransactionsPage = () => {
     });
 
     const { data: kpis, isLoading: isLoadingKPIs } = useQuery({
-        queryKey: ["adminTransactionKPIs", dateFrom, dateTo],
-        queryFn: () => getTransactionKPIs(dateFrom, dateTo),
+        queryKey: ["adminTransactionKPIs", kpiPeriod, dateFrom, dateTo],
+        queryFn: () => getTransactionKPIs(
+            kpiPeriod === "custom" ? dateFrom : '',
+            kpiPeriod === "custom" ? dateTo : ''
+        ),
+        staleTime: 30_000,
     });
+
+    // Map kpiPeriod to the JSON key returned by the RPC
+    // ("custom" uses the "period" key computed from dateFrom/dateTo)
+    const effectiveKpiKey = kpiPeriod === "custom" ? "period" : kpiPeriod;
 
     const transactions = (data as any)?.data || [];
     const totalCount = (data as any)?.count || 0;
@@ -110,20 +118,23 @@ const AdminTransactionsPage = () => {
         <div className="p-8 space-y-6">
             <div>
                 <h1 className="text-3xl font-bold mb-2">Historique des Transactions</h1>
-                <p className="text-muted-foreground">Consultez l'historique complet des dépôts, retraits et profits.</p>
+                <p className="text-muted-foreground">Consultez l'historique complet des dÃ©pÃ´ts, retraits et profits.</p>
             </div>
 
             {/* KPI Period Selector */}
-            <div className="flex items-center gap-4 mb-4">
-                <label className="text-sm font-medium">Période des KPIs:</label>
-                <Select value={kpiPeriod} onValueChange={(v: "week" | "month" | "custom") => setKpiPeriod(v)}>
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+                <label className="text-sm font-medium">PÃ©riode des KPIs:</label>
+                <Select value={kpiPeriod} onValueChange={(v: "all" | "month" | "last_month" | "week" | "today" | "custom") => setKpiPeriod(v)}>
                     <SelectTrigger className="w-[200px]">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="all">Tout l'historique</SelectItem>
+                        <SelectItem value="today">Aujourd'hui</SelectItem>
                         <SelectItem value="week">Cette semaine</SelectItem>
                         <SelectItem value="month">Ce mois</SelectItem>
-                        <SelectItem value="custom">Personnalisée</SelectItem>
+                        <SelectItem value="last_month">Mois dernier</SelectItem>
+                        <SelectItem value="custom">PersonnalisÃ©e</SelectItem>
                     </SelectContent>
                 </Select>
                 {kpiPeriod === "custom" && (
@@ -133,7 +144,7 @@ const AdminTransactionsPage = () => {
                             value={dateFrom}
                             onChange={(e) => setDateFrom(e.target.value)}
                             className="w-[150px]"
-                            placeholder="Date début"
+                            placeholder="Date dÃ©but"
                         />
                         <span>-</span>
                         <Input
@@ -148,45 +159,83 @@ const AdminTransactionsPage = () => {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <ArrowDownCircle className="h-4 w-4 text-blue-500" />
-                            Total Dépôts (Période)
+                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            <ArrowDownCircle className="h-4 w-4 text-blue-500 shrink-0" />
+                            Total DÃ©pÃ´ts
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[kpiPeriod]?.deposits || 0)}
+                        <div className="text-xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[effectiveKpiKey]?.deposits || 0)}
+                        </div>
+                        {kpis?.[effectiveKpiKey]?.deposits_completed !== undefined && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                                validÃ©s: {formatCurrency(kpis?.[effectiveKpiKey]?.deposits_completed || 0)}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            <ArrowUpCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                            Total Retraits
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[effectiveKpiKey]?.withdrawals || 0)}
+                        </div>
+                        {kpis?.[effectiveKpiKey]?.withdrawals_completed !== undefined && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                                validÃ©s: {formatCurrency(kpis?.[effectiveKpiKey]?.withdrawals_completed || 0)}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            <ArrowLeftRight className="h-4 w-4 text-purple-500 shrink-0" />
+                            Total Transferts
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[effectiveKpiKey]?.transfers || 0)}
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <ArrowUpCircle className="h-4 w-4 text-rose-500" />
-                            Total Retraits (Période)
+                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            <TrendingUp className="h-4 w-4 text-green-500 shrink-0" />
+                            Investissements
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[kpiPeriod]?.withdrawals || 0)}
+                        <div className="text-xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[effectiveKpiKey]?.investments || 0)}
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <ArrowLeftRight className="h-4 w-4 text-purple-500" />
-                            Total Transferts (Période)
+                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-orange-500 shrink-0" />
+                            Assurances
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[kpiPeriod]?.transfers || 0)}
+                        <div className="text-xl font-bold">
+                            {isLoadingKPIs ? "..." : formatCurrency(kpis?.[effectiveKpiKey]?.assurances || 0)}
                         </div>
                     </CardContent>
                 </Card>
@@ -211,12 +260,12 @@ const AdminTransactionsPage = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tous les types</SelectItem>
-                                    <SelectItem value="deposit">Dépôts</SelectItem>
+                                    <SelectItem value="deposit">DÃ©pÃ´ts</SelectItem>
                                     <SelectItem value="withdrawal">Retraits</SelectItem>
                                     <SelectItem value="profit">Profits</SelectItem>
                                     <SelectItem value="investment">Investissements</SelectItem>
                                     <SelectItem value="refund">Remboursements</SelectItem>
-                                    <SelectItem value="admin_credit">Crédits Admin</SelectItem>
+                                    <SelectItem value="admin_credit">CrÃ©dits Admin</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
@@ -225,9 +274,9 @@ const AdminTransactionsPage = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tous les statuts</SelectItem>
-                                    <SelectItem value="completed">Validé</SelectItem>
+                                    <SelectItem value="completed">ValidÃ©</SelectItem>
                                     <SelectItem value="pending">En attente</SelectItem>
-                                    <SelectItem value="rejected">Rejeté</SelectItem>
+                                    <SelectItem value="rejected">RejetÃ©</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -235,14 +284,14 @@ const AdminTransactionsPage = () => {
                         <div className="flex items-center gap-2">
                             <Select value={datePreset} onValueChange={handlePresetChange}>
                                 <SelectTrigger className="w-full md:w-[150px]">
-                                    <SelectValue placeholder="Période" />
+                                    <SelectValue placeholder="PÃ©riode" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tout l'historique</SelectItem>
                                     <SelectItem value="today">Aujourd'hui</SelectItem>
                                     <SelectItem value="week">Cette semaine</SelectItem>
                                     <SelectItem value="month">Ce mois</SelectItem>
-                                    <SelectItem value="custom">Personnalisé</SelectItem>
+                                    <SelectItem value="custom">PersonnalisÃ©</SelectItem>
                                 </SelectContent>
                             </Select>
                             {datePreset === 'custom' && (
@@ -270,7 +319,7 @@ const AdminTransactionsPage = () => {
                                             <TableHead>Utilisateur</TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead>Montant</TableHead>
-                                            <TableHead>Méthode</TableHead>
+                                            <TableHead>MÃ©thode</TableHead>
                                             <TableHead>Statut</TableHead>
                                             <TableHead className="text-right">Preuve</TableHead>
                                         </TableRow>
@@ -285,13 +334,13 @@ const AdminTransactionsPage = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className={getTypeColor(tx.type)}>
-                                                        {tx.type === 'deposit' ? 'Dépôt' :
+                                                        {tx.type === 'deposit' ? 'DÃ©pÃ´t' :
                                                             tx.type === 'withdrawal' ? 'Retrait' :
                                                                 tx.type === 'profit' ? 'Profit' :
                                                                     tx.type === 'investment' ? 'Investissement' :
                                                                         tx.type === 'assurance' ? 'Assurance' :
                                                                             tx.type === 'refund' ? 'Remboursement' :
-                                                                                tx.type === 'admin_credit' ? 'Crédit Admin' :
+                                                                                tx.type === 'admin_credit' ? 'CrÃ©dit Admin' :
                                                                                     tx.type}
                                                     </Badge>
                                                 </TableCell>
@@ -303,7 +352,7 @@ const AdminTransactionsPage = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className={getStatusColor(tx.status)}>
-                                                        {tx.status === 'completed' ? 'Validé' : tx.status === 'rejected' ? 'Rejeté' : 'En attente'}
+                                                        {tx.status === 'completed' ? 'ValidÃ©' : tx.status === 'rejected' ? 'RejetÃ©' : 'En attente'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
@@ -315,10 +364,10 @@ const AdminTransactionsPage = () => {
                                                                 let fullUrl = tx.proof_url;
                                                                 if (fullUrl && !fullUrl.startsWith('http')) {
                                                                     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                                                                    // Utiliser le type de transaction pour déterminer le bucket probable
+                                                                    // Utiliser le type de transaction pour dÃ©terminer le bucket probable
                                                                     const bucket = tx.type === 'withdrawal' ? 'withdrawal-proofs' : 'payment_proofs';
                                                                     
-                                                                    // Vérifier si le proof_url contient déjà le bucket (ex: "payment_proofs/image.jpg")
+                                                                    // VÃ©rifier si le proof_url contient dÃ©jÃ  le bucket (ex: "payment_proofs/image.jpg")
                                                                     if (fullUrl.startsWith(bucket + '/')) {
                                                                         fullUrl = `${supabaseUrl}/storage/v1/object/public/${fullUrl}`;
                                                                     } else {
@@ -342,7 +391,7 @@ const AdminTransactionsPage = () => {
                             {/* Pagination */}
                             <div className="flex items-center justify-between mt-4">
                                 <div className="text-sm text-muted-foreground">
-                                    Page {page} sur {totalPages} ({totalCount} résultats)
+                                    Page {page} sur {totalPages} ({totalCount} rÃ©sultats)
                                 </div>
                                 <div className="flex gap-2">
                                     <Button
@@ -366,7 +415,7 @@ const AdminTransactionsPage = () => {
                         </>
                     ) : (
                         <div className="text-center py-12 text-muted-foreground">
-                            Aucune transaction trouvée pour ces critères.
+                            Aucune transaction trouvÃ©e pour ces critÃ¨res.
                         </div>
                     )}
                 </CardContent>

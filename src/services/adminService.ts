@@ -565,6 +565,16 @@ export const getAdminTransactionHistory = async (
   return data;
 };
 
+export interface TransactionKpiItem {
+  deposits: number;
+  deposits_completed?: number;
+  withdrawals: number;
+  withdrawals_completed?: number;
+  transfers: number;
+  investments?: number;
+  assurances?: number;
+}
+
 export const getTransactionKPIs = async (
   dateFrom: string = '',
   dateTo: string = ''
@@ -578,10 +588,12 @@ export const getTransactionKPIs = async (
     throw new Error("Could not fetch transaction KPIs.");
   }
   return data as {
-    today: { deposits: number; withdrawals: number; transfers: number };
-    week: { deposits: number; withdrawals: number; transfers: number };
-    month: { deposits: number; withdrawals: number; transfers: number };
-    period: { deposits: number; withdrawals: number; transfers: number };
+    all: TransactionKpiItem;
+    today: TransactionKpiItem;
+    week: TransactionKpiItem;
+    month: TransactionKpiItem;
+    last_month: TransactionKpiItem;
+    period: TransactionKpiItem;
   };
 };
 
